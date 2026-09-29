@@ -1,0 +1,19 @@
+{
+  "name": "repocanon",
+  "version": "0.4.0",
+  "description": "Project knowledge layer (.ai/) for AI coding agents: fewer tokens, tracked changes, any stack.",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "repocanon": "bin/repocanon.js",
+    "contextforge": "bin/contextforge.js"
+  },
+  "engines": { "node": ">=18" },
+  "files": ["bin", "src", "templates", "docs", "README.md"],
+  "scripts": { "test": "node --test test/*.test.js" },
+  "license": "MIT",
+  "keywords": ["ai", "context", "agents", "repocanon", "cursor", "claude", "windsurf", "copilot", "AGENTS.md", "mcp"]
+}

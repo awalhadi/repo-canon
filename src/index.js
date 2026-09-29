@@ -1,0 +1,65 @@
+'use strict';
+
+// Core modules
+const constants = require('./core/constants');
+const errors = require('./core/errors');
+const git = require('./core/git');
+const fs = require('./core/fs');
+const frontmatter = require('./core/frontmatter');
+const blocks = require('./core/blocks');
+const config = require('./core/config');
+const tokens = require('./core/tokens');
+const detector = require('./core/detector');
+const presets = require('./core/presets');
+const modules = require('./core/modules');
+
+// Services
+const initService = require('./services/init.service');
+const analyzeService = require('./services/analyze.service');
+const doctorService = require('./services/doctor.service');
+const statusService = require('./services/status.service');
+const syncService = require('./services/sync.service');
+const packService = require('./services/pack.service');
+const promptService = require('./services/prompt.service');
+const factsService = require('./services/facts.service');
+const hookService = require('./services/hook.service');
+
+// CLI & MCP
+const cli = require('./cli/router');
+const mcp = require('./mcp/server');
+
+module.exports = {
+  // Domain Services
+  init: initService.initProject,
+  analyze: analyzeService.analyzeProject,
+  overview: analyzeService.getProjectOverview,
+  doctor: doctorService.runDoctor,
+  status: statusService.getDocStatus,
+  stamp: statusService.stampDocs,
+  sync: syncService.syncProject,
+  formatSyncReport: syncService.formatSyncReport,
+  pack: packService.packContext,
+  moduleMap: packService.getModuleMap,
+  buildFill: promptService.buildFillPrompt,
+  facts: factsService.collectProjectFacts,
+  installHook: hookService.installPreCommitHook,
+
+  // Infrastructure & Core
+  core: {
+    constants,
+    errors,
+    git,
+    fs,
+    frontmatter,
+    blocks,
+    config,
+    tokens,
+    detector,
+    presets,
+    modules
+  },
+
+  // CLI & MCP
+  cli,
+  mcp
+};
