@@ -31,6 +31,50 @@ test('init preserves existing CLAUDE.md and is idempotent', () => {
   assert.equal((a.match(/repocanon:start/g) || []).length, 1);
 });
 
+test('init --targets writes only the chosen tools and saves the choice', () => {
+  const d = repo({ 'package.json': '{}' });
+  const r = cf(d, 'init', '--targets=claude,cursor');
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(fs.existsSync(path.join(d, 'CLAUDE.md')) && fs.existsSync(path.join(d, '.cursor/rules/project.mdc')));
+  for (const f of ['GEMINI.md', '.windsurfrules', '.clinerules', '.github/copilot-instructions.md']) assert.equal(fs.existsSync(path.join(d, f)), false, f);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(d, '.repocanon.json'), 'utf8')).targets, ['claude', 'cursor']);
+  assert.match(r.stdout, /Tools: Claude Code, Cursor/);
+});
+
+test('init re-run with saved targets is a no-op and says so', () => {
+  const d = repo({ 'package.json': '{}' }); cf(d, 'init', '--targets=claude,codex');
+  const snap = () => ['AGENTS.md', 'CLAUDE.md', '.repocanon.json', '.ai/STATE.md'].map(f => fs.readFileSync(path.join(d, f), 'utf8'));
+  const before = snap();
+  const r = cf(d, 'init');
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /Up to date — 2 tool\(s\): Claude Code, OpenAI Codex \/ ChatGPT\. Nothing changed\./);
+  assert.deepEqual(snap(), before);
+});
+
+test('init: deselected tools are kept unless --prune; prune keeps user text', () => {
+  const d = repo({ 'package.json': '{}', 'CLAUDE.md': 'MY OWN RULES\n' }); cf(d, 'init', '--targets=claude,cursor');
+  const kept = cf(d, 'init', '--targets=cursor');
+  assert.match(kept.stdout, /! CLAUDE\.md \(not selected — kept; use --prune to remove\)/);
+  assert.match(fs.readFileSync(path.join(d, 'CLAUDE.md'), 'utf8'), /@AGENTS\.md/);
+  const pruned = cf(d, 'init', '--targets=none', '--prune');
+  assert.equal(pruned.status, 0, pruned.stderr);
+  assert.equal(fs.readFileSync(path.join(d, 'CLAUDE.md'), 'utf8'), 'MY OWN RULES\n');
+  assert.equal(fs.existsSync(path.join(d, '.cursor/rules/project.mdc')), false);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(d, '.repocanon.json'), 'utf8')).targets, []);
+});
+
+test('init: unknown or empty --targets fails with the valid list; no tools detected → AGENTS.md only', () => {
+  const d = repo({ 'package.json': '{}' });
+  const bad = cf(d, 'init', '--targets=claude,zed');
+  assert.equal(bad.status, 1); assert.match(bad.stderr, /unknown target zed — choose from: claude, cursor/);
+  assert.equal(fs.existsSync(path.join(d, '.ai')), false);
+  assert.equal(cf(d, 'init', '--targets').status, 1);
+  const r = cf(d, 'init');
+  assert.match(r.stdout, /No AI tool detected, so only AGENTS\.md was written/);
+  assert.ok(fs.existsSync(path.join(d, 'AGENTS.md')));
+  for (const f of ['CLAUDE.md', 'GEMINI.md', '.cursor/rules/project.mdc']) assert.equal(fs.existsSync(path.join(d, f)), false, f);
+});
+
 test('malicious code_paths / verified_at never reach a shell', () => {
   const d = laravel(); cf(d, 'init'); cf(d, 'analyze', '--scaffold');
   const pwn = path.join(os.tmpdir(), 'cf-pwned-' + process.pid);

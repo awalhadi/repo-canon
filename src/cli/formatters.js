@@ -18,7 +18,9 @@ function printJson(data) {
 function getHelpText() {
   return `repocanon ${pkg.version} — project knowledge layer (.ai/) for AI coding agents
 
-  init [--force]           .ai/, AGENTS.md + IDE pointers (managed blocks, existing content preserved), .repocanon.json
+  init [--targets=a,b|all|none] [--yes] [--prune] [--force]
+                           .ai/, AGENTS.md, .repocanon.json + pointer files for the AI tools you pick
+                           (interactive picker in a terminal; re-run any time to add/remove tools)
   analyze [--scaffold]     refresh module/path map in .ai/INDEX.md (--scaffold: module doc stubs)
   doctor [--ci] [--json]   lint the knowledge layer: size caps, TODOs, broken paths, IDE pointers, token budget
   status [--ci] [--json]   docs fresh/stale/broken/unverified vs git

@@ -14,6 +14,23 @@ repocanon prompt update    # paste into agent; after it finishes:
 repocanon stamp <module>
 ```
 
+## Choosing tools
+In a terminal, `init` opens a picker (↑/↓, space, `a` = all/none, enter) for the AI tools that should read the knowledge layer. `AGENTS.md` is always written; each tool you pick gets a small pointer file:
+
+| id | tool | file written |
+|---|---|---|
+| `claude` | Claude Code | `CLAUDE.md` (`@AGENTS.md` import) |
+| `cursor` | Cursor | `.cursor/rules/project.mdc` |
+| `copilot` | GitHub Copilot | `.github/copilot-instructions.md` |
+| `gemini` | Gemini CLI / Antigravity | `GEMINI.md` |
+| `windsurf` | Windsurf | `.windsurfrules` |
+| `cline` | Cline | `.clinerules` |
+| `codex` | OpenAI Codex / ChatGPT | nothing extra — reads `AGENTS.md` natively |
+
+Your choice is saved as `targets` in `.repocanon.json`. Re-running `init` reopens the picker with that choice and marks each tool `set up` or `detected`; if nothing changed it prints `Up to date`. Untick a tool and `init` offers to remove its RepoCanon block. Only that block goes: your own text stays, and the file is deleted only if nothing else is in it.
+
+Scripts and CI (no terminal): `--targets=claude,cursor`, `--targets=all` or `--targets=none` picks directly; `--yes` keeps the saved choice (or the detected tools); `--prune` removes blocks of tools you no longer select.
+
 ## Install
 ```bash
 cd /path/to/repocanon && npm link      # gives you the global `repocanon` command
@@ -24,7 +41,7 @@ echo "alias repocanon='node /path/to/repocanon/bin/repocanon.js'" >> ~/.zshrc &&
 ## Commands
 | command | what it does |
 |---|---|
-| `init [--force]` | `.ai/`, `AGENTS.md`, IDE pointer files, `.repocanon.json`; auto-detects stack + run/test cmds |
+| `init [--targets=a,b\|all\|none] [--yes] [--prune] [--force]` | `.ai/`, `AGENTS.md`, `.repocanon.json` + pointer files for the AI tools you pick (see [Choosing tools](#choosing-tools)); auto-detects stack + run/test cmds |
 | `analyze [--scaffold]` | regenerates module/path map in `.ai/INDEX.md`; `--scaffold` creates module doc stubs with `code_paths` |
 | `doctor [--ci] [--json]` | lint the layer: size caps, leftover TODOs, broken paths, missing IDE pointers, token budget vs repo |
 | `context [words] [--files=a,b] [--max=N]` | print the budgeted context pack an agent should read for a task |

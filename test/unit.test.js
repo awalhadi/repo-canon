@@ -319,3 +319,39 @@ test('targets service: plan previews create/append/unchanged/keep/remove, apply 
   assert.equal(fs.readFileSync(path.join(repoDir, 'GEMINI.md'), 'utf8'), 'MY GEMINI RULES\n');
   assert.deepEqual(loadConfig(repoDir).targets, ['claude']);
 });
+
+test('picker: reduceSelection moves, wraps, toggles, selects all/none, confirms and cancels', () => {
+  const { createSelectState, reduceSelection } = require('../src/cli/prompt');
+  const items = [{ id: 'claude' }, { id: 'cursor' }, { id: 'codex' }];
+  let s = createSelectState(items, ['codex', 'nope']);
+  assert.deepEqual(s.selected, ['codex']);
+  s = reduceSelection(s, 'up');
+  assert.equal(s.cursor, 2);
+  s = reduceSelection(reduceSelection(s, 'down'), 'space');
+  assert.deepEqual(s.selected, ['claude', 'codex']);
+  s = reduceSelection(s, 'a');
+  assert.deepEqual(s.selected, ['claude', 'cursor', 'codex']);
+  s = reduceSelection(s, 'a');
+  assert.deepEqual(s.selected, []);
+  assert.equal(reduceSelection(s, 'x'), s);
+  assert.equal(reduceSelection(s, 'return').done, true);
+  assert.equal(reduceSelection(s, 'escape').cancelled, true);
+  assert.equal(reduceSelection(s, 'cancel').cancelled, true);
+});
+
+test('picker: renderMenu aligns columns and marks cursor, choice and status', () => {
+  const { createSelectState, renderMenu } = require('../src/cli/prompt');
+  const items = [
+    { id: 'claude', label: 'Claude Code', detail: 'CLAUDE.md', note: 'set up' },
+    { id: 'cline', label: 'Cline', detail: '.clinerules' }
+  ];
+  const text = renderMenu(createSelectState(items, ['claude']), { title: 'Pick', hint: 'keys', footer: 'foot' });
+  assert.equal(text, [
+    'Pick',
+    'keys',
+    '',
+    '  ❯ [x] Claude Code  CLAUDE.md    set up',
+    '    [ ] Cline        .clinerules',
+    '\nfoot'
+  ].join('\n'));
+});

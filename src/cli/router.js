@@ -31,8 +31,9 @@ const COMMAND_HANDLERS = {
  * Main CLI router and execution entrypoint.
  *
  * @param {string[]} [rawArgv=process.argv.slice(2)]
+ * @returns {Promise<void>}
  */
-function runCli(rawArgv = process.argv.slice(2)) {
+async function runCli(rawArgv = process.argv.slice(2)) {
   try {
     const context = parseArgs(rawArgv);
 
@@ -48,7 +49,7 @@ function runCli(rawArgv = process.argv.slice(2)) {
 
     const handler = COMMAND_HANDLERS[context.command];
     if (handler) {
-      handler(context);
+      await handler(context);
     } else {
       console.log(getHelpText());
     }
