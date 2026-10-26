@@ -6,7 +6,7 @@ const { syncProject, formatSyncReport } = require('../../services/sync.service')
 const { printJson } = require('../formatters');
 
 /**
- * Handles the `contextforge sync` CLI command.
+ * Handles the `repocanon sync` CLI command.
  */
 function handleSync(context) {
   const { root, flags, options, isJson } = context;

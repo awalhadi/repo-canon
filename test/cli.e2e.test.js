@@ -69,8 +69,8 @@ test('mcp: initialize, list, call over stdio', async () => {
   const send = (id, method, params) => p.stdin.write(JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n');
   send(1, 'initialize', { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 't', version: '0' } });
   p.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) + '\n');
-  send(2, 'tools/list', {}); send(3, 'tools/call', { name: 'cf_find_owner', arguments: { path: 'app/Actions/Billing/A.php' } });
-  send(4, 'tools/call', { name: 'cf_module', arguments: { name: '../../etc/passwd' } });
+  send(2, 'tools/list', {}); send(3, 'tools/call', { name: 'rc_find_owner', arguments: { path: 'app/Actions/Billing/A.php' } });
+  send(4, 'tools/call', { name: 'rc_module', arguments: { name: '../../etc/passwd' } });
   await new Promise(r => setTimeout(r, 1200)); p.kill();
   const msgs = buf.trim().split('\n').map(JSON.parse);
   assert.equal(msgs.length, 4);

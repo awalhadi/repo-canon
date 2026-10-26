@@ -57,24 +57,15 @@ function validateConfig(config) {
 }
 
 /**
- * Loads and validates .repocanon.json (or legacy .contextforge.json) from a project root.
+ * Loads and validates .repocanon.json from a project root.
  * Sanitizes and falls back to safe defaults if file is missing or invalid.
  *
  * @param {string} root - Project root directory
  * @returns {typeof DEFAULT_CONFIG & { _found: boolean }}
  */
 function loadConfig(root) {
-  let configPath = path.join(root, '.repocanon.json');
-  let rawText = read(configPath);
-
-  if (!rawText) {
-    const legacyPath = path.join(root, '.contextforge.json');
-    const legacyText = read(legacyPath);
-    if (legacyText) {
-      configPath = legacyPath;
-      rawText = legacyText;
-    }
-  }
+  const configPath = path.join(root, '.repocanon.json');
+  const rawText = read(configPath);
 
   if (!rawText) {
     return { ...DEFAULT_CONFIG, _found: false };

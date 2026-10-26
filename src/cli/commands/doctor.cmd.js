@@ -4,7 +4,7 @@ const { runDoctor } = require('../../services/doctor.service');
 const { STATUS_ICONS, printJson } = require('../formatters');
 
 /**
- * Handles the `contextforge doctor` CLI command.
+ * Handles the `repocanon doctor` CLI command.
  */
 function handleDoctor(context) {
   const { root, flags, isJson, isCi } = context;

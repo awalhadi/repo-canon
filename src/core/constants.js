@@ -42,7 +42,7 @@ const DOC_LINE_CAPS = [
 const MODULE_DOC_LINE_CAP = 100;
 
 /**
- * Known IDE pointer files checked and created by ContextForge.
+ * Known IDE pointer files checked and created by RepoCanon.
  */
 const IDE_POINTERS = [
   'CLAUDE.md',

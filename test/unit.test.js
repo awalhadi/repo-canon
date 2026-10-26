@@ -163,19 +163,21 @@ test('MCP tool execution directly via API', () => {
   cfApi.init(repoDir);
   cfApi.analyze(repoDir, { scaffold: true });
 
-  const contextResult = executeTool(repoDir, 'cf_context', { query: 'auth login', max_tokens: 1000 });
+  const contextResult = executeTool(repoDir, 'rc_context', { query: 'auth login', max_tokens: 1000 });
   assert.ok(typeof contextResult === 'string');
   assert.ok(contextResult.includes('.ai/PROJECT.md'));
 
-  const ownerResult = JSON.parse(executeTool(repoDir, 'cf_find_owner', { path: 'src/features/auth/login.js' }));
+  const ownerResult = JSON.parse(executeTool(repoDir, 'rc_find_owner', { path: 'src/features/auth/login.js' }));
   assert.equal(ownerResult[0].module, 'auth');
 
-  const statusResult = JSON.parse(executeTool(repoDir, 'cf_status', {}));
+  const statusResult = JSON.parse(executeTool(repoDir, 'rc_status', {}));
   assert.ok(Array.isArray(statusResult));
   assert.ok(statusResult.some(r => r.doc.includes('PROJECT.md')));
+
+  assert.throws(() => executeTool(repoDir, 'cf_context', {}), /unknown tool cf_context/);
 });
 
-test('MCP cf_prepare_fill and cf_sync_report return actionable text, not a copy-paste prompt', () => {
+test('MCP rc_prepare_fill and rc_sync_report return actionable text, not a copy-paste prompt', () => {
   const repoDir = createTempRepo({
     'package.json': '{"name": "test-pkg"}',
     'src/features/auth/login.js': 'export const login = () => {};'
@@ -184,12 +186,12 @@ test('MCP cf_prepare_fill and cf_sync_report return actionable text, not a copy-
   cfApi.init(repoDir);
   cfApi.analyze(repoDir, { scaffold: true });
 
-  const fillBrief = executeTool(repoDir, 'cf_prepare_fill', {});
+  const fillBrief = executeTool(repoDir, 'rc_prepare_fill', {});
   assert.ok(typeof fillBrief === 'string' && fillBrief.length > 0);
 
-  const compactBrief = executeTool(repoDir, 'cf_prepare_fill', { compact: true });
+  const compactBrief = executeTool(repoDir, 'rc_prepare_fill', { compact: true });
   assert.ok(compactBrief.length < fillBrief.length);
 
-  const syncReport = executeTool(repoDir, 'cf_sync_report', {});
+  const syncReport = executeTool(repoDir, 'rc_sync_report', {});
   assert.ok(typeof syncReport === 'string');
 });

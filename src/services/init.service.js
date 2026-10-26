@@ -55,7 +55,7 @@ function initProject(root, options = {}) {
   };
 
   // Base configurations and ignore files
-  const templateConfig = read(path.join(TEMPLATES_DIR, 'repocanon.json')) || read(path.join(TEMPLATES_DIR, 'contextforge.json'));
+  const templateConfig = read(path.join(TEMPLATES_DIR, 'repocanon.json'));
   putFile('.repocanon.json', templateConfig);
   putFile('.ai/.gitignore', '.sync-report.md\n');
 

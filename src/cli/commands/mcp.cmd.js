@@ -3,7 +3,7 @@
 const { startMcpServer } = require('../../mcp/server');
 
 /**
- * Handles the `contextforge mcp` CLI command.
+ * Handles the `repocanon mcp` CLI command.
  */
 function handleMcp(context) {
   const { root } = context;

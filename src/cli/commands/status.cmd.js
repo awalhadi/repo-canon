@@ -4,7 +4,7 @@ const { getDocStatus } = require('../../services/status.service');
 const { STATUS_ICONS, printJson } = require('../formatters');
 
 /**
- * Handles the `contextforge status` CLI command.
+ * Handles the `repocanon status` CLI command.
  */
 function handleStatus(context) {
   const { root, isJson, isCi } = context;

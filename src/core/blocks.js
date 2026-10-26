@@ -4,8 +4,6 @@ const { read, write } = require('./fs');
 
 const BLOCK_START = '<!-- repocanon:start -->';
 const BLOCK_END = '<!-- repocanon:end -->';
-const LEGACY_BLOCK_START = '<!-- contextforge:start -->';
-const LEGACY_BLOCK_END = '<!-- contextforge:end -->';
 
 /**
  * Idempotently injects or replaces a managed block in a file.
@@ -24,11 +22,8 @@ function upsertManagedBlock(filePath, body, prefix = '') {
     return 'created';
   }
 
-  if (currentContent.includes(BLOCK_START) || currentContent.includes(LEGACY_BLOCK_START)) {
-    const hasCurrent = currentContent.includes(BLOCK_START);
-    const startPattern = hasCurrent ? BLOCK_START : LEGACY_BLOCK_START;
-    const endPattern = hasCurrent ? BLOCK_END : LEGACY_BLOCK_END;
-    const blockRegex = new RegExp(`${startPattern}[\\s\\S]*?${endPattern}`);
+  if (currentContent.includes(BLOCK_START)) {
+    const blockRegex = new RegExp(`${BLOCK_START}[\\s\\S]*?${BLOCK_END}`);
     const nextContent = currentContent.replace(blockRegex, () => blockContent);
     if (nextContent === currentContent) {
       return 'unchanged';
@@ -44,7 +39,5 @@ function upsertManagedBlock(filePath, body, prefix = '') {
 module.exports = {
   BLOCK_START,
   BLOCK_END,
-  LEGACY_BLOCK_START,
-  LEGACY_BLOCK_END,
   upsertManagedBlock
 };

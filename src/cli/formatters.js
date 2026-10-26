@@ -30,7 +30,8 @@ function getHelpText() {
   hook                     pre-commit warning (never blocks)
   prompt fill [--compact]  rich, evidence-loaded brief to paste into your agent (--compact: short form)
   prompt update            prompt for syncing docs after code changes
-  mcp                      MCP server on stdio (tools: rc_context/cf_context, rc_module, rc_find_owner, rc_status)
+  mcp                      MCP server on stdio (tools: rc_context, rc_module, rc_find_owner, rc_status,
+                           rc_prepare_fill, rc_sync_report)
 
   global: --root=<dir> run against another directory | --version`;
 }

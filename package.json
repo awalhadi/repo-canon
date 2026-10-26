@@ -8,8 +8,7 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "repocanon": "bin/repocanon.js",
-    "contextforge": "bin/contextforge.js"
+    "repocanon": "bin/repocanon.js"
   },
   "engines": { "node": ">=18" },
   "files": ["bin", "src", "templates", "docs", "README.md"],

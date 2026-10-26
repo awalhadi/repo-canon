@@ -3,7 +3,7 @@
 const { stampDocs } = require('../../services/status.service');
 
 /**
- * Handles the `contextforge stamp` CLI command.
+ * Handles the `repocanon stamp` CLI command.
  */
 function handleStamp(context) {
   const { root, args } = context;
