@@ -26,7 +26,9 @@ function getHelpText() {
                            changed code since docs were verified → what to update
   context [words…] [--files=a,b] [--max=4000]
                            print a budgeted context pack for a task (what an agent should read)
-  stamp [name]             set verified_at = current commit (after confirming a doc)
+  stamp <name…> | --all [--force]
+                           set verified_at = current commit on docs you re-checked
+                           (refuses when their code has uncommitted changes)
   hook                     pre-commit warning (never blocks)
   prompt fill [--compact]  rich, evidence-loaded brief to paste into your agent (--compact: short form)
   prompt update            prompt for syncing docs after code changes

@@ -31,7 +31,7 @@ echo "alias repocanon='node /path/to/repocanon/bin/repocanon.js'" >> ~/.zshrc &&
 | `mcp` | MCP stdio server: `rc_context`, `rc_module`, `rc_find_owner`, `rc_status` (read-only) + `rc_prepare_fill`, `rc_sync_report` (agent calls these itself and writes the docs — no copy-paste) |
 | `status [--ci] [--json]` | fresh / stale / broken / unverified per doc (broken = `code_paths` no longer exist) |
 | `sync [--write] [--since=ref] [--json]` | changed files since each doc's `verified_at` → docs to update, `git diff` commands, signals (schema, routes, deps, config), unmapped files |
-| `stamp [name]` | set `verified_at` to current commit after you confirmed a doc |
+| `stamp <name…> \| --all [--force]` | set `verified_at` to current commit on docs you re-checked; exact names only, refuses when their code has uncommitted changes |
 | `hook` | pre-commit warning (never blocks) |
 | `prompt fill [--compact]` | rich, evidence-loaded brief (structure, dependency/env-key scan, git hotspots, per-stack playbook, phased work plan, self-review checklist, exact final-report format). `--compact` prints the short v0.2-style prompt instead |
 | `prompt update` | prompt for syncing docs after code changes, pre-loaded with the `sync` report |

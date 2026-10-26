@@ -2,12 +2,13 @@
 
 const fs = require('fs');
 const path = require('path');
-const { exists, read, write } = require('../core/fs');
+const { exists, read, write, toSlug } = require('../core/fs');
 const { parseFrontmatter, setFrontmatterValue } = require('../core/frontmatter');
 const {
   isInsideGitRepo,
   isValidRef,
   getHeadShort,
+  getUncommittedPaths,
   execGit
 } = require('../core/git');
 const { CORE_DOCS } = require('../core/constants');
@@ -114,29 +115,108 @@ function getDocStatus(root) {
 }
 
 /**
- * Updates verified_at in documents to current HEAD commit.
+ * Short name a doc is stamped by: module slug for module docs, file name for core docs.
+ *
+ * @param {string} rel - Doc path relative to root
+ * @returns {string}
+ */
+function getDocName(rel) {
+  return path.posix.basename(rel, '.md');
+}
+
+/**
+ * Exact (never substring) match of a user-given name against a doc.
+ * Modules match by slug, core docs case-insensitively; a trailing ".md" is ignored.
+ *
+ * @param {string} rel
+ * @param {string} name
+ * @returns {boolean}
+ */
+function matchesDocName(rel, name) {
+  const bare = String(name).replace(/\.md$/i, '');
+  const docName = getDocName(rel);
+  return rel.includes('/modules/')
+    ? toSlug(bare) === docName
+    : bare.toLowerCase() === docName.toLowerCase();
+}
+
+/**
+ * Pathspecs whose uncommitted changes make stamping a doc unsafe:
+ * a module doc's code_paths, or the whole tree outside .ai/ for core docs.
+ *
+ * @param {{ rel: string, fm: Record<string, any> }} doc
+ * @returns {string[]}
+ */
+function getStampGuardPaths(doc) {
+  if (doc.rel.includes('/modules/')) {
+    return Array.isArray(doc.fm.code_paths) ? doc.fm.code_paths : [];
+  }
+  return ['.', ':(exclude).ai'];
+}
+
+/**
+ * Sets verified_at to the current HEAD commit on the named docs (or all with `all`).
+ * Names match exactly; nothing is stamped when any name is unknown or none is given.
+ * A doc whose code has uncommitted changes is refused unless `force` — its claims
+ * would otherwise be "verified" against code that HEAD does not contain.
  *
  * @param {string} root - Project root directory
- * @param {string} [targetModule] - Target module name/slug filter
- * @returns {string[]} List of modified document relative paths
+ * @param {{ names?: string[], all?: boolean, force?: boolean }|string} [options={}]
+ *   A plain string is treated as a single name.
+ * @returns {{
+ *   head: string|null,
+ *   stamped: string[],
+ *   refused: Array<{ doc: string, reason: string }>,
+ *   unknown: string[],
+ *   needsTarget: boolean,
+ *   known: string[]
+ * }}
  */
-function stampDocs(root, targetModule) {
-  const currentHead = getHeadShort(root);
-  if (!currentHead) {
-    return [];
+function stampDocs(root, options = {}) {
+  const { names = [], all = false, force = false } =
+    typeof options === 'string' ? { names: [options] } : options;
+  const docs = getKnowledgeDocs(root);
+  const result = {
+    head: getHeadShort(root),
+    stamped: [],
+    refused: [],
+    unknown: [],
+    needsTarget: false,
+    known: docs.map(doc => getDocName(doc.rel))
+  };
+
+  if (!result.head) {
+    return result;
   }
 
-  const stampedDocs = [];
-  for (const doc of getKnowledgeDocs(root)) {
-    if (targetModule && !doc.rel.includes(targetModule)) {
+  let targets = docs;
+  if (!all) {
+    if (!names.length) {
+      result.needsTarget = true;
+      return result;
+    }
+    targets = docs.filter(doc => names.some(name => matchesDocName(doc.rel, name)));
+    result.unknown = names.filter(name => !docs.some(doc => matchesDocName(doc.rel, name)));
+    if (result.unknown.length) {
+      return result;
+    }
+  }
+
+  for (const doc of targets) {
+    const dirty = force ? [] : getUncommittedPaths(root, getStampGuardPaths(doc));
+    if (dirty.length) {
+      const sample = dirty.slice(0, 3).join(', ') + (dirty.length > 3 ? ` +${dirty.length - 3} more` : '');
+      result.refused.push({
+        doc: doc.rel,
+        reason: `uncommitted changes (${sample}) — commit first, then stamp (or --force)`
+      });
       continue;
     }
-    const updatedText = setFrontmatterValue(doc.text, 'verified_at', currentHead);
-    write(path.join(root, doc.rel), updatedText);
-    stampedDocs.push(doc.rel);
+    write(path.join(root, doc.rel), setFrontmatterValue(doc.text, 'verified_at', result.head));
+    result.stamped.push(doc.rel);
   }
 
-  return stampedDocs;
+  return result;
 }
 
 module.exports = {

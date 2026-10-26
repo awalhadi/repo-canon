@@ -124,6 +124,23 @@ function getDiffForPaths(cwd, ref, paths) {
 }
 
 /**
+ * Lists uncommitted (modified, staged or untracked) files under the given pathspecs.
+ *
+ * @param {string} cwd
+ * @param {string[]} paths - Pathspecs; entries starting with '-' are dropped
+ * @returns {string[]} Dirty file paths (empty when clean or no usable paths)
+ */
+function getUncommittedPaths(cwd, paths) {
+  const safePaths = paths.filter(p => typeof p === 'string' && p && !p.startsWith('-'));
+  if (!safePaths.length) {
+    return [];
+  }
+  const out = execGit(cwd, ['status', '--porcelain', '--untracked-files=all', '--', ...safePaths]);
+  // execGit trims the output, so the status column can't be cut at a fixed offset
+  return out ? out.split('\n').filter(Boolean).map(line => line.trim().replace(/^\S+\s+/, '')) : [];
+}
+
+/**
  * Lists all git tracked and untracked non-ignored files using null-delimited output.
  *
  * @param {string} cwd
@@ -147,5 +164,6 @@ module.exports = {
   getCommitCount,
   getChangedFilesSince,
   getDiffForPaths,
+  getUncommittedPaths,
   listGitFiles
 };

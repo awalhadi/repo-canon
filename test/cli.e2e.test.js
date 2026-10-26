@@ -41,12 +41,41 @@ test('malicious code_paths / verified_at never reach a shell', () => {
 });
 
 test('status/sync flag changed module; stamp clears it', () => {
-  const d = laravel(); cf(d, 'init'); cf(d, 'analyze', '--scaffold'); g(d, 'add', '-A'); g(d, 'commit', '-qm', 'docs'); cf(d, 'stamp'); g(d, 'add', '-A'); g(d, 'commit', '-qm', 's');
+  const d = laravel(); cf(d, 'init'); cf(d, 'analyze', '--scaffold'); g(d, 'add', '-A'); g(d, 'commit', '-qm', 'docs'); cf(d, 'stamp', '--all'); g(d, 'add', '-A'); g(d, 'commit', '-qm', 's');
   assert.match(cf(d, 'status').stdout, /billing\.md\s+fresh/);
   fs.appendFileSync(path.join(d, 'app/Services/Billing/S.php'), 'y'); g(d, 'commit', '-qam', 'c');
   assert.match(cf(d, 'status').stdout, /billing\.md\s+stale/);
   assert.match(cf(d, 'sync').stdout, /billing\*\* — 1 file/);
   assert.equal(cf(d, 'status', '--ci').status, 1);
+});
+
+test('stamp: bare stamp refuses and changes nothing', () => {
+  const d = laravel(); cf(d, 'init'); cf(d, 'analyze', '--scaffold'); g(d, 'add', '-A'); g(d, 'commit', '-qm', 'docs');
+  const r = cf(d, 'stamp');
+  assert.equal(r.status, 1); assert.match(r.stderr, /needs a doc name \(or --all\)/);
+  assert.equal(g(d, 'status', '--porcelain').toString(), '');
+});
+
+test('stamp: names match exactly, never by substring', () => {
+  const d = laravel(); cf(d, 'init');
+  const mod = n => `---\nmodule: ${n}\nverified_at:\ncode_paths: [app/Services/Auth/]\n---\n# ${n}\n`;
+  fs.writeFileSync(path.join(d, '.ai/modules/user.md'), mod('user'));
+  fs.writeFileSync(path.join(d, '.ai/modules/users.md'), mod('users'));
+  g(d, 'add', '-A'); g(d, 'commit', '-qm', 'docs');
+  const r = cf(d, 'stamp', 'user');
+  assert.equal(r.status, 0, r.stderr); assert.match(r.stdout, /modules\/user\.md/); assert.doesNotMatch(r.stdout, /users\.md|STATE/);
+  assert.match(fs.readFileSync(path.join(d, '.ai/modules/user.md'), 'utf8'), /verified_at: [0-9a-f]{7}/);
+  assert.match(fs.readFileSync(path.join(d, '.ai/modules/users.md'), 'utf8'), /verified_at:\s*\n/);
+  const u = cf(d, 'stamp', 'nope'); assert.equal(u.status, 1); assert.match(u.stderr, /no doc named nope/);
+});
+
+test('stamp: uncommitted code_paths are refused unless --force', () => {
+  const d = laravel(); cf(d, 'init'); cf(d, 'analyze', '--scaffold'); g(d, 'add', '-A'); g(d, 'commit', '-qm', 'docs');
+  fs.appendFileSync(path.join(d, 'app/Services/Billing/S.php'), 'dirty');
+  const r = cf(d, 'stamp', 'billing');
+  assert.equal(r.status, 1); assert.match(r.stdout, /✗ .ai\/modules\/billing\.md: uncommitted changes \(app\/Services\/Billing\/S\.php\)/);
+  assert.match(cf(d, 'stamp', 'auth').stdout, /✓ .ai\/modules\/auth\.md/);   // other modules unaffected
+  const f = cf(d, 'stamp', 'billing', '--force'); assert.equal(f.status, 0); assert.match(f.stdout, /✓ .ai\/modules\/billing\.md/);
 });
 
 test('doctor: errors without AGENTS reference, --ci exit code', () => {

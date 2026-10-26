@@ -411,7 +411,7 @@ function buildFillPrompt(root, options = {}) {
   lines.push(
     '',
     '### Phase 6 · Verify',
-    '- Run `repocanon doctor` and fix every error/warning you caused. Then `repocanon stamp` (only for docs you actually re-checked).'
+    '- Run `repocanon doctor` and fix every error/warning you caused. Then `repocanon stamp <doc>…` for each doc you actually re-checked (commit code first).'
   );
 
   lines.push('', '---');

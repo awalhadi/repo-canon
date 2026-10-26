@@ -19,4 +19,4 @@ Modules (slug: code paths):
 - Line caps: PROJECT ≤150, DOMAIN ≤300, module ≤100.
 - Keep the `cf:auto` block in INDEX.md untouched. Do not modify source code.
 - Anything you cannot confirm from code, tests or config → write `TODO: verify`. Never guess or state assumptions as facts.
-- Finish by listing: what you filled, what remains TODO, and any doc↔code conflict you noticed. Then run `repocanon doctor` and `repocanon stamp`.
+- Finish by listing: what you filled, what remains TODO, and any doc↔code conflict you noticed. Then run `repocanon doctor` and `repocanon stamp <doc>…` for each doc you verified.
