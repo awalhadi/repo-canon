@@ -247,3 +247,54 @@ test('truncateToTokens keeps the estimate within the limit', () => {
   assert.ok(estimateTokens(cut) > 100);
   assert.equal(truncateToTokens('short', 50), 'short');
 });
+
+test('targets: ids, aliases, all/none and unknown names resolve without throwing', () => {
+  const { resolveTargetIds, TARGET_IDS } = require('../src/core/targets');
+  assert.deepEqual(resolveTargetIds('cloude, ChatGPT,cursor'), { ids: ['claude', 'cursor', 'codex'], unknown: [] });
+  assert.deepEqual(resolveTargetIds(['all']).ids, TARGET_IDS);
+  assert.deepEqual(resolveTargetIds('none'), { ids: [], unknown: [] });
+  assert.deepEqual(resolveTargetIds('claude,nope').unknown, ['nope']);
+});
+
+test('targets: detection looks for each tool\'s files and folders', () => {
+  const { detectTargets } = require('../src/core/targets');
+  const repoDir = createTempRepo({ '.cursor/mcp.json': '{}', 'GEMINI.md': '# mine\n' });
+  assert.deepEqual(detectTargets(repoDir), [
+    { id: 'cursor', evidence: '.cursor/' },
+    { id: 'gemini', evidence: 'GEMINI.md' }
+  ]);
+});
+
+test('config: targets are validated, updateConfigFile keeps other keys and never clobbers bad JSON', () => {
+  const { updateConfigFile } = require('../src/core/config');
+  assert.ok(validateConfig({ preset: 'auto', moduleRoots: [], modules: {}, exclude: [], targets: ['claude', 'zed'] })
+    .some(err => err.includes('target "zed" unknown')));
+
+  const repoDir = createTempRepo({ '.repocanon.json': '{\n  "preset": "laravel",\n  "exclude": ["legacy/"]\n}\n' });
+  assert.equal(updateConfigFile(repoDir, { targets: ['claude'] }).status, 'updated');
+  const saved = JSON.parse(fs.readFileSync(path.join(repoDir, '.repocanon.json'), 'utf8'));
+  assert.deepEqual(Object.keys(saved), ['preset', 'exclude', 'targets']);
+  assert.deepEqual(loadConfig(repoDir).targets, ['claude']);
+  assert.equal(updateConfigFile(repoDir, { targets: ['claude'] }).status, 'unchanged');
+
+  fs.writeFileSync(path.join(repoDir, '.repocanon.json'), '{ broken');
+  assert.equal(updateConfigFile(repoDir, { targets: [] }).status, 'invalid');
+  assert.equal(fs.readFileSync(path.join(repoDir, '.repocanon.json'), 'utf8'), '{ broken');
+});
+
+test('removeManagedBlock keeps user text and deletes block-only files', () => {
+  const { removeManagedBlock, readManagedBlock } = require('../src/core/blocks');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rc-blocks-'));
+  const mixed = path.join(dir, 'CLAUDE.md');
+  upsertManagedBlock(mixed, '@AGENTS.md', 'MY RULES\n\n');
+  assert.equal(readManagedBlock(mixed), '@AGENTS.md');
+  assert.equal(removeManagedBlock(mixed), 'removed');
+  assert.equal(fs.readFileSync(mixed, 'utf8'), 'MY RULES\n');
+  assert.equal(readManagedBlock(mixed), null);
+
+  const ruleOnly = path.join(dir, 'project.mdc');
+  upsertManagedBlock(ruleOnly, 'Read AGENTS.md', '---\nalwaysApply: true\n---\n');
+  assert.equal(removeManagedBlock(ruleOnly, '---\nalwaysApply: true\n---\n'), 'deleted');
+  assert.equal(fs.existsSync(ruleOnly), false);
+  assert.equal(removeManagedBlock(ruleOnly), 'absent');
+});

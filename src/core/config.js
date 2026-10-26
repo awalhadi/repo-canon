@@ -1,8 +1,11 @@
 'use strict';
 
 const path = require('path');
-const { read } = require('./fs');
+const { read, write } = require('./fs');
 const { PRESETS } = require('./presets');
+const { TARGET_IDS } = require('./targets');
+
+const CONFIG_FILE = '.repocanon.json';
 
 /**
  * Default configuration structure for RepoCanon.
@@ -15,6 +18,12 @@ const DEFAULT_CONFIG = {
 };
 
 /**
+ * Optional keys: absent means "not chosen yet", which callers treat differently
+ * from an empty value (e.g. `targets` absent = legacy all-pointers behaviour).
+ */
+const OPTIONAL_KEYS = ['targets'];
+
+/**
  * Validates a configuration object against expected schema.
  *
  * @param {Record<string, any>} config - Configuration to validate
@@ -22,7 +31,7 @@ const DEFAULT_CONFIG = {
  */
 function validateConfig(config) {
   const errors = [];
-  const knownKeys = new Set([...Object.keys(DEFAULT_CONFIG), '_found']);
+  const knownKeys = new Set([...Object.keys(DEFAULT_CONFIG), ...OPTIONAL_KEYS, '_found']);
 
   for (const key of Object.keys(config)) {
     if (!knownKeys.has(key)) {
@@ -41,6 +50,18 @@ function validateConfig(config) {
 
   if (!Array.isArray(config.exclude)) {
     errors.push('exclude must be an array');
+  }
+
+  if (config.targets !== undefined) {
+    if (!Array.isArray(config.targets)) {
+      errors.push('targets must be an array');
+    } else {
+      for (const id of config.targets) {
+        if (!TARGET_IDS.includes(id)) {
+          errors.push(`target "${id}" unknown (use ${TARGET_IDS.join('|')})`);
+        }
+      }
+    }
   }
 
   if (typeof config.modules !== 'object' || Array.isArray(config.modules) || !config.modules) {
@@ -64,7 +85,7 @@ function validateConfig(config) {
  * @returns {typeof DEFAULT_CONFIG & { _found: boolean }}
  */
 function loadConfig(root) {
-  const configPath = path.join(root, '.repocanon.json');
+  const configPath = path.join(root, CONFIG_FILE);
   const rawText = read(configPath);
 
   if (!rawText) {
@@ -104,13 +125,52 @@ function loadConfig(root) {
     if (config.preset !== 'auto' && !PRESETS[config.preset]) {
       config.preset = 'auto';
     }
+
+    if (config.targets !== undefined) {
+      config.targets = Array.isArray(config.targets)
+        ? config.targets.filter(id => TARGET_IDS.includes(id))
+        : undefined;
+    }
   }
 
   return config;
 }
 
+/**
+ * Merges `patch` into .repocanon.json on disk, keeping every other key and its order.
+ * Never overwrites a file it cannot parse — the user's config is not ours to discard.
+ *
+ * @param {string} root - Project root directory
+ * @param {Record<string, any>} patch
+ * @returns {{ status: 'created'|'updated'|'unchanged'|'invalid', error?: string }}
+ */
+function updateConfigFile(root, patch) {
+  const configPath = path.join(root, CONFIG_FILE);
+  const rawText = read(configPath);
+  let current = {};
+
+  if (rawText) {
+    try {
+      current = JSON.parse(rawText);
+    } catch (error) {
+      return { status: 'invalid', error: `${CONFIG_FILE} is not valid JSON (${error.message}) — left untouched` };
+    }
+  } else {
+    current = { ...DEFAULT_CONFIG };
+  }
+
+  const next = { ...current, ...patch };
+  const nextText = `${JSON.stringify(next, null, 2)}\n`;
+  if (rawText && JSON.stringify(current) === JSON.stringify(next)) {
+    return { status: 'unchanged' };
+  }
+  write(configPath, nextText);
+  return { status: rawText ? 'updated' : 'created' };
+}
+
 module.exports = {
   DEFAULT_CONFIG,
   validateConfig,
-  loadConfig
+  loadConfig,
+  updateConfigFile
 };
