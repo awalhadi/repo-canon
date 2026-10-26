@@ -186,3 +186,12 @@ test('doctor token budget reflects repo size', () => {
   const big = JSON.parse(cf(d, 'doctor', '--json').stdout);
   assert.ok(big.findings.some(f => f.level === 'warn' && /entry context/.test(f.msg)));
 });
+
+test('doctor checks pointer files only for the chosen tools', () => {
+  const d = repo({ 'package.json': '{}' }); cf(d, 'init', '--targets=claude');
+  let r = JSON.parse(cf(d, 'doctor', '--json').stdout);
+  assert.ok(!r.findings.some(f => /GEMINI|windsurf|clinerules|copilot|cursor/i.test(f.msg)), JSON.stringify(r.findings));
+  fs.writeFileSync(path.join(d, 'CLAUDE.md'), 'just my notes\n');
+  r = JSON.parse(cf(d, 'doctor', '--json').stdout);
+  assert.ok(r.findings.some(f => f.level === 'warn' && /CLAUDE\.md: RepoCanon block missing \(Claude Code/.test(f.msg)));
+});

@@ -6,16 +6,14 @@ const { exists, read } = require('../core/fs');
 const { parseFrontmatter } = require('../core/frontmatter');
 const { estimateTokens, estimateRepoTokens } = require('../core/tokens');
 const { loadConfig, validateConfig } = require('../core/config');
+const { readManagedBlock } = require('../core/blocks');
+const { TARGETS } = require('../core/targets');
 const {
   DOC_LINE_CAPS,
   MODULE_DOC_LINE_CAP,
-  IDE_POINTERS,
-  CURSOR_RULE_PATH,
   ENTRY_TOKEN_TARGET,
   ENTRY_TOKEN_WARN
 } = require('../core/constants');
-
-const ALL_POINTERS = [...IDE_POINTERS, CURSOR_RULE_PATH];
 
 /**
  * Lints the knowledge layer for structural integrity, size caps, broken links, and token budgeting.
@@ -45,12 +43,15 @@ function runDoctor(root) {
     addFinding('error', 'AGENTS.md does not reference .ai/ — run: repocanon init');
   }
 
-  for (const pointerFile of ALL_POINTERS) {
-    const pointerContent = read(path.join(root, pointerFile));
+  // Only the tools the project chose; no saved choice yet = legacy, every tool
+  const config = loadConfig(root);
+  const chosen = Array.isArray(config.targets) ? config.targets : TARGETS.map(t => t.id);
+  for (const target of TARGETS.filter(t => t.file && chosen.includes(t.id))) {
+    const pointerContent = read(path.join(root, target.file));
     if (pointerContent === null) {
-      addFinding('warn', `${pointerFile} missing (that IDE will not find .ai/)`);
-    } else if (!/AGENTS\.md/.test(pointerContent)) {
-      addFinding('warn', `${pointerFile} does not point to AGENTS.md`);
+      addFinding('warn', `${target.file} missing (${target.label} will not find .ai/) — run: repocanon init`);
+    } else if (readManagedBlock(path.join(root, target.file)) === null || !/AGENTS\.md/.test(pointerContent)) {
+      addFinding('warn', `${target.file}: RepoCanon block missing (${target.label} will not find AGENTS.md) — run: repocanon init`);
     }
   }
 
@@ -123,7 +124,7 @@ function runDoctor(root) {
     addFinding('info', `${totalTodos} TODO placeholder(s) remain in .ai/ — run: repocanon prompt fill`);
   }
 
-  for (const configError of validateConfig(loadConfig(root))) {
+  for (const configError of validateConfig(config)) {
     addFinding('warn', `config: ${configError}`);
   }
 

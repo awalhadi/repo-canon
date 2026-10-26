@@ -10,11 +10,11 @@ Full strategy and market analysis: https://claude.ai/artifact/DsEYKvfTDf13nXRDy8
 | Phase | Done | Total | Gate met |
 |---|---|---|---|
 | 0 · Trust & identity | 4 | 4 | yes — 30/30 tests green |
-| 1 · v0.5 Lean, scoped, distributed | 0 | 6 | no |
+| 1 · v0.5 Lean, scoped, distributed | 1 | 7 | no |
 | 2 · v0.6 Proof & teams | 0 | 5 | no |
 | 3 · v0.7 Moat | 0 | 4 | no |
 | 4 · v1.0+ Platform | 0 | 4 | no |
-| **Total** | **4** | **23** | |
+| **Total** | **5** | **24** | |
 
 ## Phase 0 — Trust & identity (week 1)
 - [x] **P0.1** Remove ContextForge (`bin/contextforge.js`, `templates/contextforge.json`, `cf_*` aliases, legacy block markers, JSDoc headers); claim `repocanon` on npm, MCP registry, Open VSX. *(Code side done; npm / registry claim pending — owner action.)*
@@ -31,6 +31,7 @@ Full strategy and market analysis: https://claude.ai/artifact/DsEYKvfTDf13nXRDy8
 - [ ] **P1.4** Secret/PII scanner (regex + entropy, zero-dep) in doctor, hook and MCP writes.
 - [ ] **P1.5** Claude Code plugin (MCP + SKILL.md + `SessionStart`/`Stop` hooks) and `repocanon setup <ide>`.
 - [ ] **P1.6** Freshness labels on every `rc_context` section ("stale: N files changed, trust the code").
+- [x] **P1.7** Interactive tool picker in `init` (Claude Code, Cursor, Copilot, Gemini/Antigravity, Windsurf, Cline, Codex/ChatGPT); choice saved as `targets` in `.repocanon.json`; re-runs show `set up` / `detected` and say `Up to date`; deselected tools removed only with consent (`--prune` in scripts); `doctor` checks only chosen tools. *(Branch `feat/init-targets`.)*
 
 **Gate:** install-to-first-value under 60 seconds on a fresh repo.
 
