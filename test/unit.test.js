@@ -298,3 +298,24 @@ test('removeManagedBlock keeps user text and deletes block-only files', () => {
   assert.equal(fs.existsSync(ruleOnly), false);
   assert.equal(removeManagedBlock(ruleOnly), 'absent');
 });
+
+test('targets service: plan previews create/append/unchanged/keep/remove, apply saves the choice', () => {
+  const { planTargets, applyTargets, resolveDefaultTargets } = require('../src/services/targets.service');
+  const repoDir = createTempRepo({ 'GEMINI.md': 'MY GEMINI RULES\n' });
+  assert.deepEqual(resolveDefaultTargets(repoDir), { ids: ['gemini'], source: 'detected' });
+
+  const first = planTargets(repoDir, ['claude', 'gemini', 'codex']);
+  assert.deepEqual(first.rows.map(r => [r.id, r.action]), [['claude', 'create'], ['gemini', 'append'], ['codex', 'native']]);
+  applyTargets(repoDir, first);
+  assert.deepEqual(loadConfig(repoDir).targets, ['claude', 'gemini', 'codex']);
+  assert.deepEqual(resolveDefaultTargets(repoDir), { ids: ['claude', 'gemini', 'codex'], source: 'saved' });
+
+  assert.ok(planTargets(repoDir, ['claude', 'gemini']).rows.every(r => r.action === 'unchanged'));
+
+  assert.deepEqual(planTargets(repoDir, ['claude']).rows.map(r => [r.id, r.action]), [['claude', 'unchanged'], ['gemini', 'keep']]);
+  const pruned = planTargets(repoDir, ['claude'], { prune: true });
+  assert.deepEqual(pruned.rows.map(r => r.action), ['unchanged', 'remove']);
+  applyTargets(repoDir, pruned);
+  assert.equal(fs.readFileSync(path.join(repoDir, 'GEMINI.md'), 'utf8'), 'MY GEMINI RULES\n');
+  assert.deepEqual(loadConfig(repoDir).targets, ['claude']);
+});

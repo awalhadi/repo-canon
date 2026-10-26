@@ -5,26 +5,31 @@ const { exists, read, write, renderTemplate } = require('../core/fs');
 const { getHeadShort } = require('../core/git');
 const { upsertManagedBlock } = require('../core/blocks');
 const { detectProject } = require('../core/detector');
-const {
-  CORE_DOCS,
-  IDE_POINTERS,
-  IDE_POINTER_TEXT,
-  CLAUDE_POINTER_TEXT,
-  CURSOR_RULE_PATH,
-  CURSOR_RULE_FRONTMATTER
-} = require('../core/constants');
+const { CORE_DOCS } = require('../core/constants');
+const { resolveDefaultTargets, planTargets, applyTargets } = require('./targets.service');
 
 const TEMPLATES_DIR = path.resolve(__dirname, '../../templates');
 
 /**
- * Initializes the RepoCanon knowledge layer (.ai/) in a project.
+ * Initializes the RepoCanon knowledge layer (.ai/) in a project, then points the
+ * selected AI tools at AGENTS.md. Safe to re-run: core docs are kept unless `force`,
+ * managed blocks are only rewritten when they differ, and deselected tools keep
+ * their block unless `prune`.
  *
  * @param {string} root - Project root directory
- * @param {{ force?: boolean }} [options={}] - Options (e.g. force overwrite core docs)
- * @returns {{ log: Array<[string, string]>, detected: ReturnType<typeof detectProject> }}
+ * @param {{ force?: boolean, targets?: string[], prune?: boolean }} [options={}]
+ *   `targets` omitted → the saved choice, else the tools the project already uses.
+ * @returns {{
+ *   log: Array<[string, string]>,
+ *   detected: ReturnType<typeof detectProject>,
+ *   targets: { ids: string[], source: string, config: { status: string, error?: string } }
+ * }}
  */
 function initProject(root, options = {}) {
   const detected = detectProject(root);
+  const selection = options.targets
+    ? { ids: options.targets, source: 'explicit' }
+    : resolveDefaultTargets(root);
   const currentHead = getHeadShort(root) || '';
   const currentDate = new Date().toISOString().slice(0, 10);
 
@@ -50,8 +55,8 @@ function initProject(root, options = {}) {
     log.push(['created', relPath]);
   };
 
-  const putManagedBlock = (relPath, body, prefix = '') => {
-    const status = upsertManagedBlock(path.join(root, relPath), body, prefix);
+  const putManagedBlock = (relPath, body) => {
+    const status = upsertManagedBlock(path.join(root, relPath), body);
     log.push([status, relPath]);
   };
 
@@ -76,17 +81,14 @@ function initProject(root, options = {}) {
   const agentsTemplate = read(path.join(TEMPLATES_DIR, 'AGENTS.md'));
   putManagedBlock('AGENTS.md', renderTemplate(agentsTemplate, templateVars));
 
-  // IDE pointer files
-  for (const pointerFile of IDE_POINTERS) {
-    putManagedBlock(pointerFile, pointerFile === 'CLAUDE.md' ? CLAUDE_POINTER_TEXT : IDE_POINTER_TEXT);
-  }
-
-  // Cursor rules
-  putManagedBlock(CURSOR_RULE_PATH, IDE_POINTER_TEXT, CURSOR_RULE_FRONTMATTER);
+  // Selected AI tools → pointer files (managed blocks)
+  const applied = applyTargets(root, planTargets(root, selection.ids, { prune: options.prune }));
+  log.push(...applied.log);
 
   return {
     log,
-    detected
+    detected,
+    targets: { ids: selection.ids, source: selection.source, config: applied.config }
   };
 }
 
