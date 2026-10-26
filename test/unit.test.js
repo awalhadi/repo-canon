@@ -195,3 +195,55 @@ test('MCP rc_prepare_fill and rc_sync_report return actionable text, not a copy-
   const syncReport = executeTool(repoDir, 'rc_sync_report', {});
   assert.ok(typeof syncReport === 'string');
 });
+
+function packFixture() {
+  const repoDir = createTempRepo({
+    'package.json': '{"name": "pack-test"}',
+    'src/features/auth/login.js': 'x',
+    'src/features/author/profile.js': 'x',
+    'src/features/billing/invoice.js': 'x'
+  });
+  cfApi.init(repoDir);
+  cfApi.analyze(repoDir, { scaffold: true });
+  return repoDir;
+}
+
+test('pack: stopwords and partial words do not pull in modules', () => {
+  const repoDir = packFixture();
+  const result = cfApi.pack(repoDir, { query: 'fix the auth api', maxTokens: 4000 });
+  assert.deepEqual(result.modules, ['auth']);
+});
+
+test('pack: modules are ranked by relevance, rules come first', () => {
+  const repoDir = packFixture();
+  const mod = (name, body) => `---\nmodule: ${name}\nverified_at:\ncode_paths: [src/features/${name}/]\n---\n# ${name}\n${body}\n`;
+  fs.writeFileSync(path.join(repoDir, '.ai/modules/billing.md'), mod('billing', 'Invoice totals. Each invoice is immutable once sent. InvoiceService owns it.'));
+  fs.writeFileSync(path.join(repoDir, '.ai/modules/auth.md'), mod('auth', 'Login sends an invoice reminder.'));
+
+  const result = cfApi.pack(repoDir, { query: 'invoice', maxTokens: 4000 });
+  assert.deepEqual(result.modules, ['billing', 'auth']);
+  assert.ok(result.scores.billing > result.scores.auth);
+  const order = result.included.map(item => item.rel);
+  assert.deepEqual(order.slice(0, 3), ['.ai/PROJECT.md', '.ai/CONVENTIONS.md', '.ai/DOMAIN.md']);
+  assert.ok(order.indexOf('.ai/modules/billing.md') < order.indexOf('.ai/modules/auth.md'));
+  assert.equal(order.at(-1), '.ai/STATE.md');
+});
+
+test('pack: one huge doc cannot starve the module docs, budget holds', () => {
+  const repoDir = packFixture();
+  fs.writeFileSync(path.join(repoDir, '.ai/DOMAIN.md'), '# D\n' + 'rule\n'.repeat(5000));
+  const result = cfApi.pack(repoDir, { query: 'billing', maxTokens: 1500 });
+  assert.ok(result.tokens <= 1500, `tokens ${result.tokens}`);
+  const domain = result.included.find(item => item.rel === '.ai/DOMAIN.md');
+  assert.ok(domain.tokens <= 750, `domain ${domain.tokens}`);
+  assert.ok(result.included.some(item => item.rel === '.ai/modules/billing.md'));
+});
+
+test('truncateToTokens keeps the estimate within the limit', () => {
+  const { truncateToTokens } = require('../src/core/tokens');
+  const text = 'CommissionService computes totals, refunds and taxes. '.repeat(200);
+  const cut = truncateToTokens(text, 120);
+  assert.ok(estimateTokens(cut) <= 120);
+  assert.ok(estimateTokens(cut) > 100);
+  assert.equal(truncateToTokens('short', 50), 'short');
+});
