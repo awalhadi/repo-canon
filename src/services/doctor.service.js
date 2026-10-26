@@ -10,7 +10,9 @@ const {
   DOC_LINE_CAPS,
   MODULE_DOC_LINE_CAP,
   IDE_POINTERS,
-  CURSOR_RULE_PATH
+  CURSOR_RULE_PATH,
+  ENTRY_TOKEN_TARGET,
+  ENTRY_TOKEN_WARN
 } = require('../core/constants');
 
 const ALL_POINTERS = [...IDE_POINTERS, CURSOR_RULE_PATH];
@@ -132,8 +134,10 @@ function runDoctor(root) {
     getTokensForDoc('.ai/INDEX.md');
 
   const repoTokensCount = estimateRepoTokens(root);
-  if (entryTokens > 6000) {
-    addFinding('warn', `entry context is ~${entryTokens} tokens (AGENTS+PROJECT+INDEX) — trim INDEX/PROJECT`);
+  if (entryTokens > ENTRY_TOKEN_WARN) {
+    addFinding('warn', `entry context is ~${entryTokens} tokens (AGENTS+PROJECT+INDEX, target ≤${ENTRY_TOKEN_TARGET}) — cut what agents can infer from code`);
+  } else if (entryTokens > ENTRY_TOKEN_TARGET) {
+    addFinding('info', `entry context is ~${entryTokens} tokens (target ≤${ENTRY_TOKEN_TARGET}) — keep only commands, rules and boundaries`);
   }
 
   return {
@@ -143,7 +147,7 @@ function runDoctor(root) {
       entryTokens,
       repoTokens: repoTokensCount,
       ratio: repoTokensCount ? +(entryTokens / repoTokensCount * 100).toFixed(2) : null,
-      estimate: 'bytes/4, approximate'
+      estimate: 'entry: word-aware heuristic; repo: bytes/4 — approximate'
     }
   };
 }

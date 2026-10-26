@@ -26,6 +26,7 @@ test('init preserves existing CLAUDE.md and is idempotent', () => {
   const d = repo({ 'CLAUDE.md': 'MY OWN RULES\n', 'package.json': '{}' });
   cf(d, 'init'); const a = fs.readFileSync(path.join(d, 'CLAUDE.md'), 'utf8');
   assert.ok(a.includes('MY OWN RULES') && a.includes('AGENTS.md'));
+  assert.match(a, /repocanon:start -->\n@AGENTS\.md\n<!-- repocanon:end/);   // import, not a read-me pointer
   cf(d, 'init'); assert.equal(fs.readFileSync(path.join(d, 'CLAUDE.md'), 'utf8'), a);
   assert.equal((a.match(/repocanon:start/g) || []).length, 1);
 });
@@ -136,4 +137,8 @@ test('doctor token budget reflects repo size', () => {
   const d = laravel(); cf(d, 'init');
   const r = JSON.parse(cf(d, 'doctor', '--json').stdout);
   assert.ok(r.budget.entryTokens > 0 && r.budget.repoTokens >= 0);
+  assert.ok(!r.findings.some(f => /entry context/.test(f.msg)), 'fresh init must fit the entry budget');
+  fs.appendFileSync(path.join(d, '.ai/PROJECT.md'), 'Overview of every folder in the repo. '.repeat(400));
+  const big = JSON.parse(cf(d, 'doctor', '--json').stdout);
+  assert.ok(big.findings.some(f => f.level === 'warn' && /entry context/.test(f.msg)));
 });

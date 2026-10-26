@@ -9,6 +9,7 @@ const {
   CORE_DOCS,
   IDE_POINTERS,
   IDE_POINTER_TEXT,
+  CLAUDE_POINTER_TEXT,
   CURSOR_RULE_PATH,
   CURSOR_RULE_FRONTMATTER
 } = require('../core/constants');
@@ -77,7 +78,7 @@ function initProject(root, options = {}) {
 
   // IDE pointer files
   for (const pointerFile of IDE_POINTERS) {
-    putManagedBlock(pointerFile, IDE_POINTER_TEXT);
+    putManagedBlock(pointerFile, pointerFile === 'CLAUDE.md' ? CLAUDE_POINTER_TEXT : IDE_POINTER_TEXT);
   }
 
   // Cursor rules

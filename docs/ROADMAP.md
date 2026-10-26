@@ -9,20 +9,20 @@ Full strategy and market analysis: https://claude.ai/artifact/DsEYKvfTDf13nXRDy8
 ## Progress
 | Phase | Done | Total | Gate met |
 |---|---|---|---|
-| 0 · Trust & identity | 0 | 4 | no |
+| 0 · Trust & identity | 4 | 4 | yes — 30/30 tests green |
 | 1 · v0.5 Lean, scoped, distributed | 0 | 6 | no |
 | 2 · v0.6 Proof & teams | 0 | 5 | no |
 | 3 · v0.7 Moat | 0 | 4 | no |
 | 4 · v1.0+ Platform | 0 | 4 | no |
-| **Total** | **0** | **23** | |
+| **Total** | **4** | **23** | |
 
 ## Phase 0 — Trust & identity (week 1)
-- [ ] **P0.1** Remove ContextForge (`bin/contextforge.js`, `templates/contextforge.json`, `cf_*` aliases, legacy block markers, JSDoc headers); claim `repocanon` on npm, MCP registry, Open VSX.
-- [ ] **P0.2** Fix `stamp` (`src/services/status.service.js`): exact slug match, bare `stamp` requires `--all`, refuse when `code_paths` have uncommitted changes.
-- [ ] **P0.3** Fix `pack` (`src/services/pack.service.js`): ranked matching, stopwords, core rules first, truncation consistent with `estimateTokens`.
-- [ ] **P0.4** CLAUDE.md pointer becomes `@AGENTS.md`; doctor entry-budget target ~1k tokens (was 6000); fix stale `bytes/4` label.
+- [x] **P0.1** Remove ContextForge (`bin/contextforge.js`, `templates/contextforge.json`, `cf_*` aliases, legacy block markers, JSDoc headers); claim `repocanon` on npm, MCP registry, Open VSX. *(Code side done; npm / registry claim pending — owner action.)*
+- [x] **P0.2** Fix `stamp` (`src/services/status.service.js`): exact slug match, bare `stamp` requires `--all`, refuse when `code_paths` have uncommitted changes.
+- [x] **P0.3** Fix `pack` (`src/services/pack.service.js`): ranked matching, stopwords, core rules first, truncation consistent with `estimateTokens`.
+- [x] **P0.4** CLAUDE.md pointer becomes `@AGENTS.md`; doctor entry-budget target ~1k tokens (was 6000); fix stale `bytes/4` label.
 
-**Gate:** `npm test` green, including new stamp/pack tests.
+**Gate:** `npm test` green, including new stamp/pack tests. ✅ Met on branch `phase-0-trust` (30/30).
 
 ## Phase 1 — v0.5 Lean, scoped, distributed (~4 weeks)
 - [ ] **P1.1** Inferable-content lint in `doctor`; rewrite the `prompt fill` brief to ask only for what code can't show.
