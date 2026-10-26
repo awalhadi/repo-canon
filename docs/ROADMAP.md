@@ -4,7 +4,7 @@ Positioning: **the verified canon for AI coding agents** — only what code can'
 
 How to use: tick `[x]` when an item is merged with tests green; mark in-progress items `[~]`. A phase is complete only when its **gate** is met. Update the progress table when you tick items.
 
-Full strategy and market analysis: https://claude.ai/artifact/DsEYKvfTDf13nXRDy8hLn7
+Full strategy and market analysis: [STRATEGY.md](STRATEGY.md) (local copy) · [shared doc](https://claude.ai/artifact/DsEYKvfTDf13nXRDy8hLn7) (live, commentable)
 
 ## Progress
 | Phase | Done | Total | Gate met |
