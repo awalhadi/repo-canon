@@ -94,4 +94,4 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for design, threat model and ro
 5. Zero dependencies, Node ≥18.
 
 ## Roadmap
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) §9.
+Phase-by-phase tracker (done / remaining): [docs/ROADMAP.md](docs/ROADMAP.md).

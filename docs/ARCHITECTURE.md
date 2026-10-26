@@ -124,6 +124,8 @@ Two layers behave differently on bad input, deliberately:
 - `context`/`pack` query matching is keyword/substring-based (module slug, code paths, and — as of v0.4 — the module's own doc body). It is not semantic search; a query using vocabulary absent from both paths and doc body will miss a relevant module.
 
 ## 11. Roadmap
+> Superseded by the phase tracker in [ROADMAP.md](ROADMAP.md); the history below is kept for context.
+
 - **v0.4** *(done)* `cf_prepare_fill`/`cf_sync_report` MCP tools — an already-connected agent calls them and writes `.ai/*.md` with its own file tools; no human copy-paste required. Word/punctuation-aware token estimator replacing flat bytes/4.
 - **v0.5** `npm publish` + `npx repocanon`; GitHub Action (CI drift-check, PR comment); benchmark harness; monorepo (per-package `.ai/`); `--fix` for safe auto-repairs (broken paths, pointer blocks).
 - **v0.6** symbol-level map (optional tree-sitter/ctags) inside module code maps; drift detection on *symbols*, not just files; relevance-ranked `context` packing (keyword-overlap scoring within budget, still zero-dependency).
