@@ -295,3 +295,22 @@ test('agent-hook: session context names stale docs; stop nudges once for undocum
   g(d, 'commit', '-qam', 'billing + doc');
   assert.match(hook('session-start').stdout, /Stale docs \(code changed since they were verified\): modules\/billing\.md/);
 });
+
+test('rules: init writes scoped rules for filled modules; --check and doctor catch drift', () => {
+  const d = laravel(); cf(d, 'init', '--targets=cursor'); cf(d, 'analyze', '--scaffold');
+  assert.match(cf(d, 'rules').stdout, /Up to date — 0 scoped rule file\(s\)/);     // stubs only
+
+  const doc = path.join(d, '.ai/modules/billing.md');
+  fs.writeFileSync(doc, fs.readFileSync(doc, 'utf8').replace('1–2 lines.', 'Charges customers and issues refunds.'));
+  const init = cf(d, 'init');
+  assert.match(init.stdout, /Scoped rules: 1 file\(s\) updated \(\.cursor\/rules\/rc-billing\.mdc\)/);
+  assert.equal(cf(d, 'rules', '--check').status, 0);
+
+  fs.appendFileSync(doc, '\n## Gotchas\n- Refunds run in a queue; never refund inline.\n');
+  const check = cf(d, 'rules', '--check');
+  assert.equal(check.status, 1); assert.match(check.stdout, /~ \.cursor\/rules\/rc-billing\.mdc \(would be updated\)/);
+  assert.ok(JSON.parse(cf(d, 'doctor', '--json').stdout).findings.some(f => /scoped rule files are out of date/.test(f.msg)));
+  cf(d, 'rules');
+  assert.match(fs.readFileSync(path.join(d, '.cursor/rules/rc-billing.mdc'), 'utf8'), /never refund inline/);
+  assert.equal(cf(d, 'rules', '--check').status, 0);
+});

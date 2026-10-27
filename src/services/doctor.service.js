@@ -10,6 +10,7 @@ const { readManagedBlock } = require('../core/blocks');
 const { TARGETS } = require('../core/targets');
 const { scanKnowledgeLayer, INFERABLE_LABELS } = require('./inferable.service');
 const { scanSecrets, formatSecretFinding } = require('./secrets.service');
+const { planRules, getPendingRules } = require('./rules.service');
 
 const MAX_INFERABLE_PER_DOC = 5;
 const {
@@ -133,6 +134,11 @@ function runDoctor(root) {
     for (const item of secretFindings) {
       addFinding('error', formatSecretFinding(doc, item));
     }
+  }
+
+  const pendingRules = getPendingRules(planRules(root));
+  if (pendingRules.length) {
+    addFinding('warn', `scoped rule files are out of date (${pendingRules.length}: ${pendingRules.slice(0, 3).map(r => r.file).join(', ')}${pendingRules.length > 3 ? ', …' : ''}) — run: npx repocanon rules`);
   }
 
   // Content agents can learn from the code itself costs tokens on every task without helping

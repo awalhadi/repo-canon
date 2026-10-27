@@ -5,6 +5,7 @@ const { exists, isPathInside } = require('../core/fs');
 const { getUncommittedPaths } = require('../core/git');
 const { getDocStatus } = require('./status.service');
 const { getModuleMap } = require('./pack.service');
+const { planRules, getPendingRules } = require('./rules.service');
 
 const MAX_NAMED = 3;
 
@@ -89,7 +90,11 @@ function getStopNudge(root, input = {}) {
     }
   }
   if (!pending.length) {
-    return null;
+    // Docs were updated; make sure the per-module rule files carry the new text
+    const staleRules = getPendingRules(planRules(root));
+    return staleRules.length
+      ? { decision: 'block', reason: `RepoCanon: module docs changed, but ${staleRules.length} scoped rule file(s) still hold the old text. Run: npx repocanon rules` }
+      : null;
   }
 
   const described = pending

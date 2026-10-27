@@ -7,6 +7,7 @@ const { resolveDefaultTargets, planTargets } = require('../../services/targets.s
 const { TARGETS, TARGET_IDS, resolveTargetIds, detectTargets } = require('../../core/targets');
 const { readManagedBlock } = require('../../core/blocks');
 const { CommandError } = require('../../core/errors');
+const { planRules, applyRules, getPendingRules } = require('../../services/rules.service');
 const { isInteractive, multiSelect, confirm } = require('../prompt');
 
 const STATUS_MAP = {
@@ -129,6 +130,11 @@ async function handleInit(context) {
   }
   if (selection.source === 'none') {
     console.log(`No AI tool detected, so only AGENTS.md was written. Pick tools: npx repocanon init --targets=claude,cursor (choose from: ${VALID_TARGETS_HINT})`);
+  }
+
+  const writtenRules = getPendingRules(applyRules(root, planRules(root)));
+  if (writtenRules.length) {
+    console.log(`Scoped rules: ${writtenRules.length} file(s) updated (${writtenRules.map(r => r.file).join(', ')})`);
   }
 
   const analysis = analyzeProject(root, {});

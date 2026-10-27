@@ -21,6 +21,8 @@ function getHelpText() {
   init [--targets=a,b|all|none] [--yes] [--prune] [--force]
                            .ai/, AGENTS.md, .repocanon.json + pointer files for the AI tools you pick
                            (interactive picker in a terminal; re-run any time to add/remove tools)
+  rules [--check] [--json]  write per-module rule files (Cursor .mdc globs, Copilot applyTo, optional nested AGENTS.md)
+                           that load only while editing that module; --check exits 1 if out of date
   setup [tool…|all] [--json]
                            register the RepoCanon MCP server in each tool's config (default: the tools init set up)
   analyze [--scaffold]     refresh module/path map in .ai/INDEX.md (--scaffold: module doc stubs)
