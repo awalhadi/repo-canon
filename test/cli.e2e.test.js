@@ -234,3 +234,26 @@ test('secrets: doctor --ci fails, `secrets` reports masked, and the hook blocks 
   assert.equal(ok.status, 0, ok.stdout + ok.stderr);
   assert.equal(cf(d, 'secrets', '--quiet').stdout, '');
 });
+
+test('context packs label stale and unverified docs; fresh docs carry no label', () => {
+  const d = laravel(); cf(d, 'init', '--targets=claude'); cf(d, 'analyze', '--scaffold');
+  g(d, 'add', '-A'); g(d, 'commit', '-qm', 'docs');
+  cf(d, 'stamp', 'billing', 'project'); g(d, 'add', '-A'); g(d, 'commit', '-qm', 'stamp');
+  const { packContext } = require('../src/services/pack.service');
+
+  let r = packContext(d, { query: 'billing auth', maxTokens: 4000 });
+  assert.equal(r.freshness['.ai/modules/billing.md'], 'fresh');
+  assert.equal(r.freshness['.ai/modules/auth.md'], 'unverified');
+  assert.doesNotMatch(r.text, /## \.ai\/modules\/billing\.md\n>/);
+  assert.match(r.text, /## \.ai\/modules\/auth\.md\n> ○ unverified: never checked against the code/);
+
+  fs.appendFileSync(path.join(d, 'app/Services/Billing/S.php'), 'changed'); g(d, 'commit', '-qam', 'billing change');
+  r = packContext(d, { query: 'billing', maxTokens: 4000 });
+  assert.equal(r.freshness['.ai/modules/billing.md'], 'stale');
+  assert.match(r.text, /## \.ai\/modules\/billing\.md\n> ⚠ stale: 1 code file\(s\) changed since verify — where it disagrees with the code, trust the code\./);
+  assert.ok(r.tokens <= 4000);
+
+  const { executeTool } = require('../src/mcp/tools');
+  assert.match(executeTool(d, 'rc_context', { query: 'billing' }), /\| stale: modules\/billing\.md$/);
+  assert.match(cf(d, 'context', 'billing').stderr, /\| 1 stale\]/);
+});

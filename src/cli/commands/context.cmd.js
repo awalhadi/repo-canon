@@ -26,7 +26,9 @@ function handleContext(context) {
 
   const matchedModules = result.modules.join(', ') || 'none matched';
   const skippedDetails = result.skipped.length ? ` | skipped: ${result.skipped.join(', ')}` : '';
-  console.error(`\n[~${result.tokens} tokens | modules: ${matchedModules}${skippedDetails}]`);
+  const staleCount = Object.values(result.freshness).filter(state => state === 'stale' || state === 'broken').length;
+  const staleDetails = staleCount ? ` | ${staleCount} stale` : '';
+  console.error(`\n[~${result.tokens} tokens | modules: ${matchedModules}${skippedDetails}${staleDetails}]`);
 }
 
 module.exports = {
