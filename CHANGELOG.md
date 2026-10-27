@@ -12,6 +12,7 @@ All notable changes to RepoCanon. Versions follow [semver](https://semver.org); 
 - `repocanon setup [tool…]` registers the MCP server in `.mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json` and `.gemini/settings.json` (only its own entry; invalid or commented JSON is left alone), and prints snippets for global configs (Windsurf, Cline, Codex).
 - `repocanon agent-hook session-start|stop`: a session briefing (use `rc_context`, stale docs) and an end-of-turn reminder when a module's code changed without its doc.
 - `repocanon rules [--check]`: per-module scoped rule files — Cursor `.cursor/rules/rc-<module>.mdc` with `globs`, Copilot `.github/instructions/rc-<module>.instructions.md` with `applyTo`, and opt-in nested `AGENTS.md` pointers (`"nestedAgents": true`). `init` regenerates them, `doctor` warns when they drift.
+- `repocanon adopt [--dry-run] [--move]`: imports CLAUDE.md, GEMINI.md, .windsurfrules, .clinerules, Copilot instructions, .cursorrules, always-on Cursor rules and Cline's memory-bank/ into `.ai/`, routing sections to the right doc and dropping inferable content and secrets; `--move` reduces originals to pointers once committed.
 - Claude Code plugin + marketplace (`/plugin marketplace add awalhadi/repo-canon`): MCP server, `repocanon` skill, SessionStart and Stop hooks.
 
 ### Changed

@@ -42,6 +42,17 @@ npx repocanon stamp --all   # mark the docs verified at that commit
 git commit -am "Verify RepoCanon docs"
 ```
 
+### Already have CLAUDE.md, Cursor rules or a Cline memory bank?
+
+```bash
+npx repocanon adopt --dry-run   # preview: what goes where, what gets removed
+npx repocanon adopt             # import into .ai/ (creates it if needed)
+git add -A && git commit -m "Adopt RepoCanon"
+npx repocanon adopt --move      # originals become pointers, so tools stop reading two copies
+```
+
+`adopt` reads `CLAUDE.md`, `GEMINI.md`, `.windsurfrules`, `.clinerules`, `.github/copilot-instructions.md`, `.cursorrules`, always-on `.cursor/rules/*.mdc`, repo-wide Copilot instructions and Cline's `memory-bank/`. It routes each section to the right doc (glossary → DOMAIN, decisions → DECISIONS, progress → STATE, overview → PROJECT, the rest → CONVENTIONS), drops directory trees, dependency lists, pasted code and secrets, and tells you how many tokens that saved. Rules that are already scoped to certain files stay where they are. Re-running skips what was already imported; `--move` never touches a file with uncommitted changes.
+
 ## What you get
 
 ```
@@ -198,6 +209,7 @@ jobs:
 | Command | What it does |
 |---|---|
 | `init [--targets=a,b\|all\|none] [--yes] [--prune] [--force]` | Create `.ai/`, `AGENTS.md`, `.repocanon.json` and pointer files for the tools you pick; detects stack and run/test commands |
+| `adopt [--dry-run] [--move] [--json]` | Import existing agent rules (CLAUDE.md, Cursor/Copilot rules, GEMINI.md, .windsurfrules, .clinerules, memory-bank/) into `.ai/`, minus inferable content and secrets; `--move` retires the originals |
 | `analyze [--scaffold]` | Refresh the module map in `.ai/INDEX.md`; `--scaffold` creates module doc stubs |
 | `doctor [--ci] [--json]` | Lint the layer: secrets (error), size caps, TODOs, broken paths, missing pointers, token budget, and content agents can read from the code (directory trees, dependency lists, pasted code, file catalogues) |
 | `status [--ci] [--json]` | Each doc: fresh / stale / broken / unverified |
