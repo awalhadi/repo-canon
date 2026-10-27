@@ -344,3 +344,48 @@ test('CI output: GitHub annotations in Actions, --strict fails on warnings, stat
   assert.match(cf(d, 'status').stdout, /· Freshness \d+\/100/);
   assert.equal(typeof JSON.parse(cf(d, 'status', '--json').stdout).score.score, 'number');
 });
+
+test('report: PR summary flags modules changed without docs, then clears when the doc moves too', () => {
+  const d = laravel(); cf(d, 'init', '--targets=claude'); cf(d, 'analyze', '--scaffold');
+  g(d, 'add', '-A'); g(d, 'commit', '-qm', 'docs'); g(d, 'branch', '-M', 'main'); g(d, 'checkout', '-qb', 'feature');
+  fs.appendFileSync(path.join(d, 'app/Services/Billing/S.php'), 'new rule');
+  fs.appendFileSync(path.join(d, 'app/Services/Auth/S.php'), '   ');                 // whitespace only
+  g(d, 'commit', '-qam', 'billing change');
+
+  let r = cf(d, 'report', '--base=main');
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /^<!-- repocanon-report -->\n### RepoCanon: ⚠️ 1 module\(s\) changed without their docs/);
+  assert.match(r.stdout, /\| `billing` \| 1 file\(s\) \| ⚠️ not updated — `\.ai\/modules\/billing\.md` \|/);
+  assert.doesNotMatch(r.stdout, /`auth`/);
+  assert.match(r.stdout, /\*\*Freshness \d+\/100/);
+
+  fs.appendFileSync(path.join(d, '.ai/modules/billing.md'), '\n- New rule documented.\n'); g(d, 'commit', '-qam', 'doc');
+  r = cf(d, 'report', '--base=main');
+  assert.match(r.stdout, /### RepoCanon: ✅ Docs keep up with this PR/);
+  assert.match(r.stdout, /\| `billing` \| 1 file\(s\) \| ✅ updated \|/);
+  assert.equal(JSON.parse(cf(d, 'report', '--base=main', '--json').stdout).modules[0].docState, 'updated');
+  assert.equal(cf(d, 'report', '--base=nope').status, 1);
+});
+
+test('GitHub Action: inputs and steps are wired; the comment script updates instead of duplicating', () => {
+  const root = path.join(__dirname, '..');
+  const action = fs.readFileSync(path.join(root, 'action.yml'), 'utf8');
+  for (const needle of ['fail-on:', 'comment:', 'version:', 'using: composite', 'doctor --ci --format=github', 'report --base=', 'action/pr-comment.sh', 'GITHUB_STEP_SUMMARY']) {
+    assert.ok(action.includes(needle), needle);
+  }
+
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rc-gh-'));
+  const log = path.join(tmp, 'calls.log');
+  fs.writeFileSync(path.join(tmp, 'gh'), `#!/bin/sh\necho "$@" >> "${log}"\n[ "$1 $2" = "api repos/o/r/issues/7/comments" ] && [ -n "$EXISTING" ] && echo "$EXISTING"\nexit 0\n`, { mode: 0o755 });
+  fs.writeFileSync(path.join(tmp, 'report.md'), '<!-- repocanon-report -->\nhi\n');
+  const run = existing => cp.spawnSync('bash', [path.join(root, 'action/pr-comment.sh')], {
+    encoding: 'utf8',
+    env: { ...process.env, PATH: `${tmp}:${process.env.PATH}`, GITHUB_REPOSITORY: 'o/r', PR_NUMBER: '7', REPORT_FILE: path.join(tmp, 'report.md'), EXISTING: existing }
+  });
+
+  assert.match(run('').stdout, /posted PR comment/);
+  assert.match(fs.readFileSync(log, 'utf8'), /api -X POST repos\/o\/r\/issues\/7\/comments -F body=@/);
+  fs.writeFileSync(log, '');
+  assert.match(run('42').stdout, /updated PR comment 42/);
+  assert.match(fs.readFileSync(log, 'utf8'), /api -X PATCH repos\/o\/r\/issues\/comments\/42 -F body=@/);
+});

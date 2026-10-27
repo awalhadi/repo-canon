@@ -29,7 +29,8 @@ function getHelpText() {
                            import CLAUDE.md, .cursorrules, Cursor/Copilot rules, GEMINI.md, .windsurfrules, .clinerules,
                            memory-bank/ into .ai/ (drops inferable content and secrets); --move then retires the originals
   analyze [--scaffold]     refresh module/path map in .ai/INDEX.md (--scaffold: module doc stubs)
-  doctor [--ci] [--json]   lint the knowledge layer: size caps, TODOs, broken paths, IDE pointers, token budget
+  doctor [--ci] [--strict] [--format=github] [--json]
+                           lint the knowledge layer: size caps, TODOs, broken paths, IDE pointers, token budget
   status [--ci] [--json]   docs fresh/stale/broken/unverified vs git
   sync [--write] [--since=ref] [--json]
                            changed code since docs were verified → what to update
@@ -40,6 +41,8 @@ function getHelpText() {
                            (refuses when their code has uncommitted changes)
   secrets [--staged] [--json]
                            scan AGENTS.md and .ai/ (or their staged versions) for API keys, tokens, passwords
+  report [--base=ref] [--format=markdown|json]
+                           pull-request summary: modules changed with/without their docs, Freshness Score
   hook                     pre-commit hook: warns on undocumented code changes, blocks secrets in .ai/ docs
   prompt fill [--compact]  rich, evidence-loaded brief to paste into your agent (--compact: short form)
   prompt update            prompt for syncing docs after code changes

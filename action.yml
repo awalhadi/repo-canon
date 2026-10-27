@@ -1,0 +1,77 @@
+name: RepoCanon
+description: Check that AGENTS.md and the .ai/ knowledge layer keep up with the code, annotate problems, and comment on pull requests.
+author: Md. A Awal Hadi
+branding:
+  icon: book-open
+  color: blue
+
+inputs:
+  version:
+    description: repocanon npm version to run (e.g. 0.6.0). Defaults to the latest release.
+    default: latest
+  fail-on:
+    description: "When to fail the check: error (secrets, broken paths), stale (also warnings and stale docs), or never."
+    default: error
+  comment:
+    description: Post or update one summary comment on pull requests ("true" or "false").
+    default: "true"
+  base:
+    description: Base ref to compare against. Defaults to the pull request's base branch.
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Make history available for freshness checks
+      shell: bash
+      run: |
+        if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+          git fetch --no-tags --unshallow origin || echo "::warning title=RepoCanon::could not unshallow; use actions/checkout with fetch-depth: 0"
+        fi
+        if [ -n "${GITHUB_BASE_REF:-}" ]; then git fetch --no-tags origin "${GITHUB_BASE_REF}" || true; fi
+
+    - name: Check the knowledge layer
+      id: check
+      shell: bash
+      env:
+        RC_VERSION: ${{ inputs.version }}
+        FAIL_ON: ${{ inputs.fail-on }}
+      run: |
+        set +e
+        strict=""; [ "$FAIL_ON" = "stale" ] && strict="--strict"
+        npx -y "repocanon@${RC_VERSION}" doctor --ci --format=github $strict; code=$?
+        if [ "$FAIL_ON" = "stale" ]; then
+          npx -y "repocanon@${RC_VERSION}" status --ci --format=github || code=1
+        fi
+        echo "code=${code}" >> "$GITHUB_OUTPUT"
+
+    - name: Build the pull request report
+      if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+      shell: bash
+      env:
+        RC_VERSION: ${{ inputs.version }}
+        BASE: ${{ inputs.base }}
+      run: |
+        base="${BASE:-origin/${GITHUB_BASE_REF}}"
+        npx -y "repocanon@${RC_VERSION}" report --base="${base}" > "${RUNNER_TEMP}/repocanon-report.md" || true
+        cat "${RUNNER_TEMP}/repocanon-report.md" >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Comment on the pull request
+      if: (github.event_name == 'pull_request' || github.event_name == 'pull_request_target') && inputs.comment == 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        REPORT_FILE: ${{ runner.temp }}/repocanon-report.md
+      run: |
+        "${GITHUB_ACTION_PATH}/action/pr-comment.sh" || echo "::warning title=RepoCanon::could not comment (does the workflow grant pull-requests: write?)"
+
+    - name: Result
+      shell: bash
+      env:
+        CODE: ${{ steps.check.outputs.code }}
+        FAIL_ON: ${{ inputs.fail-on }}
+      run: |
+        if [ "$FAIL_ON" != "never" ] && [ "${CODE:-0}" != "0" ]; then
+          echo "RepoCanon found problems (see annotations above)."; exit 1
+        fi
