@@ -233,5 +233,6 @@ module.exports = {
   getDocStatus,
   status: getDocStatus,
   stampDocs,
-  stamp: stampDocs
+  stamp: stampDocs,
+  matchesDocName
 };

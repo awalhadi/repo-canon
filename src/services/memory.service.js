@@ -5,6 +5,9 @@ const { read, write, renderTemplate } = require('../core/fs');
 const { DOC_LINE_CAPS } = require('../core/constants');
 const { findSecrets, formatSecretFinding } = require('./secrets.service');
 const { findInferableContent, INFERABLE_LABELS } = require('./inferable.service');
+const { getDocStatus, matchesDocName } = require('./status.service');
+const { runDoctor } = require('./doctor.service');
+const { formatScore } = require('./score.service');
 
 const TEMPLATES_DIR = path.resolve(__dirname, '../../templates');
 const DECISIONS_DOC = '.ai/DECISIONS.md';
@@ -252,8 +255,38 @@ function checkpointState(root, input = {}) {
   return { ok: true, file: STATE_DOC, sections };
 }
 
+/**
+ * The "am I done?" check for an agent: doctor errors and warnings plus stale or broken
+ * docs, narrowed to the named docs when given. Errors and stale/broken docs fail it;
+ * warnings are listed but pass.
+ *
+ * @param {string} root - Project root directory
+ * @param {{ docs?: string[] }} [options={}]
+ * @returns {{ pass: boolean, errors: string[], warnings: string[], stale: string[], score: string }}
+ */
+function verifyKnowledge(root, options = {}) {
+  const names = Array.isArray(options.docs) ? options.docs.filter(Boolean) : [];
+  const inScope = file => !names.length || (file && names.some(name => matchesDocName(file, name)));
+
+  const report = runDoctor(root);
+  const errors = report.findings.filter(f => f.level === 'error' && (inScope(f.file) || !f.file)).map(f => f.msg);
+  const warnings = report.findings.filter(f => f.level === 'warn' && inScope(f.file)).map(f => f.msg);
+  const stale = getDocStatus(root)
+    .filter(row => (row.state === 'stale' || row.state === 'broken') && inScope(row.doc))
+    .map(row => `${row.doc} is ${row.state}: ${row.detail}`);
+
+  return {
+    pass: !errors.length && !stale.length,
+    errors,
+    warnings,
+    stale,
+    score: report.score ? formatScore(report.score) : ''
+  };
+}
+
 module.exports = {
   guardContent,
   proposeAdr,
-  checkpointState
+  checkpointState,
+  verifyKnowledge
 };

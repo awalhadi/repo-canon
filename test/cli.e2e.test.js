@@ -149,7 +149,8 @@ test('mcp: initialize, list, call over stdio', async () => {
   const msgs = buf.trim().split('\n').map(JSON.parse);
   assert.equal(msgs.length, 4);
   assert.equal(msgs[0].result.serverInfo.name, 'repocanon');
-  assert.equal(msgs[1].result.tools.length, 6);
+  assert.equal(msgs[1].result.tools.length, 10);
+  assert.ok(msgs[1].result.tools.every(t => typeof t.annotations.readOnlyHint === 'boolean'));
   assert.match(msgs[2].result.content[0].text, /billing/);
   assert.equal(msgs[3].result.isError, true);      // traversal attempt is neutralised (slugged), no file read
 });
@@ -388,4 +389,41 @@ test('GitHub Action: inputs and steps are wired; the comment script updates inst
   fs.writeFileSync(log, '');
   assert.match(run('42').stdout, /updated PR comment 42/);
   assert.match(fs.readFileSync(log, 'utf8'), /api -X PATCH repos\/o\/r\/issues\/comments\/42 -F body=@/);
+});
+
+test('mcp write tools: ADR, checkpoint, then stale → rc_stamp → rc_verify PASS', async () => {
+  const d = laravel(); cf(d, 'init', '--targets=claude'); cf(d, 'analyze', '--scaffold');
+  g(d, 'add', '-A'); g(d, 'commit', '-qm', 'docs'); cf(d, 'stamp', '--all'); g(d, 'commit', '-qam', 'stamp');
+  const p = cp.spawn('node', [CLI, 'mcp'], { cwd: d }); let buf = '';
+  p.stdout.on('data', c => buf += c);
+  let id = 0; const pending = new Map();
+  p.stdout.on('data', () => {
+    for (const line of buf.split('\n').filter(Boolean)) { const m = JSON.parse(line); if (pending.has(m.id)) { pending.get(m.id)(m.result); pending.delete(m.id); } }
+  });
+  const call = (name, args) => new Promise(res => { id += 1; pending.set(id, res); p.stdin.write(JSON.stringify({ jsonrpc: '2.0', id, method: 'tools/call', params: { name, arguments: args } }) + '\n'); });
+  const text = r => r.content[0].text;
+
+  const adr = await call('rc_propose_adr', { title: 'Bill in cents', decision: 'Store money as integer cents', why: 'No float rounding' });
+  assert.match(text(adr), /^Added D-001 to \.ai\/DECISIONS\.md/);
+  assert.match(fs.readFileSync(path.join(d, '.ai/DECISIONS.md'), 'utf8'), /## D-001 Bill in cents/);
+  const fakeKey = ['sk', '_live_', 'a1B2c3D4e5F6g7H8i9J0k1L2'].join('');
+  const leak = await call('rc_propose_adr', { title: 'Stripe', decision: `key ${fakeKey}`, why: 'x' });
+  assert.equal(leak.isError, true); assert.doesNotMatch(text(leak), new RegExp(fakeKey));
+
+  const stateBefore = fs.readFileSync(path.join(d, '.ai/STATE.md'), 'utf8').match(/^verified_at:.*$/m)[0];
+  assert.match(text(await call('rc_checkpoint_state', { focus: 'Refunds', change: 'billing in cents' })), /no doc was marked verified/);
+  assert.equal(fs.readFileSync(path.join(d, '.ai/STATE.md'), 'utf8').match(/^verified_at:.*$/m)[0], stateBefore);
+
+  fs.appendFileSync(path.join(d, 'app/Services/Billing/S.php'), 'refund()');
+  const dirty = await call('rc_stamp', { docs: ['billing'] });
+  assert.equal(dirty.isError, true); assert.match(text(dirty), /uncommitted changes/); assert.doesNotMatch(text(dirty), /--force/);
+  g(d, 'commit', '-qam', 'refunds');
+  assert.match(text(await call('rc_verify', { docs: ['billing'] })), /billing\.md is stale[\s\S]*FAIL: 0 error\(s\), 1 stale/);
+  assert.match(text(await call('rc_stamp', { docs: ['billing'] })), /✓ \.ai\/modules\/billing\.md verified at \w+ \(verified_by: agent\)/);
+  assert.match(text(await call('rc_verify', { docs: ['billing'] })), /PASS$/);
+  assert.equal((await call('rc_stamp', { docs: ['nope'] })).isError, true);
+  p.kill();
+
+  assert.match(cf(d, 'status').stdout, /billing\.md\s+fresh \(agent\)/);
+  assert.match(cf(d, 'doctor').stdout, /1 doc\(s\) verified by an agent/);
 });
