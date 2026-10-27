@@ -1,0 +1,8 @@
+{
+  "name": "node-shop",
+  "private": true,
+  "description": "Order service for the Acme web shop",
+  "scripts": {
+    "test": "node --test"
+  }
+}

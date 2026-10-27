@@ -1,0 +1,82 @@
+'use strict';
+
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const cp = require('child_process');
+
+const BENCH_DIR = path.resolve(__dirname, '..');
+const TASKS_DIR = path.join(BENCH_DIR, 'tasks');
+const FIXTURES_DIR = path.join(BENCH_DIR, 'fixtures');
+
+/**
+ * Every task under bench/tasks, with its prompt and grader.
+ *
+ * @returns {Array<{ id: string, dir: string, fixture: string, language: string, title: string, prompt: string }>}
+ */
+function loadTasks() {
+  return fs.readdirSync(TASKS_DIR)
+    .filter(id => fs.existsSync(path.join(TASKS_DIR, id, 'task.json')))
+    .sort()
+    .map(id => {
+      const dir = path.join(TASKS_DIR, id);
+      const meta = JSON.parse(fs.readFileSync(path.join(dir, 'task.json'), 'utf8'));
+      return { id, dir, ...meta, prompt: fs.readFileSync(path.join(dir, 'task.md'), 'utf8').trim() };
+    });
+}
+
+const git = (cwd, ...args) => cp.execFileSync('git', ['-c', 'user.email=bench@repocanon.dev', '-c', 'user.name=bench', ...args], { cwd, stdio: 'pipe' });
+
+/**
+ * A fresh git repo holding the task's fixture, in a temp folder.
+ *
+ * @param {{ fixture: string }} task
+ * @param {string} [label='run']
+ * @returns {string} the repo path
+ */
+function prepareRepo(task, label = 'run') {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), `rc-bench-${label}-`));
+  fs.cpSync(path.join(FIXTURES_DIR, task.fixture, 'repo'), dir, { recursive: true });
+  git(dir, 'init', '-q', '-b', 'main');
+  git(dir, 'add', '-A');
+  git(dir, 'commit', '-qm', 'fixture');
+  return dir;
+}
+
+/**
+ * Runs a task's grader against a repo.
+ *
+ * @param {{ dir: string }} task
+ * @param {string} repoDir
+ * @returns {{ pass: boolean, checks: Array<{ name: string, ok: boolean, detail?: string }> }}
+ */
+function grade(task, repoDir) {
+  try {
+    return require(path.join(task.dir, 'check.js'))(repoDir);
+  } catch (error) {
+    return { pass: false, checks: [{ name: 'grader ran', ok: false, detail: String(error && error.message) }] };
+  }
+}
+
+/**
+ * Grader self-test: the untouched fixture must fail and the reference solution must pass.
+ *
+ * @param {ReturnType<typeof loadTasks>[number]} task
+ * @returns {{ id: string, baselineFails: boolean, solutionPasses: boolean, solutionChecks: Array<any> }}
+ */
+function selfTest(task) {
+  const baseline = prepareRepo(task, 'self');
+  const baselineResult = grade(task, baseline);
+  const solved = prepareRepo(task, 'self');
+  fs.cpSync(path.join(task.dir, 'solution'), solved, { recursive: true, force: true });
+  const solutionResult = grade(task, solved);
+  for (const dir of [baseline, solved]) fs.rmSync(dir, { recursive: true, force: true });
+  return {
+    id: task.id,
+    baselineFails: !baselineResult.pass,
+    solutionPasses: solutionResult.pass,
+    solutionChecks: solutionResult.checks.filter(c => !c.ok)
+  };
+}
+
+module.exports = { loadTasks, prepareRepo, grade, selfTest, BENCH_DIR, FIXTURES_DIR };
