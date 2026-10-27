@@ -355,3 +355,14 @@ test('picker: renderMenu aligns columns and marks cursor, choice and status', ()
     '\nfoot'
   ].join('\n'));
 });
+
+test('release metadata: server.json matches package.json for the MCP Registry', () => {
+  const pkg = require('../package.json');
+  const server = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'server.json'), 'utf8'));
+  assert.equal(server.name, pkg.mcpName);
+  assert.match(server.name, /^io\.github\.awalhadi\//);
+  assert.ok(server.description.length <= 100, `description is ${server.description.length} chars (max 100)`);
+  assert.equal(server.packages[0].identifier, pkg.name);
+  assert.equal(server.packages[0].version, server.version);
+  assert.deepEqual(server.packages[0].packageArguments, [{ type: 'positional', value: 'mcp' }]);
+});

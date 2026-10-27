@@ -34,3 +34,17 @@ test/cli.e2e.test.js        black-box tests of the real CLI against temp git rep
 
 ## Running tests
 `npm test` must stay green, including `test/architecture.test.js` — it will fail the build if a new file reaches into a layer it isn't allowed to, or if logic gets duplicated back into a flat file at `src/` root.
+
+## Releasing
+`server.json` is the [MCP Registry](https://registry.modelcontextprotocol.io) listing. Its `name` must equal `mcpName` in `package.json`, and its two `version` fields must equal the version you publish (`npm test` checks the first two rules).
+
+```bash
+npm version 0.5.1 --no-git-tag-version   # bump package.json (and package-lock.json if present)
+# set the same version in server.json: "version" and packages[0].version
+git commit -am "release: 0.5.1" && git tag v0.5.1
+npm publish                              # runs the tests first (prepublishOnly)
+mcp-publisher login github               # once; install: brew install mcp-publisher
+mcp-publisher publish                    # reads server.json; npm must already have this version
+git push --follow-tags
+```
+Then paste the CHANGELOG section into a GitHub release for the tag.
