@@ -195,3 +195,138 @@ test('doctor checks pointer files only for the chosen tools', () => {
   r = JSON.parse(cf(d, 'doctor', '--json').stdout);
   assert.ok(r.findings.some(f => f.level === 'warn' && /CLAUDE\.md: RepoCanon block missing \(Claude Code/.test(f.msg)));
 });
+
+test('doctor flags inferable content with file:line but --ci still passes; fill brief says what not to write', () => {
+  const d = laravel(); cf(d, 'init', '--targets=claude');
+  fs.appendFileSync(path.join(d, '.ai/PROJECT.md'), '\n```\napp/\n├── Services/\n│   └── Billing/\n└── Models/\n```\n\n```js\nfunction total(items) {\n  return items.length;\n}\n```\n');
+  const r = JSON.parse(cf(d, 'doctor', '--json').stdout);
+  const msgs = r.findings.filter(f => f.level === 'warn').map(f => f.msg);
+  assert.ok(msgs.some(m => /^\.ai\/PROJECT\.md:\d+ directory tree \(~\d+ tokens\)/.test(m)), msgs.join('\n'));
+  assert.ok(msgs.some(m => /^\.ai\/PROJECT\.md:\d+ pasted source code/.test(m)), msgs.join('\n'));
+  assert.ok(r.findings.some(f => f.level === 'info' && /tokens in \.ai\/ describe what agents can read from the code/.test(f.msg)));
+  assert.equal(cf(d, 'doctor', '--ci').status, 0);
+  assert.match(cf(d, 'prompt', 'fill').stdout, /\*\*Do not write\*\*/);
+});
+
+test('secrets: doctor --ci fails, `secrets` reports masked, and the hook blocks the commit', () => {
+  const d = laravel(); cf(d, 'init', '--targets=claude'); g(d, 'add', '-A'); g(d, 'commit', '-qm', 'docs');
+  const token = 'ghp_' + 'aB3dE5fG7hJ9kL2mN4pQ6rS8tU0vW1xYz2Q4';   // built here, never a real token
+  fs.appendFileSync(path.join(d, '.ai/STATE.md'), `\n- deploy token: ${token}\n`);
+
+  const doc = cf(d, 'doctor', '--ci');
+  assert.equal(doc.status, 1);
+  assert.match(doc.stdout, /\.ai\/STATE\.md:\d+ possible GitHub token \(ghp_…\)/);
+  assert.doesNotMatch(doc.stdout, new RegExp(token));
+  assert.equal(cf(d, 'secrets').status, 1);
+
+  // hook resolves RepoCanon from node_modules/.bin, as an installed devDependency would
+  fs.mkdirSync(path.join(d, 'node_modules/.bin'), { recursive: true });
+  fs.writeFileSync(path.join(d, 'node_modules/.bin/repocanon'), `#!/bin/sh\nexec node "${CLI}" "$@"\n`, { mode: 0o755 });
+  assert.match(cf(d, 'hook').stdout, /installed/);
+  g(d, 'add', '.ai/STATE.md');
+  const blocked = cp.spawnSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-m', 'leak'], { cwd: d, encoding: 'utf8' });
+  assert.notEqual(blocked.status, 0);
+  assert.match(blocked.stdout + blocked.stderr, /commit blocked — secret in staged docs/);
+
+  fs.writeFileSync(path.join(d, '.ai/STATE.md'), fs.readFileSync(path.join(d, '.ai/STATE.md'), 'utf8').replace(token, 'stored in the CI secret store'));
+  g(d, 'add', '.ai/STATE.md');
+  const ok = cp.spawnSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-m', 'clean'], { cwd: d, encoding: 'utf8' });
+  assert.equal(ok.status, 0, ok.stdout + ok.stderr);
+  assert.equal(cf(d, 'secrets', '--quiet').stdout, '');
+});
+
+test('context packs label stale and unverified docs; fresh docs carry no label', () => {
+  const d = laravel(); cf(d, 'init', '--targets=claude'); cf(d, 'analyze', '--scaffold');
+  g(d, 'add', '-A'); g(d, 'commit', '-qm', 'docs');
+  cf(d, 'stamp', 'billing', 'project'); g(d, 'add', '-A'); g(d, 'commit', '-qm', 'stamp');
+  const { packContext } = require('../src/services/pack.service');
+
+  let r = packContext(d, { query: 'billing auth', maxTokens: 4000 });
+  assert.equal(r.freshness['.ai/modules/billing.md'], 'fresh');
+  assert.equal(r.freshness['.ai/modules/auth.md'], 'unverified');
+  assert.doesNotMatch(r.text, /## \.ai\/modules\/billing\.md\n>/);
+  assert.match(r.text, /## \.ai\/modules\/auth\.md\n> ○ unverified: never checked against the code/);
+
+  fs.appendFileSync(path.join(d, 'app/Services/Billing/S.php'), 'changed'); g(d, 'commit', '-qam', 'billing change');
+  r = packContext(d, { query: 'billing', maxTokens: 4000 });
+  assert.equal(r.freshness['.ai/modules/billing.md'], 'stale');
+  assert.match(r.text, /## \.ai\/modules\/billing\.md\n> ⚠ stale: 1 code file\(s\) changed since verify — where it disagrees with the code, trust the code\./);
+  assert.ok(r.tokens <= 4000);
+
+  const { executeTool } = require('../src/mcp/tools');
+  assert.match(executeTool(d, 'rc_context', { query: 'billing' }), /\| stale: modules\/billing\.md$/);
+  assert.match(cf(d, 'context', 'billing').stderr, /\| 1 stale\]/);
+});
+
+test('setup: uses the tools init saved, second run is a no-op, unknown tools fail', () => {
+  const d = repo({ 'package.json': '{}' });
+  assert.equal(cf(d, 'setup').status, 1);
+  cf(d, 'init', '--targets=claude,cursor');
+  const first = cf(d, 'setup');
+  assert.equal(first.status, 0, first.stderr);
+  assert.match(first.stdout, /\+ \.mcp\.json \(created/); assert.match(first.stdout, /\+ \.cursor\/mcp\.json \(created/);
+  const second = cf(d, 'setup');
+  assert.match(second.stdout, /= \.mcp\.json \(already set up\)/); assert.doesNotMatch(second.stdout, /Restart/);
+  assert.match(cf(d, 'setup', 'codex').stdout, /global config, paste this into ~\/\.codex\/config\.toml/);
+  const bad = cf(d, 'setup', 'zed'); assert.equal(bad.status, 1); assert.match(bad.stderr, /unknown tool zed/);
+});
+
+test('agent-hook: session context names stale docs; stop nudges once for undocumented module changes', () => {
+  const d = laravel(); cf(d, 'init', '--targets=claude'); cf(d, 'analyze', '--scaffold');
+  g(d, 'add', '-A'); g(d, 'commit', '-qm', 'docs'); cf(d, 'stamp', '--all'); g(d, 'commit', '-qam', 'stamp');
+  const hook = (event, input) => cp.spawnSync('node', [CLI, 'agent-hook', event], { cwd: d, encoding: 'utf8', input });
+
+  const plain = repo({ 'x.txt': 'x' });
+  assert.equal(cp.spawnSync('node', [CLI, 'agent-hook', 'session-start'], { cwd: plain, encoding: 'utf8' }).stdout, '');
+
+  assert.match(hook('session-start').stdout, /call the rc_context MCP tool/);
+  assert.equal(hook('stop', '{"stop_hook_active":false}').stdout, '');
+
+  fs.appendFileSync(path.join(d, 'app/Services/Billing/S.php'), 'changed');
+  const nudge = JSON.parse(hook('stop', '{"stop_hook_active":false}').stdout);
+  assert.equal(nudge.decision, 'block');
+  assert.match(nudge.reason, /app\/Services\/Billing\/S\.php \(module billing\) without updating \.ai\/modules\/billing\.md/);
+  assert.equal(hook('stop', '{"stop_hook_active":true}').stdout, '');      // never loops
+  assert.equal(hook('stop', 'not json').status, 0);
+
+  fs.appendFileSync(path.join(d, '.ai/modules/billing.md'), '\n- refunds now need approval\n');
+  assert.equal(hook('stop', '{}').stdout, '');                            // doc updated → let it stop
+
+  g(d, 'commit', '-qam', 'billing + doc');
+  assert.match(hook('session-start').stdout, /Stale docs \(code changed since they were verified\): modules\/billing\.md/);
+});
+
+test('rules: init writes scoped rules for filled modules; --check and doctor catch drift', () => {
+  const d = laravel(); cf(d, 'init', '--targets=cursor'); cf(d, 'analyze', '--scaffold');
+  assert.match(cf(d, 'rules').stdout, /Up to date — 0 scoped rule file\(s\)/);     // stubs only
+
+  const doc = path.join(d, '.ai/modules/billing.md');
+  fs.writeFileSync(doc, fs.readFileSync(doc, 'utf8').replace('1–2 lines.', 'Charges customers and issues refunds.'));
+  const init = cf(d, 'init');
+  assert.match(init.stdout, /Scoped rules: 1 file\(s\) updated \(\.cursor\/rules\/rc-billing\.mdc\)/);
+  assert.equal(cf(d, 'rules', '--check').status, 0);
+
+  fs.appendFileSync(doc, '\n## Gotchas\n- Refunds run in a queue; never refund inline.\n');
+  const check = cf(d, 'rules', '--check');
+  assert.equal(check.status, 1); assert.match(check.stdout, /~ \.cursor\/rules\/rc-billing\.mdc \(would be updated\)/);
+  assert.ok(JSON.parse(cf(d, 'doctor', '--json').stdout).findings.some(f => /scoped rule files are out of date/.test(f.msg)));
+  cf(d, 'rules');
+  assert.match(fs.readFileSync(path.join(d, '.cursor/rules/rc-billing.mdc'), 'utf8'), /never refund inline/);
+  assert.equal(cf(d, 'rules', '--check').status, 0);
+});
+
+test('adopt: one command from CLAUDE.md + memory bank to a clean, doctor-passing layer; --dry-run writes nothing', () => {
+  const d = repo({ 'package.json': '{}', 'CLAUDE.md': '# App\n\n## Conventions\n- Money is stored in cents.\n', 'memory-bank/activeContext.md': '# Now\n- Migrating auth to OIDC.\n' });
+  const dry = cf(d, 'adopt', '--dry-run');
+  assert.equal(dry.status, 0, dry.stderr); assert.match(dry.stdout, /Dry run — nothing written/);
+  assert.equal(fs.existsSync(path.join(d, '.ai')), false);
+
+  const r = cf(d, 'adopt');
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /Created the knowledge layer/);
+  assert.match(r.stdout, /Imported \d+ tokens from 2 file\(s\)/);
+  assert.match(fs.readFileSync(path.join(d, '.ai/STATE.md'), 'utf8'), /Migrating auth to OIDC/);
+  const doc = JSON.parse(cf(d, 'doctor', '--json').stdout);
+  assert.ok(!doc.findings.some(f => f.level === 'error'), JSON.stringify(doc.findings));
+  assert.ok(!doc.findings.some(f => /tokens in \.ai\/ describe what agents can read/.test(f.msg)));
+});

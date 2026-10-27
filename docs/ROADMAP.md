@@ -10,14 +10,14 @@ Full strategy and market analysis: [STRATEGY.md](STRATEGY.md) (local copy) · [s
 | Phase | Done | Total | Gate met |
 |---|---|---|---|
 | 0 · Trust & identity | 4 | 4 | yes — 30/30 tests green |
-| 1 · v0.5 Lean, scoped, distributed | 1 | 7 | no |
+| 1 · v0.5 Lean, scoped, distributed | 7 | 7 | gate pending — measure after 0.5.1 is on npm |
 | 2 · v0.6 Proof & teams | 0 | 5 | no |
 | 3 · v0.7 Moat | 0 | 4 | no |
 | 4 · v1.0+ Platform | 0 | 4 | no |
-| **Total** | **5** | **24** | |
+| **Total** | **11** | **24** | |
 
 ## Phase 0 — Trust & identity (week 1)
-- [x] **P0.1** Remove ContextForge (`bin/contextforge.js`, `templates/contextforge.json`, `cf_*` aliases, legacy block markers, JSDoc headers); claim `repocanon` on npm, MCP registry, Open VSX. *(Code side done; npm / registry claim pending — owner action.)*
+- [x] **P0.1** Remove ContextForge (`bin/contextforge.js`, `templates/contextforge.json`, `cf_*` aliases, legacy block markers, JSDoc headers); claim `repocanon` on npm, MCP registry, Open VSX. *(npm `repocanon@0.5.0` published 2026-10-27. MCP Registry listing prepared in `server.json`, goes live with 0.5.1; Open VSX comes with P4.1.)*
 - [x] **P0.2** Fix `stamp` (`src/services/status.service.js`): exact slug match, bare `stamp` requires `--all`, refuse when `code_paths` have uncommitted changes.
 - [x] **P0.3** Fix `pack` (`src/services/pack.service.js`): ranked matching, stopwords, core rules first, truncation consistent with `estimateTokens`.
 - [x] **P0.4** CLAUDE.md pointer becomes `@AGENTS.md`; doctor entry-budget target ~1k tokens (was 6000); fix stale `bytes/4` label.
@@ -25,12 +25,12 @@ Full strategy and market analysis: [STRATEGY.md](STRATEGY.md) (local copy) · [s
 **Gate:** `npm test` green, including new stamp/pack tests. ✅ Met on branch `phase-0-trust` (30/30).
 
 ## Phase 1 — v0.5 Lean, scoped, distributed (~4 weeks)
-- [ ] **P1.1** Inferable-content lint in `doctor`; rewrite the `prompt fill` brief to ask only for what code can't show.
-- [ ] **P1.2** Path-scoped writers: nested AGENTS.md, `.cursor/rules/<module>.mdc` with `globs`, Copilot `*.instructions.md` with `applyTo`; doctor drift check source vs output.
-- [ ] **P1.3** `repocanon adopt`: import `.cursorrules`, `.cursor/rules`, CLAUDE.md, Cline memory bank; strip inferable content and report the saving.
-- [ ] **P1.4** Secret/PII scanner (regex + entropy, zero-dep) in doctor, hook and MCP writes.
-- [ ] **P1.5** Claude Code plugin (MCP + SKILL.md + `SessionStart`/`Stop` hooks) and `repocanon setup <ide>`.
-- [ ] **P1.6** Freshness labels on every `rc_context` section ("stale: N files changed, trust the code").
+- [x] **P1.1** Inferable-content lint in `doctor`; rewrite the `prompt fill` brief to ask only for what code can't show. *(Branch `feat/inferable-lint`; ships in 0.5.1.)*
+- [x] **P1.2** Path-scoped writers: nested AGENTS.md, `.cursor/rules/<module>.mdc` with `globs`, Copilot `*.instructions.md` with `applyTo`; doctor drift check source vs output. *(`repocanon rules`, branch `feat/scoped-rules`; nested AGENTS.md opt-in via `nestedAgents`.)*
+- [x] **P1.3** `repocanon adopt`: import `.cursorrules`, `.cursor/rules`, CLAUDE.md, Cline memory bank; strip inferable content and report the saving. *(Branch `feat/adopt`; also drops secrets, `--move` retires originals.)*
+- [x] **P1.4** Secret/PII scanner (regex + entropy, zero-dep) in doctor, hook and MCP writes. *(doctor + `secrets` command + blocking hook done on `feat/secrets-freshness`; MCP-write scanning lands with P2.3.)*
+- [x] **P1.5** Claude Code plugin (MCP + SKILL.md + `SessionStart`/`Stop` hooks) and `repocanon setup <ide>`. *(Branch `feat/setup-plugin`; plugin installs once 0.5.1 is on npm.)*
+- [x] **P1.6** Freshness labels on every `rc_context` section ("stale: N files changed, trust the code"). *(Branch `feat/secrets-freshness`.)*
 - [x] **P1.7** Interactive tool picker in `init` (Claude Code, Cursor, Copilot, Gemini/Antigravity, Windsurf, Cline, Codex/ChatGPT); choice saved as `targets` in `.repocanon.json`; re-runs show `set up` / `detected` and say `Up to date`; deselected tools removed only with consent (`--prune` in scripts); `doctor` checks only chosen tools. *(Branch `feat/init-targets`.)*
 
 **Gate:** install-to-first-value under 60 seconds on a fresh repo.

@@ -8,6 +8,7 @@ const { estimateTokens, truncateToTokens } = require('../core/tokens');
 const { loadConfig } = require('../core/config');
 const { detectProject } = require('../core/detector');
 const { detectModules } = require('../core/modules');
+const { getDocStatus } = require('./status.service');
 
 /**
  * Builds a unified map of modules, merging detected modules with existing doc definitions.
@@ -67,6 +68,29 @@ const SCORE_SLUG = 5;
 const SCORE_PATH = 3;
 const SCORE_BODY_CAP = 3;
 const SCORE_FILE_MATCH = 1000;
+
+/**
+ * One-line warning shown under a doc's heading when it may not match the code.
+ * Fresh docs get no label, so they cost no extra tokens.
+ *
+ * @param {{ state: string, detail: string } | undefined} status
+ * @returns {string}
+ */
+function getFreshnessLabel(status) {
+  if (!status) return '';
+  switch (status.state) {
+    case 'stale':
+      return `> ⚠ stale: ${status.detail} — where it disagrees with the code, trust the code.`;
+    case 'broken':
+      return `> ✗ broken: ${status.detail} — verify against the code before relying on it.`;
+    case 'unverified':
+      return '> ○ unverified: never checked against the code — treat it as a hint.';
+    case 'unknown':
+      return '> ? verified_at is not in git history — treat it as a hint.';
+    default:
+      return '';
+  }
+}
 
 /**
  * Splits text into lowercase word tokens, breaking camelCase ("CommissionService" → commission, service).
@@ -133,7 +157,8 @@ function scoreModule(mod, docBody, words) {
  *   included: Array<{ rel: string, tokens: number }>,
  *   skipped: string[],
  *   modules: string[],
- *   scores: Record<string, number>
+ *   scores: Record<string, number>,
+ *   freshness: Record<string, string>
  * }}
  */
 function packContext(root, options = {}) {
@@ -188,6 +213,8 @@ function packContext(root, options = {}) {
 
   parts.push(['.ai/STATE.md', read(path.join(root, '.ai/STATE.md'))]);
 
+  const statusByDoc = new Map(getDocStatus(root).map(row => [row.doc, row]));
+  const freshness = {};
   const truncationMarker = '\n…[truncated]\n';
   const markerTokens = estimateTokens(truncationMarker);
   const sectionCap = Math.floor(maxTokens / 2);
@@ -200,7 +227,9 @@ function packContext(root, options = {}) {
     if (rawContent == null) {
       continue;
     }
-    let sectionText = `## ${relPath}\n${stripFrontmatter(rawContent).trim()}\n`;
+    const status = statusByDoc.get(relPath);
+    const label = getFreshnessLabel(status);
+    let sectionText = `## ${relPath}\n${label ? `${label}\n` : ''}${stripFrontmatter(rawContent).trim()}\n`;
     let tokens = estimateTokens(sectionText);
     const allowance = Math.min(sectionCap, maxTokens - usedTokens);
 
@@ -215,6 +244,9 @@ function packContext(root, options = {}) {
 
     outputSections.push(sectionText);
     included.push({ rel: relPath, tokens });
+    if (status) {
+      freshness[relPath] = status.state;
+    }
     usedTokens += tokens;
   }
 
@@ -224,7 +256,8 @@ function packContext(root, options = {}) {
     included,
     skipped,
     modules: ranked.map(mod => mod.slug),
-    scores: Object.fromEntries(ranked.map(mod => [mod.slug, scores.get(mod.slug)]))
+    scores: Object.fromEntries(ranked.map(mod => [mod.slug, scores.get(mod.slug)])),
+    freshness
   };
 }
 

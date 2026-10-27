@@ -21,7 +21,7 @@ const DEFAULT_CONFIG = {
  * Optional keys: absent means "not chosen yet", which callers treat differently
  * from an empty value (e.g. `targets` absent = legacy all-pointers behaviour).
  */
-const OPTIONAL_KEYS = ['targets'];
+const OPTIONAL_KEYS = ['targets', 'nestedAgents'];
 
 /**
  * Validates a configuration object against expected schema.
@@ -50,6 +50,10 @@ function validateConfig(config) {
 
   if (!Array.isArray(config.exclude)) {
     errors.push('exclude must be an array');
+  }
+
+  if (config.nestedAgents !== undefined && typeof config.nestedAgents !== 'boolean') {
+    errors.push('nestedAgents must be true or false');
   }
 
   if (config.targets !== undefined) {
@@ -124,6 +128,10 @@ function loadConfig(root) {
 
     if (config.preset !== 'auto' && !PRESETS[config.preset]) {
       config.preset = 'auto';
+    }
+
+    if (typeof config.nestedAgents !== 'boolean') {
+      delete config.nestedAgents;
     }
 
     if (config.targets !== undefined) {

@@ -11,7 +11,7 @@ const MCP_TOOLS = [
   {
     name: 'rc_context',
     description:
-      'Budgeted context pack for a task: PROJECT + relevant module docs + DOMAIN/CONVENTIONS/STATE. Call this FIRST instead of scanning the repo.',
+      'Budgeted context pack for a task: PROJECT + relevant module docs + DOMAIN/CONVENTIONS/STATE. Call this FIRST instead of scanning the repo. Docs that may not match the code carry a stale/broken/unverified label — trust the code there.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -101,7 +101,11 @@ function executeTool(root, toolName, args = {}) {
       const skippedSummary = result.skipped.length
         ? ` | skipped: ${result.skipped.join(', ')}`
         : '';
-      return `${result.text}\n---\nincluded: ${includedSummary}${skippedSummary}`;
+      const staleDocs = Object.entries(result.freshness)
+        .filter(([, state]) => state === 'stale' || state === 'broken')
+        .map(([rel]) => rel.replace(/^\.ai\//, ''));
+      const staleSummary = staleDocs.length ? ` | stale: ${staleDocs.join(', ')}` : '';
+      return `${result.text}\n---\nincluded: ${includedSummary}${skippedSummary}${staleSummary}`;
     }
 
     case 'rc_module': {

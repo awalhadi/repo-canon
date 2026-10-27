@@ -25,6 +25,8 @@ const promptService = require('./services/prompt.service');
 const factsService = require('./services/facts.service');
 const hookService = require('./services/hook.service');
 const targetsService = require('./services/targets.service');
+const inferableService = require('./services/inferable.service');
+const adoptService = require('./services/adopt.service');
 
 // CLI & MCP
 const cli = require('./cli/router');
@@ -47,6 +49,8 @@ module.exports = {
   installHook: hookService.installPreCommitHook,
   planTargets: targetsService.planTargets,
   applyTargets: targetsService.applyTargets,
+  findInferable: inferableService.findInferableContent,
+  adopt: adoptService.adoptProject,
 
   // Infrastructure & Core
   core: {

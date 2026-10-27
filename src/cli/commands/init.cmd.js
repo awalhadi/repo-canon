@@ -7,6 +7,7 @@ const { resolveDefaultTargets, planTargets } = require('../../services/targets.s
 const { TARGETS, TARGET_IDS, resolveTargetIds, detectTargets } = require('../../core/targets');
 const { readManagedBlock } = require('../../core/blocks');
 const { CommandError } = require('../../core/errors');
+const { planRules, applyRules, getPendingRules } = require('../../services/rules.service');
 const { isInteractive, multiSelect, confirm } = require('../prompt');
 
 const STATUS_MAP = {
@@ -131,11 +132,16 @@ async function handleInit(context) {
     console.log(`No AI tool detected, so only AGENTS.md was written. Pick tools: npx repocanon init --targets=claude,cursor (choose from: ${VALID_TARGETS_HINT})`);
   }
 
+  const writtenRules = getPendingRules(applyRules(root, planRules(root)));
+  if (writtenRules.length) {
+    console.log(`Scoped rules: ${writtenRules.length} file(s) updated (${writtenRules.map(r => r.file).join(', ')})`);
+  }
+
   const analysis = analyzeProject(root, {});
   console.log(`\nIndexed ${analysis.modules.length} module candidates → .ai/INDEX.md`);
 
   if (result.log.some(([status, filePath]) => status === 'created' && filePath === '.ai/PROJECT.md')) {
-    console.log('\nNext: npx repocanon prompt fill   (paste into your AI agent, or ask it to "fill the RepoCanon docs" over MCP)\n      npx repocanon doctor        (check the result)');
+    console.log('\nNext: npx repocanon setup         (connect the MCP server to your tools)\n      npx repocanon prompt fill   (paste into your AI agent, or ask it to "fill the RepoCanon docs" over MCP)\n      npx repocanon doctor        (check the result)');
   }
 }
 

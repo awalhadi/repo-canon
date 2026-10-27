@@ -2,6 +2,24 @@
 
 All notable changes to RepoCanon. Versions follow [semver](https://semver.org); before 1.0, minor versions may break.
 
+## 0.5.1 — unreleased
+
+### Added
+- `doctor` flags content agents can read from the code — directory trees, dependency/version lists, pasted source code and file catalogues — with `file:line` and a token estimate. These are warnings, so `doctor --ci` still passes.
+- MCP Registry listing (`server.json`, `mcpName`): RepoCanon appears in the official registry as `io.github.awalhadi/repocanon`.
+- Secret scanning for `AGENTS.md` and `.ai/` docs: private keys, cloud/API tokens, JWTs, URLs with passwords and high-entropy password/token values. `doctor` reports them as errors, and a new `secrets [--staged] [--json] [--quiet]` command lists them masked.
+- Context packs (`context`, `rc_context`) label stale, broken and unverified docs so agents trust the code there; `packContext()` returns `freshness`.
+- `repocanon setup [tool…]` registers the MCP server in `.mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json` and `.gemini/settings.json` (only its own entry; invalid or commented JSON is left alone), and prints snippets for global configs (Windsurf, Cline, Codex).
+- `repocanon agent-hook session-start|stop`: a session briefing (use `rc_context`, stale docs) and an end-of-turn reminder when a module's code changed without its doc.
+- `repocanon rules [--check]`: per-module scoped rule files — Cursor `.cursor/rules/rc-<module>.mdc` with `globs`, Copilot `.github/instructions/rc-<module>.instructions.md` with `applyTo`, and opt-in nested `AGENTS.md` pointers (`"nestedAgents": true`). `init` regenerates them, `doctor` warns when they drift.
+- `repocanon adopt [--dry-run] [--move]`: imports CLAUDE.md, GEMINI.md, .windsurfrules, .clinerules, Copilot instructions, .cursorrules, always-on Cursor rules and Cline's memory-bank/ into `.ai/`, routing sections to the right doc and dropping inferable content and secrets; `--move` reduces originals to pointers once committed.
+- Claude Code plugin + marketplace (`/plugin marketplace add awalhadi/repo-canon`): MCP server, `repocanon` skill, SessionStart and Stop hooks.
+
+### Changed
+- `prompt fill`, `prompt fill --compact` and `prompt update` tell agents to write only what the code can't show, with an explicit "Do not write" list.
+- New `PROJECT.md` template: no duplicated Stack/Commands (they live in AGENTS.md); "Non-obvious architecture" replaces the architecture overview.
+- The pre-commit hook now **blocks** commits that stage a secret in `AGENTS.md` or `.ai/` (override with `--no-verify`); re-run `repocanon hook` to upgrade a 0.5.0 hook in place.
+
 ## 0.5.0 — first npm release
 
 ### Breaking

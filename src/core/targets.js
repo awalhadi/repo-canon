@@ -18,7 +18,11 @@ const {
  * - `detect`  paths whose presence means the project already uses this tool
  *             (a trailing "/" marks a directory)
  * - `aliases` extra names accepted by --targets
- * Reserved for `repocanon setup` (roadmap P1.5): `mcp` — the tool's MCP config path and shape.
+ * - `mcp`     where `repocanon setup` registers the MCP server:
+ *             `file` (project-relative, or `~/…` for a global config), `key` holding the
+ *             server map, `scope` ('project' = written, 'global' = snippet printed),
+ *             `rootArg` (the tool's variable for the project folder, if it has one),
+ *             `type` (extra "type" field some tools need), `format` ('json' or 'toml')
  */
 const TARGETS = [
   {
@@ -27,7 +31,8 @@ const TARGETS = [
     aliases: ['claude-code', 'claudecode', 'cloude'],
     file: 'CLAUDE.md',
     text: CLAUDE_POINTER_TEXT,
-    detect: ['CLAUDE.md', '.claude/']
+    detect: ['CLAUDE.md', '.claude/'],
+    mcp: { file: '.mcp.json', key: 'mcpServers', scope: 'project', format: 'json' },
   },
   {
     id: 'cursor',
@@ -36,7 +41,8 @@ const TARGETS = [
     file: CURSOR_RULE_PATH,
     text: IDE_POINTER_TEXT,
     prefix: CURSOR_RULE_FRONTMATTER,
-    detect: ['.cursor/', '.cursorrules']
+    detect: ['.cursor/', '.cursorrules'],
+    mcp: { file: '.cursor/mcp.json', key: 'mcpServers', scope: 'project', rootArg: '${workspaceFolder}', format: 'json' },
   },
   {
     id: 'copilot',
@@ -44,7 +50,8 @@ const TARGETS = [
     aliases: ['github', 'github-copilot', 'vscode'],
     file: '.github/copilot-instructions.md',
     text: IDE_POINTER_TEXT,
-    detect: ['.github/copilot-instructions.md', '.github/instructions/']
+    detect: ['.github/copilot-instructions.md', '.github/instructions/'],
+    mcp: { file: '.vscode/mcp.json', key: 'servers', scope: 'project', rootArg: '${workspaceFolder}', type: 'stdio', format: 'json' },
   },
   {
     id: 'gemini',
@@ -52,7 +59,8 @@ const TARGETS = [
     aliases: ['gemini-cli', 'antigravity'],
     file: 'GEMINI.md',
     text: IDE_POINTER_TEXT,
-    detect: ['GEMINI.md', '.gemini/']
+    detect: ['GEMINI.md', '.gemini/'],
+    mcp: { file: '.gemini/settings.json', key: 'mcpServers', scope: 'project', format: 'json' },
   },
   {
     id: 'windsurf',
@@ -60,7 +68,8 @@ const TARGETS = [
     aliases: [],
     file: '.windsurfrules',
     text: IDE_POINTER_TEXT,
-    detect: ['.windsurfrules', '.windsurf/']
+    detect: ['.windsurfrules', '.windsurf/'],
+    mcp: { file: '~/.codeium/windsurf/mcp_config.json', key: 'mcpServers', scope: 'global', format: 'json' },
   },
   {
     id: 'cline',
@@ -68,7 +77,8 @@ const TARGETS = [
     aliases: [],
     file: '.clinerules',
     text: IDE_POINTER_TEXT,
-    detect: ['.clinerules']
+    detect: ['.clinerules'],
+    mcp: { file: 'cline_mcp_settings.json (Cline panel → MCP Servers → Configure)', key: 'mcpServers', scope: 'global', format: 'json' },
   },
   {
     id: 'codex',
@@ -76,7 +86,8 @@ const TARGETS = [
     aliases: ['openai', 'chatgpt', 'gpt'],
     file: null,
     native: true,
-    detect: ['.codex/']
+    detect: ['.codex/'],
+    mcp: { file: '~/.codex/config.toml', key: 'mcp_servers', scope: 'global', format: 'toml' },
   }
 ];
 

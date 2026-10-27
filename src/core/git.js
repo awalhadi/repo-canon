@@ -141,6 +141,28 @@ function getUncommittedPaths(cwd, paths) {
 }
 
 /**
+ * Lists files staged for the next commit (added, copied, modified or renamed).
+ *
+ * @param {string} cwd
+ * @returns {string[]}
+ */
+function getStagedFiles(cwd) {
+  const out = execGit(cwd, ['diff', '--cached', '--name-only', '--diff-filter=ACMR', '-z']);
+  return out ? out.split('\0').filter(Boolean) : [];
+}
+
+/**
+ * Reads the staged (index) version of a file. The `:path` form can never be parsed as an option.
+ *
+ * @param {string} cwd
+ * @param {string} file - repo-relative path, as returned by getStagedFiles
+ * @returns {string|null}
+ */
+function readStagedFile(cwd, file) {
+  return execGit(cwd, ['show', `:${file}`]);
+}
+
+/**
  * Lists all git tracked and untracked non-ignored files using null-delimited output.
  *
  * @param {string} cwd
@@ -165,5 +187,7 @@ module.exports = {
   getChangedFilesSince,
   getDiffForPaths,
   getUncommittedPaths,
+  getStagedFiles,
+  readStagedFile,
   listGitFiles
 };
