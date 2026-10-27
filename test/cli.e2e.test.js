@@ -330,3 +330,17 @@ test('adopt: one command from CLAUDE.md + memory bank to a clean, doctor-passing
   assert.ok(!doc.findings.some(f => f.level === 'error'), JSON.stringify(doc.findings));
   assert.ok(!doc.findings.some(f => /tokens in \.ai\/ describe what agents can read/.test(f.msg)));
 });
+
+test('CI output: GitHub annotations in Actions, --strict fails on warnings, status shows the score', () => {
+  const d = laravel(); cf(d, 'init', '--targets=claude');
+  fs.appendFileSync(path.join(d, '.ai/PROJECT.md'), '\n```\napp/\n├── a\n├── b\n└── c\n```\n');
+  const env = { ...process.env, GITHUB_ACTIONS: 'true' };
+  const gh = cp.spawnSync('node', [CLI, 'doctor', '--ci'], { cwd: d, encoding: 'utf8', env });
+  assert.equal(gh.status, 0);
+  assert.match(gh.stdout, /^::warning file=\.ai\/PROJECT\.md,line=\d+,title=RepoCanon::\.ai\/PROJECT\.md:\d+ directory tree/m);
+  assert.match(gh.stdout, /^Freshness \d+\/100/m);
+  assert.equal(cp.spawnSync('node', [CLI, 'doctor', '--ci', '--strict'], { cwd: d, encoding: 'utf8', env }).status, 1);
+  assert.doesNotMatch(cf(d, 'doctor').stdout, /^::/m);                         // plain output outside Actions
+  assert.match(cf(d, 'status').stdout, /· Freshness \d+\/100/);
+  assert.equal(typeof JSON.parse(cf(d, 'status', '--json').stdout).score.score, 'number');
+});

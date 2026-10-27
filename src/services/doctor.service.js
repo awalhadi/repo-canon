@@ -11,6 +11,7 @@ const { TARGETS } = require('../core/targets');
 const { scanKnowledgeLayer, INFERABLE_LABELS } = require('./inferable.service');
 const { scanSecrets, formatSecretFinding } = require('./secrets.service');
 const { planRules, getPendingRules } = require('./rules.service');
+const { getFreshnessScore } = require('./score.service');
 
 const MAX_INFERABLE_PER_DOC = 5;
 const {
@@ -33,7 +34,8 @@ const {
 function runDoctor(root) {
   const findings = [];
   const docs = [];
-  const addFinding = (level, msg) => findings.push({ level, msg });
+  // `where` ({ file, line }) lets CI put the finding on the right line of the PR
+  const addFinding = (level, msg, where = {}) => findings.push({ level, msg, ...where });
 
   if (!exists(path.join(root, '.ai'))) {
     addFinding('error', '.ai/ missing — run: repocanon init');
@@ -43,9 +45,9 @@ function runDoctor(root) {
   const agentsPath = path.join(root, 'AGENTS.md');
   const agentsContent = read(agentsPath);
   if (agentsContent === null) {
-    addFinding('error', 'AGENTS.md missing — run: repocanon init');
+    addFinding('error', 'AGENTS.md missing — run: repocanon init', { file: 'AGENTS.md' });
   } else if (!/\.ai\//.test(agentsContent)) {
-    addFinding('error', 'AGENTS.md does not reference .ai/ — run: repocanon init');
+    addFinding('error', 'AGENTS.md does not reference .ai/ — run: repocanon init', { file: 'AGENTS.md' });
   }
 
   // Only the tools the project chose; no saved choice yet = legacy, every tool
@@ -54,9 +56,9 @@ function runDoctor(root) {
   for (const target of TARGETS.filter(t => t.file && chosen.includes(t.id))) {
     const pointerContent = read(path.join(root, target.file));
     if (pointerContent === null) {
-      addFinding('warn', `${target.file} missing (${target.label} will not find .ai/) — run: repocanon init`);
+      addFinding('warn', `${target.file} missing (${target.label} will not find .ai/) — run: repocanon init`, { file: target.file });
     } else if (readManagedBlock(path.join(root, target.file)) === null || !/AGENTS\.md/.test(pointerContent)) {
-      addFinding('warn', `${target.file}: RepoCanon block missing (${target.label} will not find AGENTS.md) — run: repocanon init`);
+      addFinding('warn', `${target.file}: RepoCanon block missing (${target.label} will not find AGENTS.md) — run: repocanon init`, { file: target.file });
     }
   }
 
@@ -79,7 +81,7 @@ function runDoctor(root) {
     });
 
     if (lines > lineCap) {
-      addFinding('warn', `${relPath}: ${lines} lines (cap ${lineCap}) — trim or split`);
+      addFinding('warn', `${relPath}: ${lines} lines (cap ${lineCap}) — trim or split`, { file: relPath });
     }
     return content;
   };
@@ -106,21 +108,21 @@ function runDoctor(root) {
       const fm = parseFrontmatter(content);
 
       if (!fm.module) {
-        addFinding('warn', `${relPath}: frontmatter 'module' missing`);
+        addFinding('warn', `${relPath}: frontmatter 'module' missing`, { file: relPath, line: 1 });
       }
 
       if (!Array.isArray(fm.code_paths) || !fm.code_paths.length) {
-        addFinding('warn', `${relPath}: code_paths empty — sync cannot track it`);
+        addFinding('warn', `${relPath}: code_paths empty — sync cannot track it`, { file: relPath, line: 1 });
       } else {
         for (const codePath of fm.code_paths) {
           if (!exists(path.join(root, codePath))) {
-            addFinding('error', `${relPath}: code path not found: ${codePath}`);
+            addFinding('error', `${relPath}: code path not found: ${codePath}`, { file: relPath, line: 1 });
           }
         }
       }
 
       if (!fm.verified_at) {
-        addFinding('info', `${relPath}: not verified yet (run: repocanon stamp ${fileName.slice(0, -3)})`);
+        addFinding('info', `${relPath}: not verified yet (run: repocanon stamp ${fileName.slice(0, -3)})`, { file: relPath, line: 1 });
       }
     }
   }
@@ -132,7 +134,7 @@ function runDoctor(root) {
   // Docs are committed and often published: a pasted key here is a leak
   for (const { doc, findings: secretFindings } of scanSecrets(root)) {
     for (const item of secretFindings) {
-      addFinding('error', formatSecretFinding(doc, item));
+      addFinding('error', formatSecretFinding(doc, item), { file: doc, line: item.line });
     }
   }
 
@@ -145,10 +147,10 @@ function runDoctor(root) {
   let inferableTokens = 0;
   for (const { doc, findings: docFindings } of scanKnowledgeLayer(root)) {
     for (const item of docFindings.slice(0, MAX_INFERABLE_PER_DOC)) {
-      addFinding('warn', `${doc}:${item.line} ${INFERABLE_LABELS[item.kind]} (~${item.tokens} tokens) — ${item.hint}`);
+      addFinding('warn', `${doc}:${item.line} ${INFERABLE_LABELS[item.kind]} (~${item.tokens} tokens) — ${item.hint}`, { file: doc, line: item.line });
     }
     if (docFindings.length > MAX_INFERABLE_PER_DOC) {
-      addFinding('warn', `${doc}: +${docFindings.length - MAX_INFERABLE_PER_DOC} more inferable block(s)`);
+      addFinding('warn', `${doc}: +${docFindings.length - MAX_INFERABLE_PER_DOC} more inferable block(s)`, { file: doc });
     }
     inferableTokens += docFindings.reduce((sum, item) => sum + item.tokens, 0);
   }
@@ -157,7 +159,7 @@ function runDoctor(root) {
   }
 
   for (const configError of validateConfig(config)) {
-    addFinding('warn', `config: ${configError}`);
+    addFinding('warn', `config: ${configError}`, { file: '.repocanon.json' });
   }
 
   const getTokensForDoc = relPath => (docs.find(d => d.rel === relPath) || { tokens: 0 }).tokens;
@@ -176,6 +178,7 @@ function runDoctor(root) {
   return {
     findings,
     docs,
+    score: getFreshnessScore(root),
     budget: {
       entryTokens,
       repoTokens: repoTokensCount,

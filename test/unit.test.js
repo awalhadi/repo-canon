@@ -717,3 +717,20 @@ test('drift: only meaningful code changes make a module doc stale', () => {
   assert.equal(billing().state, 'stale');                                   // a moved file matters
   assert.match(billing().detail, /^2 code file\(s\) changed since verify \(3 /);
 });
+
+test('freshness score: weighted average of doc states, null without scored docs', () => {
+  const { getFreshnessScore, formatScore } = require('../src/services/score.service');
+  const rows = states => states.map((state, i) => ({ doc: `d${i}`, state }));
+  const result = getFreshnessScore(null, rows(['fresh', 'fresh', 'stale', 'unverified', 'broken']));
+  assert.equal(result.score, Math.round((100 + 100 + 25 + 50 + 0) / 5));
+  assert.deepEqual(result.counts, { fresh: 2, stale: 1, broken: 1, unverified: 1, unknown: 0 });
+  assert.equal(formatScore(result), 'Freshness 55/100 · 1 stale, 1 broken, 1 unverified');
+  assert.equal(getFreshnessScore(null, rows(['n/a', 'n/a'])).score, null);
+});
+
+test('GitHub annotations: level mapping, file/line properties and escaping', () => {
+  const { formatGithubAnnotation } = require('../src/cli/formatters');
+  assert.equal(formatGithubAnnotation('warn', 'x', { file: '.ai/STATE.md', line: 3 }), '::warning file=.ai/STATE.md,line=3,title=RepoCanon::x');
+  assert.equal(formatGithubAnnotation('error', '50% done\nnext', { file: 'a,b.md' }), '::error file=a%2Cb.md,title=RepoCanon::50%25 done%0Anext');
+  assert.equal(formatGithubAnnotation('info', 'note'), '::notice title=RepoCanon::note');
+});
