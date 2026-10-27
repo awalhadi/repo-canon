@@ -127,15 +127,34 @@ function createUi(options = {}) {
 
     /** `  ✓ text  detail` */
     row(sym, text, detail = '') {
-      const head = `  ${sym} ${text}`;
-      const room = columns ? columns - width(head) - 2 : 0;
-      out(detail ? `${head}  ${c.dim(fit(detail, room))}` : head);
+      this.rows([[sym, text, detail]]);
     },
 
     /** A file action row: `  + path  created` */
     action(kind, file, note = '') {
-      const [sym, word] = ACTIONS[kind] || [c.dim('*'), kind];
-      this.row(sym, file, note ? `${word} · ${note}` : word);
+      this.actions([[kind, file, note]]);
+    },
+
+    /**
+     * Aligned result rows.
+     *
+     * @param {Array<[string, string, string?]>} list - [symbol, text, detail]
+     */
+    rows(list) {
+      if (!list.length) return;
+      this.table(list.map(([sym, text, detail]) => [sym, text, detail ? c.dim(detail) : '']));
+    },
+
+    /**
+     * Aligned file actions.
+     *
+     * @param {Array<[string, string, string?]>} list - [action, file, note]
+     */
+    actions(list) {
+      this.rows(list.map(([kind, file, note]) => {
+        const [sym, word] = ACTIONS[kind] || [c.dim('*'), kind];
+        return [sym, file, note ? `${word} · ${note}` : word];
+      }));
     },
 
     /** Indented, dim block (snippets to paste, long details). */
@@ -175,13 +194,14 @@ function createUi(options = {}) {
     /**
      * The one-line outcome.
      *
-     * @param {{ errors?: number, warnings?: number, ok?: string, extra?: string }} counts
+     * @param {{ errors?: number, warnings?: number, ok?: string, extra?: string, errorText?: string, warningText?: string }} counts
+     *   errorText / warningText replace "N errors" / "N warnings" with words that fit the command
      */
-    verdict({ errors = 0, warnings = 0, ok = 'All good', extra = '' }) {
+    verdict({ errors = 0, warnings = 0, ok = 'All good', extra = '', errorText = '', warningText = '' }) {
       if (lines.length && lines[lines.length - 1] !== '') out('');
       const parts = [];
-      if (errors) parts.push(`${errors} error${errors === 1 ? '' : 's'}`);
-      if (warnings) parts.push(`${warnings} warning${warnings === 1 ? '' : 's'}`);
+      if (errors) parts.push(errorText || `${errors} error${errors === 1 ? '' : 's'}`);
+      if (warnings) parts.push(warningText || `${warnings} warning${warnings === 1 ? '' : 's'}`);
       const tail = extra ? c.dim(` · ${extra}`) : '';
       if (errors) out(`${symbol.error} ${c.red(c.bold(parts.join(', ')))}${tail}`);
       else if (warnings) out(`${symbol.warn} ${c.yellow(c.bold(parts.join(', ')))}${tail}`);

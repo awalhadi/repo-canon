@@ -2,6 +2,7 @@
 
 const { packContext } = require('../../services/pack.service');
 const { printJson } = require('../formatters');
+const { getErrorUi } = require('../ui');
 
 /**
  * Handles the `repocanon context` CLI command.
@@ -24,11 +25,15 @@ function handleContext(context) {
 
   console.log(result.text);
 
-  const matchedModules = result.modules.join(', ') || 'none matched';
-  const skippedDetails = result.skipped.length ? ` | skipped: ${result.skipped.join(', ')}` : '';
+  // Status goes to stderr so `context … | pbcopy` copies only the pack
+  const ui = getErrorUi({ noColor: context.noColor });
   const staleCount = Object.values(result.freshness).filter(state => state === 'stale' || state === 'broken').length;
-  const staleDetails = staleCount ? ` | ${staleCount} stale` : '';
-  console.error(`\n[~${result.tokens} tokens | modules: ${matchedModules}${skippedDetails}${staleDetails}]`);
+  ui.line('');
+  ui.row(ui.symbol.info, `~${result.tokens.toLocaleString('en-US')} tokens of ${maxTokens.toLocaleString('en-US')}`, [
+    `modules: ${result.modules.join(', ') || 'none matched'}`,
+    result.skipped.length ? `skipped: ${result.skipped.join(', ')}` : '',
+    staleCount ? `${staleCount} stale (labelled in the pack)` : ''
+  ].filter(Boolean).join(' · '));
 }
 
 module.exports = {

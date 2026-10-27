@@ -38,7 +38,7 @@ test('init --targets writes only the chosen tools and saves the choice', () => {
   assert.ok(fs.existsSync(path.join(d, 'CLAUDE.md')) && fs.existsSync(path.join(d, '.cursor/rules/project.mdc')));
   for (const f of ['GEMINI.md', '.windsurfrules', '.clinerules', '.github/copilot-instructions.md']) assert.equal(fs.existsSync(path.join(d, f)), false, f);
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(d, '.repocanon.json'), 'utf8')).targets, ['claude', 'cursor']);
-  assert.match(r.stdout, /Tools: Claude Code, Cursor/);
+  assert.match(r.stdout, /Tools  Claude Code, Cursor/);
 });
 
 test('init re-run with saved targets is a no-op and says so', () => {
@@ -47,14 +47,14 @@ test('init re-run with saved targets is a no-op and says so', () => {
   const before = snap();
   const r = cf(d, 'init');
   assert.equal(r.status, 0, r.stderr);
-  assert.match(r.stdout, /Up to date — 2 tool\(s\): Claude Code, OpenAI Codex \/ ChatGPT\. Nothing changed\./);
+  assert.match(r.stdout, /Tools  Claude Code, OpenAI Codex \/ ChatGPT\n[\s\S]*✓ Up to date: nothing changed/);
   assert.deepEqual(snap(), before);
 });
 
 test('init: deselected tools are kept unless --prune; prune keeps user text', () => {
   const d = repo({ 'package.json': '{}', 'CLAUDE.md': 'MY OWN RULES\n' }); cf(d, 'init', '--targets=claude,cursor');
   const kept = cf(d, 'init', '--targets=cursor');
-  assert.match(kept.stdout, /! CLAUDE\.md \(not selected — kept; use --prune to remove\)/);
+  assert.match(kept.stdout, /=\s+CLAUDE\.md\s+kept · tool not selected · --prune removes it/);
   assert.match(fs.readFileSync(path.join(d, 'CLAUDE.md'), 'utf8'), /@AGENTS\.md/);
   const pruned = cf(d, 'init', '--targets=none', '--prune');
   assert.equal(pruned.status, 0, pruned.stderr);
@@ -90,7 +90,7 @@ test('status/sync flag changed module; stamp clears it', () => {
   assert.match(cf(d, 'status').stdout, /billing\.md\s+fresh/);
   fs.appendFileSync(path.join(d, 'app/Services/Billing/S.php'), 'y'); g(d, 'commit', '-qam', 'c');
   assert.match(cf(d, 'status').stdout, /billing\.md\s+stale/);
-  assert.match(cf(d, 'sync').stdout, /billing\*\* — 1 file/);
+  assert.match(cf(d, 'sync').stdout, /!\s+billing\s+1 file\(s\) changed since/);
   assert.equal(cf(d, 'status', '--ci').status, 1);
 });
 
@@ -118,9 +118,9 @@ test('stamp: uncommitted code_paths are refused unless --force', () => {
   const d = laravel(); cf(d, 'init'); cf(d, 'analyze', '--scaffold'); g(d, 'add', '-A'); g(d, 'commit', '-qm', 'docs');
   fs.appendFileSync(path.join(d, 'app/Services/Billing/S.php'), 'dirty');
   const r = cf(d, 'stamp', 'billing');
-  assert.equal(r.status, 1); assert.match(r.stdout, /✗ .ai\/modules\/billing\.md: uncommitted changes \(app\/Services\/Billing\/S\.php\)/);
-  assert.match(cf(d, 'stamp', 'auth').stdout, /✓ .ai\/modules\/auth\.md/);   // other modules unaffected
-  const f = cf(d, 'stamp', 'billing', '--force'); assert.equal(f.status, 0); assert.match(f.stdout, /✓ .ai\/modules\/billing\.md/);
+  assert.equal(r.status, 1); assert.match(r.stdout, /✗\s+\.ai\/modules\/billing\.md\s+not stamped[\s\S]*→ uncommitted changes \(app\/Services\/Billing\/S\.php\)/);
+  assert.match(cf(d, 'stamp', 'auth').stdout, /✓\s+\.ai\/modules\/auth\.md/);   // other modules unaffected
+  const f = cf(d, 'stamp', 'billing', '--force'); assert.equal(f.status, 0); assert.match(f.stdout, /✓\s+\.ai\/modules\/billing\.md/);
 });
 
 test('doctor: errors without AGENTS reference, --ci exit code', () => {
@@ -256,7 +256,7 @@ test('context packs label stale and unverified docs; fresh docs carry no label',
 
   const { executeTool } = require('../src/mcp/tools');
   assert.match(executeTool(d, 'rc_context', { query: 'billing' }), /\| stale: modules\/billing\.md$/);
-  assert.match(cf(d, 'context', 'billing').stderr, /\| 1 stale\]/);
+  assert.match(cf(d, 'context', 'billing').stderr, /1 stale \(labelled in the pack\)/);
 });
 
 test('setup: uses the tools init saved, second run is a no-op, unknown tools fail', () => {
@@ -265,10 +265,10 @@ test('setup: uses the tools init saved, second run is a no-op, unknown tools fai
   cf(d, 'init', '--targets=claude,cursor');
   const first = cf(d, 'setup');
   assert.equal(first.status, 0, first.stderr);
-  assert.match(first.stdout, /\+ \.mcp\.json \(created/); assert.match(first.stdout, /\+ \.cursor\/mcp\.json \(created/);
+  assert.match(first.stdout, /\+\s+\.mcp\.json\s+created/); assert.match(first.stdout, /\+\s+\.cursor\/mcp\.json\s+created/);
   const second = cf(d, 'setup');
-  assert.match(second.stdout, /= \.mcp\.json \(already set up\)/); assert.doesNotMatch(second.stdout, /Restart/);
-  assert.match(cf(d, 'setup', 'codex').stdout, /global config, paste this into ~\/\.codex\/config\.toml/);
+  assert.match(second.stdout, /=\s+\.mcp\.json\s+unchanged · already set up/); assert.doesNotMatch(second.stdout, /restart or reload/);
+  assert.match(cf(d, 'setup', 'codex').stdout, /global config: paste this into ~\/\.codex\/config\.toml/);
   const bad = cf(d, 'setup', 'zed'); assert.equal(bad.status, 1); assert.match(bad.stderr, /unknown tool zed/);
 });
 
@@ -299,17 +299,17 @@ test('agent-hook: session context names stale docs; stop nudges once for undocum
 
 test('rules: init writes scoped rules for filled modules; --check and doctor catch drift', () => {
   const d = laravel(); cf(d, 'init', '--targets=cursor'); cf(d, 'analyze', '--scaffold');
-  assert.match(cf(d, 'rules').stdout, /Up to date — 0 scoped rule file\(s\)/);     // stubs only
+  assert.match(cf(d, 'rules').stdout, /✓ Up to date · 0 scoped rule file\(s\)/);     // stubs only
 
   const doc = path.join(d, '.ai/modules/billing.md');
   fs.writeFileSync(doc, fs.readFileSync(doc, 'utf8').replace('1–2 lines.', 'Charges customers and issues refunds.'));
   const init = cf(d, 'init');
-  assert.match(init.stdout, /Scoped rules: 1 file\(s\) updated \(\.cursor\/rules\/rc-billing\.mdc\)/);
+  assert.match(init.stdout, /Scoped rules\s+1 file\(s\) updated: \.cursor\/rules\/rc-billing\.mdc/);
   assert.equal(cf(d, 'rules', '--check').status, 0);
 
   fs.appendFileSync(doc, '\n## Gotchas\n- Refunds run in a queue; never refund inline.\n');
   const check = cf(d, 'rules', '--check');
-  assert.equal(check.status, 1); assert.match(check.stdout, /~ \.cursor\/rules\/rc-billing\.mdc \(would be updated\)/);
+  assert.equal(check.status, 1); assert.match(check.stdout, /~\s+\.cursor\/rules\/rc-billing\.mdc\s+updated · pending/);
   assert.ok(JSON.parse(cf(d, 'doctor', '--json').stdout).findings.some(f => /scoped rule files are out of date/.test(f.msg)));
   cf(d, 'rules');
   assert.match(fs.readFileSync(path.join(d, '.cursor/rules/rc-billing.mdc'), 'utf8'), /never refund inline/);
@@ -319,7 +319,7 @@ test('rules: init writes scoped rules for filled modules; --check and doctor cat
 test('adopt: one command from CLAUDE.md + memory bank to a clean, doctor-passing layer; --dry-run writes nothing', () => {
   const d = repo({ 'package.json': '{}', 'CLAUDE.md': '# App\n\n## Conventions\n- Money is stored in cents.\n', 'memory-bank/activeContext.md': '# Now\n- Migrating auth to OIDC.\n' });
   const dry = cf(d, 'adopt', '--dry-run');
-  assert.equal(dry.status, 0, dry.stderr); assert.match(dry.stdout, /Dry run — nothing written/);
+  assert.equal(dry.status, 0, dry.stderr); assert.match(dry.stdout, /dry run: nothing written/);
   assert.equal(fs.existsSync(path.join(d, '.ai')), false);
 
   const r = cf(d, 'adopt');
@@ -342,7 +342,7 @@ test('CI output: GitHub annotations in Actions, --strict fails on warnings, stat
   assert.match(gh.stdout, /^Freshness \d+\/100/m);
   assert.equal(cp.spawnSync('node', [CLI, 'doctor', '--ci', '--strict'], { cwd: d, encoding: 'utf8', env }).status, 1);
   assert.doesNotMatch(cf(d, 'doctor').stdout, /^::/m);                         // plain output outside Actions
-  assert.match(cf(d, 'status').stdout, /· Freshness \d+\/100/);
+  assert.match(cf(d, 'status').stdout, /Freshness \S+ \d+\/100/);
   assert.equal(typeof JSON.parse(cf(d, 'status', '--json').stdout).score.score, 'number');
 });
 
@@ -432,22 +432,22 @@ test('skills: init writes the verify skill per tool; conflicts, drift and desele
   const d = repo({ 'package.json': JSON.stringify({ scripts: { lint: 'eslint .', test: 'node --test' } }) });
   const first = cf(d, 'init', '--targets=claude,cursor', '--yes');
   assert.equal(first.status, 0, first.stderr);
-  assert.match(first.stdout, /Skills: 3 file\(s\) updated/);
+  assert.match(first.stdout, /Skills\s+3 file\(s\) updated/);
   for (const f of ['.ai/skills/rc-verify-change/SKILL.md', '.claude/skills/rc-verify-change/SKILL.md', '.agents/skills/rc-verify-change/SKILL.md']) {
     assert.ok(fs.existsSync(path.join(d, f)), f);
   }
   assert.match(fs.readFileSync(path.join(d, '.claude/skills/rc-verify-change/SKILL.md'), 'utf8'), /Generated by RepoCanon from \.ai\/skills\/rc-verify-change\/SKILL\.md[\s\S]*`npm run lint`[\s\S]*`npm test`/);
   assert.doesNotMatch(cf(d, 'init', '--targets=claude,cursor', '--yes').stdout, /Skills:/);
-  assert.match(cf(d, 'skills').stdout, /Up to date — 3 skill file\(s\)/);
+  assert.match(cf(d, 'skills').stdout, /Up to date · 3 skill file\(s\)/);
 
   fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({ scripts: { lint: 'eslint .', test: 'node --test', typecheck: 'tsc' } }));
   const check = cf(d, 'skills', '--check');
-  assert.equal(check.status, 1); assert.match(check.stdout, /~ \.ai\/skills\/rc-verify-change\/SKILL\.md \(would be updated\)/);
+  assert.equal(check.status, 1); assert.match(check.stdout, /~\s+\.ai\/skills\/rc-verify-change\/SKILL\.md\s+updated · pending/);
   assert.match(cf(d, 'doctor').stdout, /skill files are out of date/);
   cf(d, 'skills'); assert.equal(cf(d, 'skills', '--check').status, 0);
 
   fs.writeFileSync(path.join(d, '.claude/skills/rc-verify-change/SKILL.md'), '---\nname: rc-verify-change\ndescription: mine\n---\n');
-  assert.match(cf(d, 'skills').stdout, /! \.claude\/skills\/rc-verify-change\/SKILL\.md: a skill of the same name already exists/);
+  assert.match(cf(d, 'skills').stdout, /!\s+\.claude\/skills\/rc-verify-change\/SKILL\.md\s+a skill of the same name already exists/);
   assert.equal(fs.readFileSync(path.join(d, '.claude/skills/rc-verify-change/SKILL.md'), 'utf8'), '---\nname: rc-verify-change\ndescription: mine\n---\n');
 
   cf(d, 'init', '--targets=claude', '--yes', '--prune');
@@ -479,7 +479,7 @@ test('entry digest: AGENTS.md carries the rules and decisions, follows them, and
 
   fs.writeFileSync(path.join(d, '.ai/CONVENTIONS.md'), '---\nverified_at:\n---\n# Conventions\n- Money is integer cents.\n- TODO\n');
   const check = cf(d, 'rules', '--check');
-  assert.equal(check.status, 1); assert.match(check.stdout, /~ AGENTS\.md \(would be updated\)/);
+  assert.equal(check.status, 1); assert.match(check.stdout, /~\s+AGENTS\.md\s+updated · pending/);
   cf(d, 'rules');
   assert.match(agents(), /## Project rules[^\n]*\n- Money is integer cents\.\n/);
 

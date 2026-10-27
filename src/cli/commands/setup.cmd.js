@@ -1,5 +1,6 @@
 'use strict';
 
+const path = require('path');
 const { planSetup, applySetup } = require('../../services/setup.service');
 const { loadConfig } = require('../../core/config');
 const { TARGET_IDS, resolveTargetIds } = require('../../core/targets');
@@ -8,26 +9,19 @@ const { printJson } = require('../formatters');
 
 const VALID_HINT = `${TARGET_IDS.join(', ')}, all`;
 
-const ROW_FORMAT = {
-  create: row => `+ ${row.file} (created, repocanon server added)`,
-  add: row => `+ ${row.file} (repocanon server added; other servers kept)`,
-  update: row => `~ ${row.file} (repocanon server updated)`,
-  unchanged: row => `= ${row.file} (already set up)`,
-  invalid: row => `! ${row.file}: ${row.error} — left untouched. Add this yourself:\n${indent(row.snippet)}`,
-  manual: row => `! ${row.label}: global config, paste this into ${row.file}:\n${indent(row.snippet)}`,
-  none: row => `- ${row.label}: no MCP config needed`
+const NOTES = {
+  create: 'repocanon server added',
+  add: 'repocanon server added; your other servers kept',
+  update: 'repocanon server updated',
+  unchanged: 'already set up'
 };
-
-function indent(text) {
-  return text.split('\n').map(line => `    ${line}`).join('\n');
-}
 
 /**
  * Handles the `repocanon setup` CLI command: registers the RepoCanon MCP server
  * in each chosen tool's config.
  */
 function handleSetup(context) {
-  const { root, args, isJson } = context;
+  const { root, args, isJson, ui } = context;
   let ids;
 
   if (args.length) {
@@ -50,11 +44,24 @@ function handleSetup(context) {
     printJson(plan);
     return;
   }
+  const { symbol } = ui;
+  ui.header('setup', path.basename(root));
+  ui.actions(plan.filter(row => NOTES[row.action]).map(row => [row.action, row.file, NOTES[row.action]]));
+  ui.rows(plan.filter(row => row.action === 'none').map(row => [symbol.same, row.label, 'no MCP config needed (reads AGENTS.md)']));
   for (const row of plan) {
-    console.log(`  ${ROW_FORMAT[row.action](row)}`);
+    if (row.action === 'invalid') {
+      ui.row(symbol.warn, row.file, `${row.error}: left untouched, add this yourself:`);
+      ui.block(row.snippet);
+    } else if (row.action === 'manual') {
+      ui.row(symbol.warn, row.label, `global config: paste this into ${row.file}`);
+      ui.block(row.snippet);
+    }
   }
-  if (plan.some(row => ['create', 'add', 'update'].includes(row.action))) {
-    console.log('\nRestart or reload the tool so it picks up the server, then ask your agent to "use rc_context".');
+  const changed = plan.filter(row => ['create', 'add', 'update'].includes(row.action)).length;
+  const manual = plan.filter(row => ['invalid', 'manual'].includes(row.action)).length;
+  ui.verdict({ warnings: 0, ok: changed ? `MCP server registered in ${changed} config(s)` : 'Already set up', extra: manual ? `${manual} to paste yourself` : '' });
+  if (changed || manual) {
+    ui.next([['restart or reload your tool', 'so it starts the server'], ['ask your agent: "use rc_context for this task"', 'to check it works']]);
   }
 }
 

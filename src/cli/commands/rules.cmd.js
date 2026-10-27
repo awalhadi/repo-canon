@@ -1,32 +1,38 @@
 'use strict';
 
+const path = require('path');
 const { planRules, applyRules, getPendingRules } = require('../../services/rules.service');
 const { printJson } = require('../formatters');
 
-const SYMBOLS = { create: '+', update: '~', remove: '-' };
-
 /**
- * Handles `repocanon rules [--check] [--json]`: writes per-module rule files that tools
- * load only while editing that module's files. --check writes nothing and exits 1 when
+ * Handles `repocanon rules [--check] [--json]`. --check writes nothing and exits 1 when
  * anything is out of date.
  */
 function handleRules(context) {
-  const { root, flags, isJson } = context;
+  const { root, flags, isJson, ui } = context;
   const check = flags.has('--check');
   const plan = check ? planRules(root) : applyRules(root, planRules(root));
   const pending = getPendingRules(plan);
+  const problems = [];
 
   if (isJson) {
     printJson(plan.map(({ content, ...row }) => row));
-  } else if (!pending.length) {
-    console.log(`Up to date — ${plan.filter(row => row.kind !== 'entry').length} scoped rule file(s).`);
   } else {
-    const verb = { create: 'created', update: 'updated', remove: 'removed' };
-    for (const row of pending) {
-      const label = check ? `would be ${verb[row.action]}` : verb[row.action];
-      console.log(`  ${SYMBOLS[row.action]} ${row.file} (${label})`);
+    const { symbol } = ui;
+    ui.header(`rules${check ? ' --check' : ''}`, path.basename(root));
+    ui.actions(pending.map(row => [row.action, row.file, check ? 'pending' : '']));
+    ui.rows(problems.map(row => [symbol.warn, row.file, row.reason]));
+    const total = plan.filter(row => row.kind !== 'entry').length;
+    if (!pending.length && !problems.length) {
+      ui.row(symbol.same, total ? `${total} scoped rule file(s), all current` : 'nothing to generate yet');
     }
-    if (check) console.log('\nRun: npx repocanon rules');
+    ui.verdict({
+      warnings: check ? pending.length : problems.length,
+      warningText: check && pending.length ? `${pending.length} file(s) out of date` : '',
+      ok: pending.length ? `${pending.length} file(s) written` : 'Up to date',
+      extra: `${total} scoped rule file(s)`
+    });
+    if (check && pending.length) ui.next([['npx repocanon rules', 'write them']]);
   }
 
   if (check && pending.length) {
