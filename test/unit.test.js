@@ -504,3 +504,25 @@ test('setup: writes MCP entries per tool, keeps other servers, is idempotent, ne
   fs.writeFileSync(path.join(repoDir, '.mcp.json'), '{"mcpServers":{"repocanon":{"command":"node","args":["old.js"]}}}');
   assert.equal(planSetup(repoDir, ['claude'])[0].action, 'update');
 });
+
+test('Claude Code plugin: marketplace points at the plugin, versions match, hooks call agent-hook only inside .ai projects', () => {
+  const rootDir = path.join(__dirname, '..');
+  const marketplace = JSON.parse(fs.readFileSync(path.join(rootDir, '.claude-plugin/marketplace.json'), 'utf8'));
+  const entry = marketplace.plugins.find(p => p.name === 'repocanon');
+  const pluginDir = path.join(rootDir, entry.source);
+  const plugin = JSON.parse(fs.readFileSync(path.join(pluginDir, '.claude-plugin/plugin.json'), 'utf8'));
+  const hooks = JSON.parse(fs.readFileSync(path.join(pluginDir, 'hooks/hooks.json'), 'utf8')).hooks;
+  const server = JSON.parse(fs.readFileSync(path.join(rootDir, 'server.json'), 'utf8'));
+
+  assert.equal(plugin.name, 'repocanon');
+  assert.equal(plugin.version, server.version);
+  assert.ok(fs.existsSync(path.join(pluginDir, 'skills/repocanon/SKILL.md')));
+  const pin = `repocanon@^${plugin.version}`;
+  assert.ok(plugin.mcpServers.repocanon.args.includes(pin));
+  for (const [event, arg] of [['SessionStart', 'session-start'], ['Stop', 'stop']]) {
+    const command = hooks[event][0].hooks[0].command;
+    assert.ok(command.startsWith('[ -d "$CLAUDE_PROJECT_DIR/.ai" ] && '), command);
+    assert.ok(command.includes(`'${pin}' agent-hook ${arg}`), command);
+    assert.ok(command.endsWith('|| true'), command);
+  }
+});

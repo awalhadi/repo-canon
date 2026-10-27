@@ -1,0 +1,31 @@
+{
+  "name": "repocanon",
+  "displayName": "RepoCanon",
+  "version": "0.5.1",
+  "description": "Verified AGENTS.md and project memory for Claude Code: budgeted context via MCP, stale-doc briefing at session start, and a reminder to update docs you changed the code for.",
+  "author": {
+    "name": "Md. A Awal Hadi",
+    "url": "https://github.com/awalhadi"
+  },
+  "homepage": "https://github.com/awalhadi/repo-canon#readme",
+  "repository": "https://github.com/awalhadi/repo-canon",
+  "license": "MIT",
+  "keywords": [
+    "agents-md",
+    "context-engineering",
+    "documentation",
+    "mcp",
+    "project-memory"
+  ],
+  "mcpServers": {
+    "repocanon": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "repocanon@^0.5.1",
+        "mcp",
+        "--root=${CLAUDE_PROJECT_DIR}"
+      ]
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"$CLAUDE_PROJECT_DIR/.ai\" ] && npx -y 'repocanon@^0.5.1' agent-hook session-start --root=\"$CLAUDE_PROJECT_DIR\" || true",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"$CLAUDE_PROJECT_DIR/.ai\" ] && npx -y 'repocanon@^0.5.1' agent-hook stop --root=\"$CLAUDE_PROJECT_DIR\" || true",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

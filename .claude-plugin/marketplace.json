@@ -1,0 +1,22 @@
+{
+  "name": "repocanon",
+  "owner": {
+    "name": "Md. A Awal Hadi",
+    "url": "https://github.com/awalhadi"
+  },
+  "description": "RepoCanon: verified AGENTS.md and project memory for AI coding agents.",
+  "plugins": [
+    {
+      "name": "repocanon",
+      "source": "./plugins/repocanon",
+      "description": "Connects Claude Code to your project's RepoCanon knowledge layer: MCP context tools, a session-start briefing with stale docs, and an end-of-turn reminder to update docs you made stale.",
+      "category": "development",
+      "tags": [
+        "agents-md",
+        "documentation",
+        "context",
+        "mcp"
+      ]
+    }
+  ]
+}
