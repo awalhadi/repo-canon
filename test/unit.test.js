@@ -671,3 +671,49 @@ test('adopt --move: originals become pointers or are removed, but never while un
   assert.equal(fs.readFileSync(path.join(repoDir, 'CLAUDE.md'), 'utf8'), '<!-- repocanon:start -->\n@AGENTS.md\n<!-- repocanon:end -->\n');
   assert.ok(fs.existsSync(path.join(repoDir, '.cursor/rules/api.mdc')));
 });
+
+test('drift: tests, docs, lockfiles and driftIgnore patterns are classified; .ai never is', () => {
+  const { classifyPath, toMatcher } = require('../src/core/drift');
+  assert.equal(classifyPath('app/Services/Billing/BillingTest.php'), null);
+  assert.equal(classifyPath('tests/Feature/BillingTest.php'), 'tests');
+  assert.equal(classifyPath('src/billing/total.test.ts'), 'tests');
+  assert.equal(classifyPath('pkg/billing/total_test.go'), 'tests');
+  assert.equal(classifyPath('src/billing/README.md'), 'docs');
+  assert.equal(classifyPath('package-lock.json'), 'lockfile');
+  assert.equal(classifyPath('.ai/modules/billing.md'), null);
+  assert.equal(classifyPath('src/billing/__snapshots__/a.snap', ['*.snap']), 'driftIgnore');
+  assert.equal(classifyPath('src/generated/api.ts', ['src/generated/']), 'driftIgnore');
+  assert.ok(toMatcher('src/**/*.gen.ts')('src/a/b/c.gen.ts'));
+  assert.ok(!toMatcher('src/**/*.gen.ts')('lib/c.gen.ts'));
+});
+
+test('drift: only meaningful code changes make a module doc stale', () => {
+  const { getDocStatus } = require('../src/services/status.service');
+  const git = (dir, ...a) => cp.execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', ...a], { cwd: dir, stdio: 'pipe' });
+  const repoDir = createTempRepo({
+    'src/billing/total.js': 'function total(a) {\n  return a;\n}\n',
+    'src/billing/total.test.js': 'test(1)\n',
+    'src/billing/NOTES.md': 'notes\n',
+    'src/billing/old.js': 'x\n'
+  });
+  const head = git(repoDir, 'rev-parse', '--short', 'HEAD').toString().trim();
+  fs.mkdirSync(path.join(repoDir, '.ai/modules'), { recursive: true });
+  fs.writeFileSync(path.join(repoDir, '.ai/modules/billing.md'), `---\nmodule: billing\nverified_at: ${head}\ncode_paths: [src/billing/]\n---\n# billing\n`);
+  const billing = () => getDocStatus(repoDir).find(r => r.doc === '.ai/modules/billing.md');
+
+  fs.writeFileSync(path.join(repoDir, 'src/billing/total.js'), 'function total(a)  {\n\n  return a;\n}\n');   // whitespace only
+  fs.appendFileSync(path.join(repoDir, 'src/billing/total.test.js'), 'test(2)\n');
+  fs.appendFileSync(path.join(repoDir, 'src/billing/NOTES.md'), 'more\n');
+  git(repoDir, 'commit', '-qam', 'cosmetic');
+  assert.equal(billing().state, 'fresh');
+  assert.equal(billing().ignored, 3);
+  assert.match(billing().detail, /3 test\/doc\/formatting change\(s\) ignored/);
+
+  fs.writeFileSync(path.join(repoDir, '.repocanon.json'), JSON.stringify({ drift: 'all' }));
+  assert.equal(billing().state, 'stale');                                   // old behaviour on request
+  fs.unlinkSync(path.join(repoDir, '.repocanon.json'));
+
+  git(repoDir, 'mv', 'src/billing/old.js', 'src/billing/legacy.js'); git(repoDir, 'commit', '-qm', 'rename');
+  assert.equal(billing().state, 'stale');                                   // a moved file matters
+  assert.match(billing().detail, /^2 code file\(s\) changed since verify \(3 /);
+});

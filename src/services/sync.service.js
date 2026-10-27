@@ -8,9 +8,11 @@ const {
   isInsideGitRepo,
   isValidRef,
   getHeadShort,
-  getChangedFilesSince
+  getChangedFilesSince,
+  getSignificantChanges
 } = require('../core/git');
 const { loadConfig } = require('../core/config');
+const { getDriftOptions } = require('../core/drift');
 const { detectProject } = require('../core/detector');
 const { detectModules } = require('../core/modules');
 
@@ -38,6 +40,7 @@ function syncProject(root, options = {}) {
   const config = loadConfig(root);
   const project = detectProject(root);
   const detected = detectModules(files, config, project.stacks);
+  const driftOptions = { ...getDriftOptions(config), workingTree: true };
 
   const slugs = new Set(detected.map(m => m.slug));
   const modDir = path.join(root, '.ai', 'modules');
@@ -68,13 +71,12 @@ function syncProject(root, options = {}) {
 
     let state;
     let changed = [];
+    let ignored = [];
 
     if (!text) {
       state = 'undocumented';
       if (options.since && isValidRef(root, options.since)) {
-        changed = getChangedFilesSince(root, options.since).filter(f =>
-          paths.some(p => isPathInside(f, p))
-        );
+        ({ significant: changed, ignored } = getSignificantChanges(root, options.since, paths, driftOptions));
       }
     } else if (missing.length && missing.length === paths.length) {
       state = 'broken';
@@ -83,9 +85,7 @@ function syncProject(root, options = {}) {
     } else if (!isValidRef(root, base)) {
       state = 'unknown-ref';
     } else {
-      changed = getChangedFilesSince(root, base).filter(f =>
-        paths.some(p => isPathInside(f, p))
-      );
+      ({ significant: changed, ignored } = getSignificantChanges(root, base, paths, driftOptions));
       state = changed.length ? 'needs-update' : 'ok';
     }
 
@@ -107,6 +107,7 @@ function syncProject(root, options = {}) {
       state,
       base: base || null,
       changed,
+      ignored: ignored.length,
       missing,
       paths
     });

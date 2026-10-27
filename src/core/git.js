@@ -1,6 +1,8 @@
 'use strict';
 
 const cp = require('child_process');
+const fs = require('fs');
+const path = require('path');
 
 /**
  * Executes git command safely using execFileSync without shell invocation.
@@ -141,6 +143,57 @@ function getUncommittedPaths(cwd, paths) {
 }
 
 /**
+ * Splits files changed since `ref` into the ones that matter for docs and the ones that
+ * don't: whitespace/formatting-only edits, and paths `classify` rejects (tests, docs…).
+ *
+ * @param {string} cwd
+ * @param {string} ref - commit to compare from
+ * @param {string[]} paths - pathspecs to limit the diff
+ * @param {{ workingTree?: boolean, classify?: (file: string) => string|null, all?: boolean }} [options={}]
+ *   workingTree: compare against the working tree (plus untracked files) instead of HEAD;
+ *   all: count every changed file (the `drift: "all"` setting)
+ * @returns {{ significant: string[], ignored: Array<{ file: string, reason: string }> }}
+ */
+function getSignificantChanges(cwd, ref, paths, options = {}) {
+  const safePaths = paths.filter(p => typeof p === 'string' && p && !p.startsWith('-'));
+  if (!safePaths.length) {
+    return { significant: [], ignored: [] };
+  }
+  const range = options.workingTree ? ref : `${ref}..HEAD`;
+  const lines = out => (out ? out.split('\n').filter(Boolean) : []);
+
+  // --no-renames: a moved file is a delete + add, which matters for docs; a rename would look whitespace-only
+  const changed = lines(execGit(cwd, ['diff', '--name-only', '--no-renames', range, '--', ...safePaths]));
+  if (options.workingTree) {
+    changed.push(...lines(execGit(cwd, ['ls-files', '--others', '--exclude-standard', '--', ...safePaths])));
+  }
+  // Files whose only edits are whitespace or blank lines drop out of this list
+  const substantive = new Set(
+    lines(execGit(cwd, ['diff', '--numstat', '--no-renames', '-w', '--ignore-blank-lines', range, '--', ...safePaths]))
+      .map(line => line.split('\t').slice(2).join('\t'))
+  );
+  const untracked = new Set(options.workingTree
+    ? lines(execGit(cwd, ['ls-files', '--others', '--exclude-standard', '--', ...safePaths]))
+    : []);
+
+  const significant = [];
+  const ignored = [];
+  for (const file of [...new Set(changed)]) {
+    const reason = !options.all && options.classify ? options.classify(file) : null;
+    if (options.all) {
+      significant.push(file);
+    } else if (reason) {
+      ignored.push({ file, reason });
+    } else if (!substantive.has(file) && !untracked.has(file) && fs.existsSync(path.join(cwd, file))) {
+      ignored.push({ file, reason: 'whitespace/formatting only' });
+    } else {
+      significant.push(file);
+    }
+  }
+  return { significant, ignored };
+}
+
+/**
  * Lists files staged for the next commit (added, copied, modified or renamed).
  *
  * @param {string} cwd
@@ -187,6 +240,7 @@ module.exports = {
   getChangedFilesSince,
   getDiffForPaths,
   getUncommittedPaths,
+  getSignificantChanges,
   getStagedFiles,
   readStagedFile,
   listGitFiles

@@ -9,8 +9,11 @@ const {
   isValidRef,
   getHeadShort,
   getUncommittedPaths,
+  getSignificantChanges,
   execGit
 } = require('../core/git');
+const { loadConfig } = require('../core/config');
+const { getDriftOptions } = require('../core/drift');
 const { CORE_DOCS } = require('../core/constants');
 
 /**
@@ -61,6 +64,7 @@ function getKnowledgeDocs(root) {
  */
 function getDocStatus(root) {
   const isGit = isInsideGitRepo(root);
+  const driftOptions = getDriftOptions(loadConfig(root));
   const rows = [];
 
   for (const doc of getKnowledgeDocs(root)) {
@@ -70,6 +74,7 @@ function getDocStatus(root) {
 
     let state;
     let detail = '';
+    let ignoredCount = 0;
 
     if (!isGit) {
       state = 'n/a';
@@ -81,17 +86,13 @@ function getDocStatus(root) {
       state = 'unknown';
       detail = 'hash not in history';
     } else if (isModule && paths.length > 0) {
-      const safePaths = paths.filter(p => !p.startsWith('-'));
-      const diffOutput = execGit(root, [
-        'diff',
-        '--name-only',
-        `${verifiedAt}..HEAD`,
-        '--',
-        ...safePaths
-      ]);
-      const changedCount = diffOutput ? diffOutput.split('\n').length : 0;
-      state = changedCount > 0 ? 'stale' : 'fresh';
-      detail = changedCount > 0 ? `${changedCount} code file(s) changed since verify` : '';
+      const { significant, ignored } = getSignificantChanges(root, verifiedAt, paths, driftOptions);
+      const ignoredNote = ignored.length ? ` (${ignored.length} test/doc/formatting change(s) ignored)` : '';
+      state = significant.length > 0 ? 'stale' : 'fresh';
+      detail = significant.length > 0
+        ? `${significant.length} code file(s) changed since verify${ignoredNote}`
+        : ignoredNote.trim().replace(/^\(|\)$/g, '');
+      ignoredCount = ignored.length;
     } else {
       state = 'fresh';
       const commitCount = execGit(root, ['rev-list', '--count', `${verifiedAt}..HEAD`]);
@@ -107,7 +108,8 @@ function getDocStatus(root) {
     rows.push({
       doc: doc.rel,
       state,
-      detail
+      detail,
+      ignored: ignoredCount
     });
   }
 

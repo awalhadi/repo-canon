@@ -21,7 +21,7 @@ const DEFAULT_CONFIG = {
  * Optional keys: absent means "not chosen yet", which callers treat differently
  * from an empty value (e.g. `targets` absent = legacy all-pointers behaviour).
  */
-const OPTIONAL_KEYS = ['targets', 'nestedAgents'];
+const OPTIONAL_KEYS = ['targets', 'nestedAgents', 'drift', 'driftIgnore'];
 
 /**
  * Validates a configuration object against expected schema.
@@ -50,6 +50,14 @@ function validateConfig(config) {
 
   if (!Array.isArray(config.exclude)) {
     errors.push('exclude must be an array');
+  }
+
+  if (config.drift !== undefined && !['significant', 'all'].includes(config.drift)) {
+    errors.push('drift must be "significant" (default) or "all"');
+  }
+
+  if (config.driftIgnore !== undefined && (!Array.isArray(config.driftIgnore) || config.driftIgnore.some(p => typeof p !== 'string'))) {
+    errors.push('driftIgnore must be an array of path patterns');
   }
 
   if (config.nestedAgents !== undefined && typeof config.nestedAgents !== 'boolean') {
@@ -132,6 +140,16 @@ function loadConfig(root) {
 
     if (typeof config.nestedAgents !== 'boolean') {
       delete config.nestedAgents;
+    }
+
+    if (!['significant', 'all'].includes(config.drift)) {
+      delete config.drift;
+    }
+
+    if (!Array.isArray(config.driftIgnore)) {
+      delete config.driftIgnore;
+    } else {
+      config.driftIgnore = config.driftIgnore.filter(p => typeof p === 'string');
     }
 
     if (config.targets !== undefined) {
