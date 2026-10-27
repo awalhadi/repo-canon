@@ -44,6 +44,8 @@ Full strategy and market analysis: [STRATEGY.md](STRATEGY.md) (local copy) · [s
 
 **Gate:** benchmark results published in README with a rerunnable method. ✅ Met 2026-10-27: [README › Benchmark](../README.md#benchmark), method and raw data in [bench/](../bench/README.md).
 
+**Release:** all of Phase 2 ships as **0.6.0** (versions set 2026-10-27; npm, MCP Registry and the `v0.6` action tag are published by the maintainer).
+
 **What the benchmark found, as input for Phase 3:**
 - RepoCanon's extra cost comes from agents reading 6+ `.ai/` docs and following the Definition of Done on every task. Make the entry cheaper: a lighter Definition of Done, and don't send agents to template-only docs.
 - Claude Code headless never called the MCP tools or the skill. Make them worth calling, or don't rely on them for core value.

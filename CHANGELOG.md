@@ -2,7 +2,7 @@
 
 All notable changes to RepoCanon. Versions follow [semver](https://semver.org); before 1.0, minor versions may break.
 
-## 0.6.0 — unreleased
+## 0.6.0 — 2026-10-27
 
 ### Added
 - GitHub Action (`uses: awalhadi/repo-canon@v0.6`): doctor with inline annotations, a job summary, one pull-request comment kept up to date, and `fail-on: error | stale | never`.

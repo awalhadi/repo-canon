@@ -1,7 +1,7 @@
 {
   "name": "repocanon",
   "displayName": "RepoCanon",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "Verified AGENTS.md and project memory for Claude Code: budgeted context via MCP, stale-doc briefing at session start, and a reminder to update docs you changed the code for.",
   "author": {
     "name": "Md. A Awal Hadi",
@@ -22,7 +22,7 @@
       "command": "npx",
       "args": [
         "-y",
-        "repocanon@^0.5.1",
+        "repocanon@^0.6.0",
         "mcp",
         "--root=${CLAUDE_PROJECT_DIR}"
       ]
