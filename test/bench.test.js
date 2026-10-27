@@ -5,7 +5,7 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 
 const { wilson, quantile, summarize } = require('../bench/lib/stats');
-const { parseResult, buildArgs } = require('../bench/lib/agent');
+const { parseResult, parseToolUse, buildArgs } = require('../bench/lib/agent');
 const { loadTasks, prepareRepo } = require('../bench/lib/tasks');
 const { applyCondition, CONDITIONS } = require('../bench/lib/conditions');
 
@@ -28,7 +28,15 @@ test('bench agent: isolation flags and defensive result parsing', () => {
   for (const flag of ['--strict-mcp-config', '--setting-sources', '--no-session-persistence', '--max-budget-usd']) assert.ok(args.includes(flag), flag);
   assert.equal(args[args.indexOf('--setting-sources') + 1], 'project');
 
-  const parsed = parseResult(JSON.stringify({
+  const toolEvent = (name, input) => JSON.stringify({ type: 'assistant', message: { content: [{ type: 'tool_use', name, input }] } });
+  const stream = [
+    JSON.stringify({ type: 'system', subtype: 'init' }),
+    toolEvent('Read', { file_path: '/r/.ai/DECISIONS.md' }), toolEvent('Read', { file_path: '/r/src/a.js' }),
+    toolEvent('mcp__repocanon__rc_context', { query: 'x' }), toolEvent('Edit', { file_path: '/r/src/a.js' }), 'garbage'
+  ].join('\n');
+  assert.deepEqual(parseToolUse(stream, '/r'), { counts: { Read: 2, mcp__repocanon__rc_context: 1, Edit: 1 }, knowledgeReads: ['.ai/DECISIONS.md'], repocanonCalls: ['rc_context'] });
+
+  const parsed = parseResult(JSON.stringify({ type: 'system' }) + '\n' + JSON.stringify({
     type: 'result', subtype: 'success', is_error: false, total_cost_usd: 0.42, num_turns: 9, duration_ms: 61000, result: 'done',
     usage: { input_tokens: 10, output_tokens: 2000, cache_read_input_tokens: 50000, cache_creation_input_tokens: 8000 },
     modelUsage: { 'claude-haiku-x': { costUSD: 0.01 }, 'claude-sonnet-5-5': { costUSD: 0.41 } }
@@ -48,6 +56,9 @@ test('bench conditions: same fixture, only the knowledge differs', () => {
   assert.deepEqual(['AGENTS.md', 'CLAUDE.md', '.ai'].map(f => has(dirs.none.dir, f)), [false, false, false]);
   assert.deepEqual(['AGENTS.md', 'CLAUDE.md', '.ai'].map(f => has(dirs['agents-md'].dir, f)), [true, true, false]);
   assert.deepEqual(['AGENTS.md', 'CLAUDE.md', '.ai/CONVENTIONS.md', '.claude/skills/rc-verify-change/SKILL.md'].map(f => has(dirs.repocanon.dir, f)), [true, true, true, true]);
+  const agents = condition => fs.readFileSync(`${dirs[condition].dir}/AGENTS.md`, 'utf8');
+  assert.match(agents('repocanon'), /## Project rules[\s\S]*E_DISCOUNT_INVALID/);          // digest in the entry file
+  assert.doesNotMatch(agents('repocanon-pointer'), /Project rules|E_DISCOUNT_INVALID/);   // 0.5 pointer-only design
   assert.equal(fs.readFileSync(`${dirs['agents-md'].dir}/CLAUDE.md`, 'utf8'), '@AGENTS.md\n');
   assert.deepEqual([dirs.none.mcp, dirs['agents-md'].mcp], [null, null]);
   assert.ok(dirs.repocanon.mcp.mcpServers.repocanon.args.includes(`--root=${dirs.repocanon.dir}`));

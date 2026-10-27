@@ -20,7 +20,8 @@ const ALLOWED_TOOLS = 'Read Edit Write Glob Grep Bash mcp__repocanon';
 function buildArgs({ prompt, model, budgetUsd, mcpConfigPath }) {
   return [
     '-p', prompt,
-    '--output-format', 'json',
+    '--output-format', 'stream-json',
+    '--verbose',
     '--model', model,
     '--max-budget-usd', String(budgetUsd),
     '--permission-mode', 'acceptEdits',
@@ -33,19 +34,24 @@ function buildArgs({ prompt, model, budgetUsd, mcpConfigPath }) {
 }
 
 /**
- * Reads the fields the report needs from `claude -p --output-format json`, tolerating
- * missing ones (older CLIs, errors).
+ * Reads the fields the report needs from the final `result` event of
+ * `claude -p --output-format stream-json`, tolerating missing ones (older CLIs, errors).
  *
  * @param {string} stdout
  * @returns {{ ok: boolean, costUsd: number, inputTokens: number, outputTokens: number, cacheReadTokens: number, cacheWriteTokens: number, totalTokens: number, turns: number, durationMs: number, model: string|null, subtype: string|null, text: string }}
  */
 function parseResult(stdout) {
   let data = {};
-  try {
-    const lines = String(stdout || '').trim().split('\n');
-    data = JSON.parse(lines[lines.length - 1] || '{}');
-  } catch {
-    data = {};
+  for (const line of String(stdout || '').trim().split('\n').reverse()) {
+    try {
+      const event = JSON.parse(line);
+      if (event && event.type === 'result') {
+        data = event;
+        break;
+      }
+    } catch {
+      // Not JSON (a partial line from a killed run)
+    }
   }
   const usage = data.usage || {};
   const num = value => (Number.isFinite(Number(value)) ? Number(value) : 0);
@@ -74,6 +80,38 @@ function parseResult(stdout) {
 }
 
 /**
+ * What the agent did: tool calls by name, and which knowledge it opened.
+ *
+ * @param {string} stdout - stream-json lines
+ * @param {string} repoDir - to make read paths repo-relative
+ * @returns {{ counts: Record<string, number>, knowledgeReads: string[], repocanonCalls: string[] }}
+ */
+function parseToolUse(stdout, repoDir = '') {
+  const counts = {};
+  const knowledgeReads = [];
+  const repocanonCalls = [];
+  for (const line of String(stdout || '').split('\n')) {
+    let event;
+    try {
+      event = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    const content = event && event.type === 'assistant' && event.message && Array.isArray(event.message.content) ? event.message.content : [];
+    for (const block of content.filter(b => b && b.type === 'tool_use')) {
+      counts[block.name] = (counts[block.name] || 0) + 1;
+      if (block.name.startsWith('mcp__repocanon__')) repocanonCalls.push(block.name.replace('mcp__repocanon__', ''));
+      const file = block.input && (block.input.file_path || block.input.path);
+      if (block.name === 'Read' && typeof file === 'string') {
+        const rel = repoDir && file.startsWith(repoDir) ? file.slice(repoDir.length + 1) : file;
+        if (/^\.ai\/|(^|\/)(AGENTS|CLAUDE)\.md$|^\.claude\/skills\//.test(rel)) knowledgeReads.push(rel);
+      }
+    }
+  }
+  return { counts, knowledgeReads, repocanonCalls };
+}
+
+/**
  * Runs the agent in repoDir. Resolves even on failure, with ok: false.
  *
  * @param {{ repoDir: string, prompt: string, model: string, budgetUsd: number, mcpConfig: object|null, timeoutMs: number }} options
@@ -96,9 +134,9 @@ function runAgent({ repoDir, prompt, model, budgetUsd, mcpConfig, timeoutMs }) {
     child.on('close', exitCode => {
       clearTimeout(timer);
       fs.rmSync(path.dirname(mcpConfigPath), { recursive: true, force: true });
-      resolve({ ...parseResult(stdout), exitCode, timedOut, stderr: stderr.slice(-1000) });
+      resolve({ ...parseResult(stdout), tools: parseToolUse(stdout, repoDir), exitCode, timedOut, stderr: stderr.slice(-1000) });
     });
   });
 }
 
-module.exports = { buildArgs, parseResult, runAgent, ALLOWED_TOOLS };
+module.exports = { buildArgs, parseResult, parseToolUse, runAgent, ALLOWED_TOOLS };

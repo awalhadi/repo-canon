@@ -19,9 +19,9 @@ function renderReport(runs, meta) {
     '',
     `${runs.length} runs · ${meta.tasks.length} tasks · model \`${meta.env.model || 'unknown'}\` · Claude Code ${meta.env.cli || '?'} · ${meta.env.date}`,
     '',
-    '| Condition | Tasks passed | 95% CI | Rule checks passed | Median tokens (IQR) | Mean cost | Median turns | Median time |',
-    '|---|---|---|---|---|---|---|---|',
-    ...summary.map(s => `| ${s.condition} | ${s.passes}/${s.runs} (${pct(s.passRate.rate)}) | ${pct(s.passRate.low)}–${pct(s.passRate.high)} | ${pct(s.ruleAdherence)} | ${k(s.medianTokens)} (${k(s.iqrTokens[0])}–${k(s.iqrTokens[1])}) | $${s.meanCostUsd.toFixed(3)} | ${s.medianTurns} | ${Math.round(s.medianSeconds)} s |`),
+    '| Condition | Tasks passed | 95% CI | Rule checks passed | Opened docs / rc_* | Median tokens (IQR) | Mean cost | Median turns | Median time |',
+    '|---|---|---|---|---|---|---|---|---|',
+    ...summary.map(s => `| ${s.condition} | ${s.passes}/${s.runs} (${pct(s.passRate.rate)}) | ${pct(s.passRate.low)}–${pct(s.passRate.high)} | ${pct(s.ruleAdherence)} | ${s.condition === 'none' ? '—' : pct(s.usedKnowledge)} | ${k(s.medianTokens)} (${k(s.iqrTokens[0])}–${k(s.iqrTokens[1])}) | $${s.meanCostUsd.toFixed(3)} | ${s.medianTurns} | ${Math.round(s.medianSeconds)} s |`),
     '',
     '## Per task (passed / runs)',
     '',
@@ -29,7 +29,7 @@ function renderReport(runs, meta) {
     `|---|${meta.conditions.map(() => '---').join('|')}|`,
     ...perTask(runs, meta.tasks, meta.conditions).map(row => `| ${row.task} | ${meta.conditions.map(c => row.cells[c]).join(' | ')} |`),
     '',
-    'A task passes when the hidden tests and every rule check pass. Tokens include cache reads and writes.',
+    'A task passes when the hidden tests and every rule check pass. "Opened docs / rc_*" counts runs that read AGENTS.md, CLAUDE.md, an .ai/ doc or a skill, or called a RepoCanon MCP tool (content imported into context by CLAUDE.md is not a read). Tokens include cache reads and writes.',
     ''
   ];
   return { markdown: lines.join('\n'), summary };

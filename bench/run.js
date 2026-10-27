@@ -10,7 +10,7 @@
  *   node bench/run.js --runs 5               the real thing (costs money)
  *
  * Options: --tasks=a,b  --conditions=a,b  --model=sonnet  --concurrency=3
- *          --budget-per-run=1.5  --max-total-usd=60  --timeout-min=15  --out=bench/results/<date>
+ *          --budget-per-run=1.5  --max-total-usd=80  --timeout-min=15  --out=bench/results/<date>
  */
 
 const fs = require('fs');
@@ -23,7 +23,7 @@ const { runAgent } = require('./lib/agent');
 const { renderReport } = require('./lib/report');
 
 function parseOptions(argv) {
-  const options = { runs: 5, model: 'sonnet', concurrency: 3, budgetPerRun: 1.5, maxTotalUsd: 60, timeoutMin: 15 };
+  const options = { runs: 5, model: 'sonnet', concurrency: 3, budgetPerRun: 1.5, maxTotalUsd: 80, timeoutMin: 15 };
   for (let i = 0; i < argv.length; i++) {
     const [flag, inline] = argv[i].split('=');
     const value = () => (inline !== undefined ? inline : argv[++i]);
@@ -53,7 +53,7 @@ function cliVersion() {
 /** Stands in for the agent in --dry-run: solves every other run with the reference solution. */
 function fakeAgent(task, repoDir, index) {
   if (index % 2 === 0) fs.cpSync(path.join(task.dir, 'solution'), repoDir, { recursive: true, force: true });
-  return { ok: true, costUsd: 0, inputTokens: 1000, outputTokens: 200, cacheReadTokens: 0, cacheWriteTokens: 0, totalTokens: 1200 + index, turns: 3, durationMs: 1000, model: 'dry-run', subtype: 'success', text: '', exitCode: 0, timedOut: false, stderr: '' };
+  return { ok: true, costUsd: 0, inputTokens: 1000, outputTokens: 200, cacheReadTokens: 0, cacheWriteTokens: 0, totalTokens: 1200 + index, turns: 3, durationMs: 1000, model: 'dry-run', subtype: 'success', text: '', tools: { counts: {}, knowledgeReads: [], repocanonCalls: [] }, exitCode: 0, timedOut: false, stderr: '' };
 }
 
 async function runOne(job, options) {

@@ -58,6 +58,8 @@ function summarize(runs, conditions) {
       meanCostUsd: mean(rows.map(r => r.agent.costUsd)),
       totalCostUsd: rows.reduce((sum, r) => sum + r.agent.costUsd, 0),
       medianTurns: median(rows.map(r => r.agent.turns)),
+      // Share of runs that opened .ai/ docs, AGENTS.md, a skill, or called an rc_* tool
+      usedKnowledge: rows.length ? rows.filter(r => r.agent.tools && (r.agent.tools.knowledgeReads.length || r.agent.tools.repocanonCalls.length)).length / rows.length : 0,
       medianSeconds: median(rows.map(r => r.agent.durationMs / 1000))
     };
   });

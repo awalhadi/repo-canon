@@ -11,7 +11,13 @@ const cp = require('child_process');
 const { FIXTURES_DIR, BENCH_DIR } = require('./tasks');
 
 const CLI = path.resolve(BENCH_DIR, '..', 'bin', 'repocanon.js');
-const CONDITIONS = ['none', 'agents-md', 'repocanon'];
+/**
+ * none               the fixture alone
+ * agents-md          a hand-written AGENTS.md (imported by CLAUDE.md)
+ * repocanon-pointer  RepoCanon with "entryDigest": false: AGENTS.md points to .ai/ (0.5 design)
+ * repocanon          RepoCanon as shipped: AGENTS.md also carries the rules digest
+ */
+const CONDITIONS = ['none', 'agents-md', 'repocanon-pointer', 'repocanon'];
 
 const git = (cwd, ...args) => cp.execFileSync('git', ['-c', 'user.email=bench@repocanon.dev', '-c', 'user.name=bench', ...args], { cwd, stdio: 'pipe' });
 const repocanon = (cwd, ...args) => cp.execFileSync('node', [CLI, ...args], { cwd, stdio: 'pipe', encoding: 'utf8' });
@@ -37,8 +43,11 @@ function applyCondition(condition, repoDir, task) {
     git(repoDir, 'commit', '-qm', 'AGENTS.md');
     return { mcpConfig: null };
   }
-  if (condition === 'repocanon') {
+  if (condition === 'repocanon' || condition === 'repocanon-pointer') {
     fs.cpSync(path.join(knowledge, 'ai'), path.join(repoDir, '.ai'), { recursive: true });
+    if (condition === 'repocanon-pointer') {
+      fs.writeFileSync(path.join(repoDir, '.repocanon.json'), `${JSON.stringify({ preset: 'auto', entryDigest: false }, null, 2)}\n`);
+    }
     repocanon(repoDir, 'init', '--targets=claude', '--yes');
     repocanon(repoDir, 'analyze');
     repocanon(repoDir, 'skills');
