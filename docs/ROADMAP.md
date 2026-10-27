@@ -17,7 +17,7 @@ Full strategy and market analysis: [STRATEGY.md](STRATEGY.md) (local copy) · [s
 | **Total** | **11** | **24** | |
 
 ## Phase 0 — Trust & identity (week 1)
-- [x] **P0.1** Remove ContextForge (`bin/contextforge.js`, `templates/contextforge.json`, `cf_*` aliases, legacy block markers, JSDoc headers); claim `repocanon` on npm, MCP registry, Open VSX. *(npm `repocanon@0.5.0` published 2026-10-27. MCP Registry listing prepared in `server.json`, goes live with 0.5.1; Open VSX comes with P4.1.)*
+- [x] **P0.1** Remove ContextForge (`bin/contextforge.js`, `templates/contextforge.json`, `cf_*` aliases, legacy block markers, JSDoc headers); claim `repocanon` on npm, MCP registry, Open VSX. *(npm `repocanon@0.5.0` published 2026-10-27. 0.5.1 prepared and tagged locally 2026-10-27 (MCP Registry listing ships with it once published); Open VSX comes with P4.1.)*
 - [x] **P0.2** Fix `stamp` (`src/services/status.service.js`): exact slug match, bare `stamp` requires `--all`, refuse when `code_paths` have uncommitted changes.
 - [x] **P0.3** Fix `pack` (`src/services/pack.service.js`): ranked matching, stopwords, core rules first, truncation consistent with `estimateTokens`.
 - [x] **P0.4** CLAUDE.md pointer becomes `@AGENTS.md`; doctor entry-budget target ~1k tokens (was 6000); fix stale `bytes/4` label.
