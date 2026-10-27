@@ -1,7 +1,47 @@
 {
   "name": "repocanon",
-  "version": "0.4.0",
-  "description": "Project knowledge layer (.ai/) for AI coding agents: fewer tokens, tracked changes, any stack.",
+  "version": "0.5.0",
+  "description": "Verified AGENTS.md and project memory for AI coding agents (Claude Code, Cursor, Copilot, Codex, Gemini, Windsurf, Cline). Git-checked context docs, MCP server, zero dependencies.",
+  "keywords": [
+    "agents-md",
+    "agents.md",
+    "ai-agents",
+    "coding-agent",
+    "ai-coding",
+    "claude-code",
+    "claude-md",
+    "cursor",
+    "cursor-rules",
+    "github-copilot",
+    "copilot-instructions",
+    "openai-codex",
+    "gemini-cli",
+    "windsurf",
+    "cline",
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "context-engineering",
+    "llm-context",
+    "project-memory",
+    "ai-memory",
+    "docs-drift",
+    "documentation",
+    "cli"
+  ],
+  "homepage": "https://github.com/awalhadi/repo-canon#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/awalhadi/repo-canon.git"
+  },
+  "bugs": {
+    "url": "https://github.com/awalhadi/repo-canon/issues"
+  },
+  "author": {
+    "name": "Md. A Awal Hadi",
+    "url": "https://github.com/awalhadi"
+  },
+  "license": "MIT",
   "main": "src/index.js",
   "exports": {
     ".": "./src/index.js",
@@ -10,9 +50,22 @@
   "bin": {
     "repocanon": "bin/repocanon.js"
   },
-  "engines": { "node": ">=18" },
-  "files": ["bin", "src", "templates", "docs", "README.md"],
-  "scripts": { "test": "node --test test/*.test.js" },
-  "license": "MIT",
-  "keywords": ["ai", "context", "agents", "repocanon", "cursor", "claude", "windsurf", "copilot", "AGENTS.md", "mcp"]
+  "files": [
+    "bin",
+    "src",
+    "templates",
+    "docs/ARCHITECTURE.md",
+    "docs/CONTRIBUTING.md",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "prepublishOnly": "npm test"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }
