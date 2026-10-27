@@ -2,6 +2,19 @@
 
 All notable changes to RepoCanon. Versions follow [semver](https://semver.org); before 1.0, minor versions may break.
 
+## 0.6.0 — unreleased
+
+### Added
+- GitHub Action (`uses: awalhadi/repo-canon@v0.6`): doctor with inline annotations, a job summary, one pull-request comment kept up to date, and `fail-on: error | stale | never`.
+- `repocanon report [--base=ref] [--format=markdown|json]`: which modules a branch changed with or without their docs, plus the Freshness Score, secrets and out-of-date rules.
+- Freshness Score (0–100) in `status`, `doctor` and their `--json` output.
+- `doctor --strict` fails on warnings too; `--format=github` (automatic for `--ci` in GitHub Actions) prints workflow annotations with file and line.
+- `driftIgnore` and `drift` settings in `.repocanon.json`.
+
+### Changed
+- **Only meaningful code changes make a doc stale.** Whitespace-only edits, tests, prose docs and lockfiles are ignored (and counted in the detail); renames still count. Set `"drift": "all"` for the previous behaviour.
+- `status --json` returns `{ docs, score }` instead of an array.
+
 ## 0.5.1 — 2026-10-27
 
 ### Added

@@ -185,7 +185,40 @@ The hooks do nothing in projects without an `.ai/` folder. They run `npx repocan
 
 ## Use in CI
 
-Fail a pull request when the knowledge layer is broken or stale:
+The GitHub Action checks every pull request, annotates problems on the changed lines, and keeps one summary comment up to date:
+
+```yaml
+# .github/workflows/repocanon.yml
+name: repocanon
+on: [pull_request]
+permissions:
+  contents: read
+  pull-requests: write          # for the summary comment
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }   # full history, so freshness can be computed
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: awalhadi/repo-canon@v0.6
+        with:
+          fail-on: error           # error (default) | stale | never
+```
+
+The comment looks like this:
+
+> ### RepoCanon: ⚠️ 1 module(s) changed without their docs
+> | Module | Code changed | Doc |
+> |---|---|---|
+> | `billing` | 3 file(s) | ⚠️ not updated — `.ai/modules/billing.md` |
+>
+> **Freshness 82/100 · 1 stale, 0 broken, 2 unverified**
+
+Only meaningful code changes count: edits to tests, prose docs and lockfiles, and whitespace-only changes, never make a doc stale. Add your own patterns with `driftIgnore`, or set `"drift": "all"` to count every change.
+
+**Without the action** — the same checks as plain commands:
 
 ```yaml
 # .github/workflows/repocanon.yml
@@ -199,7 +232,7 @@ jobs:
         with: { fetch-depth: 0 }   # full history, so verified_at commits resolve
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
-      - run: npx -y repocanon doctor --ci   # fails on structural errors
+      - run: npx -y repocanon doctor --ci   # fails on errors; add --strict to fail on warnings too
       - run: npx -y repocanon status --ci   # fails on stale or broken docs
       - run: npx -y repocanon rules --check # fails when scoped rule files are out of date
 ```
@@ -211,8 +244,9 @@ jobs:
 | `init [--targets=a,b\|all\|none] [--yes] [--prune] [--force]` | Create `.ai/`, `AGENTS.md`, `.repocanon.json` and pointer files for the tools you pick; detects stack and run/test commands |
 | `adopt [--dry-run] [--move] [--json]` | Import existing agent rules (CLAUDE.md, Cursor/Copilot rules, GEMINI.md, .windsurfrules, .clinerules, memory-bank/) into `.ai/`, minus inferable content and secrets; `--move` retires the originals |
 | `analyze [--scaffold]` | Refresh the module map in `.ai/INDEX.md`; `--scaffold` creates module doc stubs |
-| `doctor [--ci] [--json]` | Lint the layer: secrets (error), size caps, TODOs, broken paths, missing pointers, token budget, and content agents can read from the code (directory trees, dependency lists, pasted code, file catalogues) |
-| `status [--ci] [--json]` | Each doc: fresh / stale / broken / unverified |
+| `doctor [--ci] [--strict] [--format=github] [--json]` | Lint the layer: secrets (error), size caps, TODOs, broken paths, missing pointers, token budget, and content agents can read from the code (directory trees, dependency lists, pasted code, file catalogues) |
+| `status [--ci] [--json]` | Each doc: fresh / stale / broken / unverified, plus the Freshness Score (0–100) |
+| `report [--base=ref] [--format=markdown\|json]` | Pull-request summary: modules changed with or without their docs, Freshness Score, secrets, out-of-date rules |
 | `sync [--write] [--since=ref] [--json]` | Code changed since each doc was verified → docs to update (`--write` saves `.ai/.sync-report.md`) |
 | `context [words…] [--files=a,b] [--max=4000]` | Print the budgeted context pack for a task; stale docs are labelled |
 | `stamp <name…> \| --all [--force]` | Mark docs verified at the current commit; refuses when their code has uncommitted changes |
@@ -238,7 +272,8 @@ Global flags: `--root=<dir>` runs against another folder; `--version`; `--help`.
   "modules": { "checkout": ["app/Services/Checkout/", "app/Models/Order.php"] },
   "exclude": ["legacy/", "vendor/"],
   "targets": ["claude", "cursor"],
-  "nestedAgents": false
+  "nestedAgents": false,
+  "driftIgnore": ["src/generated/", "*.snap"]
 }
 ```
 
@@ -248,6 +283,7 @@ Global flags: `--root=<dir>` runs against another folder; `--version`; `--help`.
 - `exclude`: path prefixes ignored everywhere.
 - `targets`: the AI tools `init` set up (managed by the picker).
 - `nestedAgents`: also write a pointer `AGENTS.md` into each module folder (default `false`).
+- `driftIgnore`: extra paths whose changes never make a doc stale (folder prefixes ending in `/`, `*` and `**` globs). Tests, prose docs, lockfiles and whitespace-only edits are always ignored; `"drift": "all"` turns that off.
 
 ## How it compares
 

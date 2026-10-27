@@ -48,4 +48,8 @@ mcp-publisher login github               # once; install: brew install mcp-publi
 mcp-publisher publish                    # reads server.json; npm must already have this version
 git push --follow-tags
 ```
-Then paste the CHANGELOG section into a GitHub release for the tag.
+Then paste the CHANGELOG section into a GitHub release for the tag, and move the action's major tag so `uses: awalhadi/repo-canon@v0.6` picks it up:
+
+```bash
+git tag -f v0.6 && git push -f origin v0.6
+```
