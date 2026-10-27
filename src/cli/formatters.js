@@ -38,6 +38,8 @@ function getHelpText() {
   hook                     pre-commit hook: warns on undocumented code changes, blocks secrets in .ai/ docs
   prompt fill [--compact]  rich, evidence-loaded brief to paste into your agent (--compact: short form)
   prompt update            prompt for syncing docs after code changes
+  agent-hook <session-start|stop>
+                           output for agent hooks (used by the Claude Code plugin): session context / end-of-turn doc nudge
   mcp                      MCP server on stdio (tools: rc_context, rc_module, rc_find_owner, rc_status,
                            rc_prepare_fill, rc_sync_report)
 

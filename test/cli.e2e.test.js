@@ -270,3 +270,28 @@ test('setup: uses the tools init saved, second run is a no-op, unknown tools fai
   assert.match(cf(d, 'setup', 'codex').stdout, /global config, paste this into ~\/\.codex\/config\.toml/);
   const bad = cf(d, 'setup', 'zed'); assert.equal(bad.status, 1); assert.match(bad.stderr, /unknown tool zed/);
 });
+
+test('agent-hook: session context names stale docs; stop nudges once for undocumented module changes', () => {
+  const d = laravel(); cf(d, 'init', '--targets=claude'); cf(d, 'analyze', '--scaffold');
+  g(d, 'add', '-A'); g(d, 'commit', '-qm', 'docs'); cf(d, 'stamp', '--all'); g(d, 'commit', '-qam', 'stamp');
+  const hook = (event, input) => cp.spawnSync('node', [CLI, 'agent-hook', event], { cwd: d, encoding: 'utf8', input });
+
+  const plain = repo({ 'x.txt': 'x' });
+  assert.equal(cp.spawnSync('node', [CLI, 'agent-hook', 'session-start'], { cwd: plain, encoding: 'utf8' }).stdout, '');
+
+  assert.match(hook('session-start').stdout, /call the rc_context MCP tool/);
+  assert.equal(hook('stop', '{"stop_hook_active":false}').stdout, '');
+
+  fs.appendFileSync(path.join(d, 'app/Services/Billing/S.php'), 'changed');
+  const nudge = JSON.parse(hook('stop', '{"stop_hook_active":false}').stdout);
+  assert.equal(nudge.decision, 'block');
+  assert.match(nudge.reason, /app\/Services\/Billing\/S\.php \(module billing\) without updating \.ai\/modules\/billing\.md/);
+  assert.equal(hook('stop', '{"stop_hook_active":true}').stdout, '');      // never loops
+  assert.equal(hook('stop', 'not json').status, 0);
+
+  fs.appendFileSync(path.join(d, '.ai/modules/billing.md'), '\n- refunds now need approval\n');
+  assert.equal(hook('stop', '{}').stdout, '');                            // doc updated → let it stop
+
+  g(d, 'commit', '-qam', 'billing + doc');
+  assert.match(hook('session-start').stdout, /Stale docs \(code changed since they were verified\): modules\/billing\.md/);
+});
