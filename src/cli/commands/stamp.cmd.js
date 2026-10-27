@@ -1,5 +1,6 @@
 'use strict';
 
+const path = require('path');
 const { stampDocs } = require('../../services/status.service');
 const { CommandError } = require('../../core/errors');
 
@@ -7,7 +8,7 @@ const { CommandError } = require('../../core/errors');
  * Handles the `repocanon stamp` CLI command.
  */
 function handleStamp(context) {
-  const { root, args, flags } = context;
+  const { root, args, flags, ui } = context;
   const result = stampDocs(root, {
     names: args,
     all: flags.has('--all'),
@@ -15,23 +16,32 @@ function handleStamp(context) {
   });
 
   if (!result.head) {
-    console.log('nothing stamped (needs a git commit)');
-    return;
+    throw new CommandError('nothing stamped: the repo has no commit yet', 1, 'commit your code first, then stamp');
   }
 
-  const knownList = result.known.join(', ') || 'none — run: repocanon init';
+  const knownList = result.known.join(', ') || 'none';
   if (result.needsTarget) {
-    throw new CommandError(`stamp needs a doc name (or --all). Known: ${knownList}`, 1);
+    throw new CommandError('stamp needs a doc name (or --all)', 1, `known docs: ${knownList}`);
   }
   if (result.unknown.length) {
-    throw new CommandError(`no doc named ${result.unknown.join(', ')} — nothing stamped. Known: ${knownList}`, 1);
+    throw new CommandError(`no doc named ${result.unknown.join(', ')}: nothing stamped`, 1, `known docs: ${knownList}`);
   }
 
-  const lines = [
-    ...result.stamped.map(doc => `✓ ${doc}`),
-    ...result.refused.map(({ doc, reason }) => `✗ ${doc}: ${reason}`)
-  ];
-  console.log(lines.join('\n'));
+  const { symbol } = ui;
+  ui.header('stamp', path.basename(root));
+  ui.rows([
+    ...result.stamped.map(doc => [symbol.ok, doc, `verified at ${result.head}`]),
+    ...result.refused.map(({ doc }) => [symbol.error, doc, 'not stamped'])
+  ]);
+  ui.verdict({
+    errors: result.refused.length,
+    errorText: `${result.refused.length} doc(s) not stamped`,
+    ok: `${result.stamped.length} doc(s) marked verified`,
+    extra: result.refused.length && result.stamped.length ? `${result.stamped.length} stamped` : ''
+  });
+  // Refusals usually share one cause (uncommitted code): say it once
+  for (const reason of [...new Set(result.refused.map(r => r.reason))]) ui.hint(reason);
+  if (result.stamped.length) ui.hint('the change to verified_at goes into your next commit');
 
   if (result.refused.length) {
     process.exitCode = 1;

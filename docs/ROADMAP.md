@@ -36,15 +36,15 @@ Full strategy and market analysis: [STRATEGY.md](STRATEGY.md) (local copy) · [s
 **Gate:** install-to-first-value under 60 seconds on a fresh repo. ✅ Met: 5.0 s with `npx repocanon@0.5.1` on 2026-10-27 (init 2.0 s, setup + doctor 1.9 s, first `rc_context` 1.1 s).
 
 ## Phase 2 — v0.6 Proof & teams (1–2 months)
-- [x] **P2.1** Benchmark harness: no context vs hand-written AGENTS.md vs RepoCanon, ≥5 runs each, correctness + tokens, multiple languages. *(Branch `feat/bench`: 8 tasks in JS, Python, PHP and Rust; 160 runs on `claude-sonnet-5-5`, $77.40. Pass rate: none 8%, AGENTS.md 100%, RepoCanon 100% at about 1.5× cost. Led to the AGENTS.md rules digest. Ships in 0.6.0.)*
-- [x] **P2.2** Meaningful-change drift, Freshness Score, `doctor --ci --strict` with `::error` annotations, GitHub Action PR comment. *(Branch `feat/drift-ci`; ships in 0.6.0.)*
-- [x] **P2.3** MCP write tools with validation: `rc_propose_adr`, `rc_checkpoint_state` (no auto-stamp), `rc_stamp` with `verified_by`, `rc_verify`. *(Branch `feat/mcp-write`; agent stamps count as fresh but are labelled `verified_by: agent`; ships in 0.6.0.)*
-- [x] **P2.4** SKILL.md generator from repo evidence (scripts, Makefile, CI) into `.ai/skills/`, written out per tool. *(Branch `feat/skills`: `rc-verify-change` from scripts, Makefile, justfile, Taskfile and CI; copied to `.claude/skills/` and `.agents/skills/`; ships in 0.6.0.)*
-- [x] **P2.5** Monorepo support (pnpm, nx, turbo, go.work, Cargo workspaces) and deep presets (Next.js App Router, Laravel, NestJS, FastAPI, Go). *(Branch `feat/monorepo`: packages whole, apps split by feature; App Router, flat Laravel/FastAPI, layered Go; ships in 0.6.0.)*
+- [x] **P2.1** Benchmark harness: no context vs hand-written AGENTS.md vs RepoCanon, ≥5 runs each, correctness + tokens, multiple languages. *(Branch `feat/bench`: 8 tasks in JS, Python, PHP and Rust; 160 runs on `claude-sonnet-5-5`, $77.40. Pass rate: none 8%, AGENTS.md 100%, RepoCanon 100% at about 1.5× cost. Led to the AGENTS.md rules digest. Ships in 0.6.1.)*
+- [x] **P2.2** Meaningful-change drift, Freshness Score, `doctor --ci --strict` with `::error` annotations, GitHub Action PR comment. *(Branch `feat/drift-ci`; ships in 0.6.1.)*
+- [x] **P2.3** MCP write tools with validation: `rc_propose_adr`, `rc_checkpoint_state` (no auto-stamp), `rc_stamp` with `verified_by`, `rc_verify`. *(Branch `feat/mcp-write`; agent stamps count as fresh but are labelled `verified_by: agent`; ships in 0.6.1.)*
+- [x] **P2.4** SKILL.md generator from repo evidence (scripts, Makefile, CI) into `.ai/skills/`, written out per tool. *(Branch `feat/skills`: `rc-verify-change` from scripts, Makefile, justfile, Taskfile and CI; copied to `.claude/skills/` and `.agents/skills/`; ships in 0.6.1.)*
+- [x] **P2.5** Monorepo support (pnpm, nx, turbo, go.work, Cargo workspaces) and deep presets (Next.js App Router, Laravel, NestJS, FastAPI, Go). *(Branch `feat/monorepo`: packages whole, apps split by feature; App Router, flat Laravel/FastAPI, layered Go; ships in 0.6.1.)*
 
 **Gate:** benchmark results published in README with a rerunnable method. ✅ Met 2026-10-27: [README › Benchmark](../README.md#benchmark), method and raw data in [bench/](../bench/README.md).
 
-**Release:** all of Phase 2 ships as **0.6.0** (versions set 2026-10-27; npm, MCP Registry and the `v0.6` action tag are published by the maintainer).
+**Release:** all of Phase 2 ships as **0.6.1** (versions set 2026-10-27; npm, MCP Registry and the `v0.6` action tag are published by the maintainer).
 
 **What the benchmark found, as input for Phase 3:**
 - RepoCanon's extra cost comes from agents reading 6+ `.ai/` docs and following the Definition of Done on every task. Make the entry cheaper: a lighter Definition of Done, and don't send agents to template-only docs.

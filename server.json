@@ -8,12 +8,12 @@
     "source": "github"
   },
   "websiteUrl": "https://github.com/awalhadi/repo-canon#readme",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "repocanon",
-      "version": "0.6.0",
+      "version": "0.6.1",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"

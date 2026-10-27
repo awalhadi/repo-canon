@@ -36,20 +36,17 @@ test/cli.e2e.test.js        black-box tests of the real CLI against temp git rep
 `npm test` must stay green, including `test/architecture.test.js` — it will fail the build if a new file reaches into a layer it isn't allowed to, or if logic gets duplicated back into a flat file at `src/` root.
 
 ## Releasing
-`server.json` is the [MCP Registry](https://registry.modelcontextprotocol.io) listing. Its `name` must equal `mcpName` in `package.json`, and its two `version` fields must equal the version you publish (`npm test` checks the first two rules).
+The full step-by-step guide is in [PUBLISHING.md](PUBLISHING.md): version bumps, `npm publish`, `mcp-publisher publish` to the MCP Registry, tags, the GitHub release, the moving Action tag, optional CI automation and troubleshooting.
+
+In short:
 
 ```bash
-npm version 0.6.0 --no-git-tag-version   # bump package.json (and package-lock.json if present)
-# set the same version in server.json ("version", packages[0].version) and
-# plugins/repocanon/.claude-plugin/plugin.json ("version" and the repocanon@^x pin in mcpServers + hooks/hooks.json)
-git commit -am "release: 0.6.0" && git tag v0.6.0
-npm publish                              # runs the tests first (prepublishOnly)
-mcp-publisher login github               # once; install: brew install mcp-publisher
-mcp-publisher publish                    # reads server.json; npm must already have this version
-git push --follow-tags
+npm version X.Y.Z --no-git-tag-version   # then the same version in server.json (2 fields) and the plugin (version + 3 pins)
+npm test && git commit -am "release: X.Y.Z" && git tag vX.Y.Z
+npm publish                              # npm first: the registry checks it
+mcp-publisher login github && mcp-publisher publish
+git push origin main --follow-tags
+git tag -f vX.Y && git push -f origin vX.Y   # the Action's moving tag
 ```
-Then paste the CHANGELOG section into a GitHub release for the tag, and move the action's major tag so `uses: awalhadi/repo-canon@v0.6` picks it up:
 
-```bash
-git tag -f v0.6 && git push -f origin v0.6
-```
+README examples are generated from the real CLI: after changing command output, run `node scripts/readme-examples.js`, paste the blocks into the README (the test says which one is stale), and refresh the screenshot with `node scripts/render-terminal-svg.js status sync > docs/assets/terminal.svg`.

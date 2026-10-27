@@ -2,7 +2,24 @@
 
 All notable changes to RepoCanon. Versions follow [semver](https://semver.org); before 1.0, minor versions may break.
 
-## 0.6.0 — 2026-10-27
+## 0.6.1 — unreleased
+
+### Changed
+- **Every command's terminal output was redesigned.** Each one shows a header, aligned rows with one set of symbols and words, a one-line verdict, and **Next**: the exact commands to run. `status` and `doctor` show a Freshness meter. `doctor` groups findings into Errors, Warnings and Info and adds a token-budget table. `sync` lists the files to read for each module and the `git diff` to inspect.
+- Colour appears only in an interactive terminal. It is never used with `NO_COLOR`, the new `--no-color` flag, `TERM=dumb`, `--json` or `--format=github`, and `FORCE_COLOR` forces it on. Symbols always come with a word, and older Windows consoles get an ASCII fallback.
+- Help is grouped by task, and every command has `--help` with options and examples (`repocanon status --help`, `repocanon help sync`). Unknown commands suggest the closest match.
+- Errors print as `✗ message` with a hint underneath; `--debug` adds the stack trace.
+- `--json`, `--format=github`, `report`, `mcp` and `agent-hook` output is unchanged.
+
+### Fixed
+- Flags that take no value no longer swallow the next word: `repocanon stamp --force billing` stamps `billing`.
+- `repocanon … | head` exits quietly instead of crashing when the pipe closes.
+
+### Docs
+- README: a terminal screenshot, real example output for `init`, `doctor`, `status`, `sync` and `setup` (checked by a test, so it can't drift), and a key to the output symbols.
+- New `docs/PUBLISHING.md`: the full release guide for npm, `mcp-publisher publish` to the MCP Registry, git tags, the GitHub release, the Action tag, optional CI automation, and troubleshooting.
+
+## 0.6.1 — 2026-10-27
 
 ### Added
 - GitHub Action (`uses: awalhadi/repo-canon@v0.6`): doctor with inline annotations, a job summary, one pull-request comment kept up to date, and `fail-on: error | stale | never`.

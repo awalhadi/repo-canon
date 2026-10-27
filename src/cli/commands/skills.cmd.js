@@ -1,17 +1,15 @@
 'use strict';
 
+const path = require('path');
 const { planSkills, applySkills, getPendingSkills, getSkillProblems } = require('../../services/skills.service');
 const { printJson } = require('../formatters');
 
-const SYMBOLS = { create: '+', update: '~', remove: '-' };
-
 /**
- * Handles `repocanon skills [--check] [--json]`: generates the verify-a-change skill and
- * copies every .ai/skills/<name>/SKILL.md into the skill folders of the chosen tools.
- * --check writes nothing and exits 1 when anything is out of date.
+ * Handles `repocanon skills [--check] [--json]`. --check writes nothing and exits 1 when
+ * anything is out of date.
  */
 function handleSkills(context) {
-  const { root, flags, isJson } = context;
+  const { root, flags, isJson, ui } = context;
   const check = flags.has('--check');
   const plan = check ? planSkills(root) : applySkills(root, planSkills(root));
   const pending = getPendingSkills(plan);
@@ -20,23 +18,21 @@ function handleSkills(context) {
   if (isJson) {
     printJson(plan.map(({ content, ...row }) => row));
   } else {
-    if (!pending.length) {
-      const count = plan.filter(row => row.action === 'unchanged' || row.action === 'kept').length;
-      if (count) {
-        console.log(`Up to date — ${count} skill file(s).`);
-      } else if (!problems.length) {
-        console.log('No skills: no lint/typecheck/test commands found and nothing in .ai/skills/.');
-      }
+    const { symbol } = ui;
+    ui.header(`skills${check ? ' --check' : ''}`, path.basename(root));
+    ui.actions(pending.map(row => [row.action, row.file, check ? 'pending' : '']));
+    ui.rows(problems.map(row => [symbol.warn, row.file, row.reason]));
+    const total = plan.filter(row => row.action === 'unchanged' || row.action === 'kept').length;
+    if (!pending.length && !problems.length) {
+      ui.row(symbol.same, total ? `${total} skill file(s), all current` : 'No skills: no lint/typecheck/test commands found and nothing in .ai/skills/');
     }
-    const verb = { create: 'created', update: 'updated', remove: 'removed' };
-    for (const row of pending) {
-      const label = check ? `would be ${verb[row.action]}` : verb[row.action];
-      console.log(`  ${SYMBOLS[row.action]} ${row.file} (${label})`);
-    }
-    for (const row of problems) {
-      console.log(`  ! ${row.file}: ${row.reason}`);
-    }
-    if (check && pending.length) console.log('\nRun: npx repocanon skills');
+    ui.verdict({
+      warnings: check ? pending.length : problems.length,
+      warningText: check && pending.length ? `${pending.length} file(s) out of date` : '',
+      ok: pending.length ? `${pending.length} file(s) written` : 'Up to date',
+      extra: `${total} skill file(s)`
+    });
+    if (check && pending.length) ui.next([['npx repocanon skills', 'write them']]);
   }
 
   if (check && pending.length) {

@@ -11,16 +11,14 @@ const { planRules, applyRules, getPendingRules } = require('../../services/rules
 const { planSkills, applySkills, getPendingSkills } = require('../../services/skills.service');
 const { isInteractive, multiSelect, confirm } = require('../prompt');
 
-const STATUS_MAP = {
-  created: '+',
-  appended: '~',
-  updated: '~',
-  removed: '-',
-  deleted: '-',
-  keep: '!',
-  kept: '=',
-  unchanged: '=',
-  native: '='
+/** init.service log statuses → the kit's file actions */
+const ACTION_OF = {
+  created: 'create',
+  appended: 'update',
+  updated: 'update',
+  removed: 'remove',
+  deleted: 'remove',
+  keep: 'keep'
 };
 
 const CHANGED = new Set(['created', 'appended', 'updated', 'removed', 'deleted']);
@@ -87,11 +85,11 @@ async function chooseTargets(root, context) {
  * Handles the `repocanon init` CLI command.
  */
 async function handleInit(context) {
-  const { root, flags } = context;
+  const { root, flags, ui } = context;
   const selection = await chooseTargets(root, context);
 
   if (!selection) {
-    console.log('Cancelled — nothing changed.');
+    ui.row(ui.symbol.same, 'Cancelled: nothing changed.');
     process.exitCode = 130;
     return;
   }
@@ -105,48 +103,60 @@ async function handleInit(context) {
   }
 
   const result = initProject(root, { force: flags.has('--force'), targets: selection.ids, prune });
+  const { c, symbol } = ui;
+  const toolLabels = TARGETS.filter(t => selection.ids.includes(t.id)).map(t => t.label);
+  const isFirstRun = result.log.some(([status, filePath]) => status === 'created' && filePath === '.ai/PROJECT.md');
 
-  console.log(`Detected: ${result.detected.stacks.join(', ') || 'unknown stack'}`);
+  ui.header('init', path.basename(root));
+  ui.table([
+    [c.dim('Stack'), result.detected.stacks.join(', ') || 'not detected'],
+    [c.dim('Tools'), toolLabels.join(', ') || 'none (AGENTS.md only)']
+  ]);
 
   const changed = result.log.filter(([status]) => CHANGED.has(status) || status === 'keep');
   const unchangedCount = result.log.length - changed.length;
-  const toolLabels = TARGETS.filter(t => selection.ids.includes(t.id)).map(t => t.label);
   const configChanged = ['created', 'updated'].includes(result.targets.config.status);
 
-  if (!changed.length && !configChanged) {
-    console.log(`Up to date — ${toolLabels.length} tool(s): ${toolLabels.join(', ') || 'none (AGENTS.md only)'}. Nothing changed.`);
-  } else {
-    for (const [status, filePath] of changed) {
-      const label = status === 'keep' ? 'not selected — kept; use --prune to remove' : status;
-      console.log(`  ${STATUS_MAP[status] || '*'} ${filePath} (${label})`);
+  if (changed.length || configChanged) {
+    ui.section('Files');
+    const actions = changed.map(([status, filePath]) => [ACTION_OF[status] || status, filePath, status === 'keep' ? 'tool not selected · --prune removes it' : '']);
+    if (configChanged && !changed.some(([, filePath]) => filePath === '.repocanon.json')) {
+      actions.push([result.targets.config.status === 'created' ? 'create' : 'update', '.repocanon.json', 'your tool choice']);
     }
-    if (unchangedCount) {
-      console.log(`  = ${unchangedCount} other file(s) unchanged`);
-    }
-    console.log(`Tools: ${toolLabels.join(', ') || 'none (AGENTS.md only)'} → saved in .repocanon.json (re-run \`npx repocanon init\` to change)`);
+    ui.actions(actions);
+    if (unchangedCount) ui.row(symbol.same, c.dim(`${unchangedCount} other file(s) unchanged`));
   }
 
   if (result.targets.config.status === 'invalid') {
-    console.warn(`warning: ${result.targets.config.error}`);
+    ui.row(symbol.warn, `.repocanon.json: ${result.targets.config.error}`);
   }
   if (selection.source === 'none') {
-    console.log(`No AI tool detected, so only AGENTS.md was written. Pick tools: npx repocanon init --targets=claude,cursor (choose from: ${VALID_TARGETS_HINT})`);
+    ui.row(symbol.warn, 'No AI tool detected, so only AGENTS.md was written', `pick some: npx repocanon init --targets=claude,cursor (${VALID_TARGETS_HINT})`);
   }
 
   const writtenRules = getPendingRules(applyRules(root, planRules(root)));
-  if (writtenRules.length) {
-    console.log(`Scoped rules: ${writtenRules.length} file(s) updated (${writtenRules.map(r => r.file).join(', ')})`);
-  }
   const writtenSkills = getPendingSkills(applySkills(root, planSkills(root)));
-  if (writtenSkills.length) {
-    console.log(`Skills: ${writtenSkills.length} file(s) updated (${writtenSkills.map(r => r.file).join(', ')})`);
-  }
-
   const analysis = analyzeProject(root, {});
-  console.log(`\nIndexed ${analysis.modules.length} module candidates → .ai/INDEX.md`);
+  ui.section('Generated');
+  const generated = (rows, label) => (rows.length
+    ? [symbol.ok, label, `${rows.length} file(s) updated: ${rows.map(r => r.file).join(', ')}`]
+    : [symbol.same, label, 'up to date']);
+  ui.rows([
+    [symbol.ok, 'Module map', `${analysis.modules.length} module(s) → .ai/INDEX.md`],
+    generated(writtenRules, 'Scoped rules'),
+    generated(writtenSkills, 'Skills')
+  ]);
 
-  if (result.log.some(([status, filePath]) => status === 'created' && filePath === '.ai/PROJECT.md')) {
-    console.log('\nNext: npx repocanon setup         (connect the MCP server to your tools)\n      npx repocanon prompt fill   (paste into your AI agent, or ask it to "fill the RepoCanon docs" over MCP)\n      npx repocanon doctor        (check the result)');
+  const nothingChanged = !changed.length && !configChanged && !writtenRules.length && !writtenSkills.length;
+  ui.verdict({ ok: isFirstRun ? 'Knowledge layer created' : nothingChanged ? 'Up to date: nothing changed' : 'Updated' });
+  if (isFirstRun) {
+    ui.next([
+      ['npx repocanon setup', 'connect the MCP server to your tools'],
+      ['npx repocanon prompt fill', 'brief for your agent to fill the docs (or ask it over MCP)'],
+      ['npx repocanon doctor', 'check the result']
+    ]);
+  } else if (!nothingChanged) {
+    ui.hint('re-run any time to add or remove tools');
   }
 }
 

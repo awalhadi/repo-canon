@@ -7,7 +7,7 @@ branding:
 
 inputs:
   version:
-    description: repocanon npm version to run (e.g. 0.6.0). Defaults to the latest release.
+    description: repocanon npm version to run (e.g. 0.6.1). Defaults to the latest release.
     default: latest
   fail-on:
     description: "When to fail the check: error (secrets, broken paths), stale (also warnings and stale docs), or never."

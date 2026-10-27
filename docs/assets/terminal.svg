@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="679" height="724" viewBox="0 0 679 724" role="img" aria-label="repocanon">
+<rect width="679" height="724" rx="10" fill="#1e2127"/>
+<circle cx="22" cy="20" r="6" fill="#ff5f57"/><circle cx="42" cy="20" r="6" fill="#febc2e"/><circle cx="62" cy="20" r="6" fill="#28c840"/>
+<text x="339.5" y="24" text-anchor="middle" fill="#d7dae0" fill-opacity="0.6" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12">repocanon</text>
+<g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14">
+<text x="20" y="58" xml:space="preserve"><tspan fill="#d7dae0">$ npx repocanon status</tspan></text>
+<text x="20" y="78" xml:space="preserve"><tspan fill="#5ccfe6">◆</tspan><tspan fill="#d7dae0"> </tspan><tspan fill="#d7dae0" font-weight="700">repocanon status</tspan><tspan fill="#d7dae0" fill-opacity="0.55"> · shop</tspan></text>
+<text x="20" y="98" xml:space="preserve"></text>
+<text x="20" y="118" xml:space="preserve"><tspan fill="#d7dae0">  </tspan><tspan fill="#5fd38d">✓</tspan><tspan fill="#d7dae0">  .ai/INDEX.md            </tspan><tspan fill="#5fd38d">fresh</tspan><tspan fill="#d7dae0">  </tspan><tspan fill="#d7dae0" fill-opacity="0.55">2 commit(s) since verify</tspan></text>
+<text x="20" y="138" xml:space="preserve"><tspan fill="#d7dae0">  </tspan><tspan fill="#5fd38d">✓</tspan><tspan fill="#d7dae0">  .ai/PROJECT.md          </tspan><tspan fill="#5fd38d">fresh</tspan><tspan fill="#d7dae0">  </tspan><tspan fill="#d7dae0" fill-opacity="0.55">2 commit(s) since verify</tspan></text>
+<text x="20" y="158" xml:space="preserve"><tspan fill="#d7dae0">  </tspan><tspan fill="#5fd38d">✓</tspan><tspan fill="#d7dae0">  .ai/DOMAIN.md           </tspan><tspan fill="#5fd38d">fresh</tspan><tspan fill="#d7dae0">  </tspan><tspan fill="#d7dae0" fill-opacity="0.55">2 commit(s) since verify</tspan></text>
+<text x="20" y="178" xml:space="preserve"><tspan fill="#d7dae0">  </tspan><tspan fill="#5fd38d">✓</tspan><tspan fill="#d7dae0">  .ai/CONVENTIONS.md      </tspan><tspan fill="#5fd38d">fresh</tspan><tspan fill="#d7dae0">  </tspan><tspan fill="#d7dae0" fill-opacity="0.55">2 commit(s) since verify</tspan></text>
+<text x="20" y="198" xml:space="preserve"><tspan fill="#d7dae0">  </tspan><tspan fill="#5fd38d">✓</tspan><tspan fill="#d7dae0">  .ai/DECISIONS.md        </tspan><tspan fill="#5fd38d">fresh</tspan><tspan fill="#d7dae0">  </tspan><tspan fill="#d7dae0" fill-opacity="0.55">2 commit(s) since verify</tspan></text>
+<text x="20" y="218" xml:space="preserve"><tspan fill="#d7dae0">  </tspan><tspan fill="#5fd38d">✓</tspan><tspan fill="#d7dae0">  .ai/STATE.md            </tspan><tspan fill="#5fd38d">fresh</tspan><tspan fill="#d7dae0">  </tspan><tspan fill="#d7dae0" fill-opacity="0.55">2 commit(s) since verify</tspan></text>
+<text x="20" y="238" xml:space="preserve"><tspan fill="#d7dae0">  </tspan><tspan fill="#5fd38d">✓</tspan><tspan fill="#d7dae0">  .ai/modules/auth.md     </tspan><tspan fill="#5fd38d">fresh</tspan><tspan fill="#d7dae0">  </tspan></text>
+<text x="20" y="258" xml:space="preserve"><tspan fill="#d7dae0">  </tspan><tspan fill="#f5c451">!</tspan><tspan fill="#d7dae0">  .ai/modules/billing.md  </tspan><tspan fill="#f5c451">stale</tspan><tspan fill="#d7dae0">  </tspan><tspan fill="#d7dae0" fill-opacity="0.55">1 code file(s) changed since verify</tspan></text>
+<text x="20" y="278" xml:space="preserve"></text>
+<text x="20" y="298" xml:space="preserve"><tspan fill="#d7dae0" font-weight="700">Freshness</tspan><tspan fill="#d7dae0"> </tspan><tspan fill="#5fd38d">█████████</tspan><tspan fill="#d7dae0" fill-opacity="0.55">░</tspan><tspan fill="#d7dae0"> </tspan><tspan fill="#5fd38d">91/100</tspan></text>
+<text x="20" y="318" xml:space="preserve"></text>
+<text x="20" y="338" xml:space="preserve"><tspan fill="#f5c451">!</tspan><tspan fill="#d7dae0"> </tspan><tspan fill="#f5c451" font-weight="700">1 stale doc(s)</tspan><tspan fill="#d7dae0" fill-opacity="0.55"> · 8 docs</tspan></text>
+<text x="20" y="358" xml:space="preserve"></text>
+<text x="20" y="378" xml:space="preserve"><tspan fill="#d7dae0" font-weight="700">Next</tspan></text>
+<text x="20" y="398" xml:space="preserve"><tspan fill="#d7dae0">  </tspan><tspan fill="#5ccfe6">npx repocanon sync</tspan><tspan fill="#d7dae0">         </tspan><tspan fill="#d7dae0" fill-opacity="0.55">what changed and which docs to update</tspan></text>
+<text x="20" y="418" xml:space="preserve"><tspan fill="#d7dae0">  </tspan><tspan fill="#5ccfe6">npx repocanon stamp &lt;doc&gt;</tspan><tspan fill="#d7dae0">  </tspan><tspan fill="#d7dae0" fill-opacity="0.55">after you re-checked a doc against the code</tspan></text>
+<text x="20" y="438" xml:space="preserve"></text>
+<text x="20" y="458" xml:space="preserve"><tspan fill="#d7dae0">$ npx repocanon sync</tspan></text>
+<text x="20" y="478" xml:space="preserve"><tspan fill="#5ccfe6">◆</tspan><tspan fill="#d7dae0"> </tspan><tspan fill="#d7dae0" font-weight="700">repocanon sync</tspan><tspan fill="#d7dae0" fill-opacity="0.55"> · shop</tspan></text>
+<text x="20" y="498" xml:space="preserve"></text>
+<text x="20" y="518" xml:space="preserve"><tspan fill="#d7dae0" font-weight="700">Docs to update</tspan><tspan fill="#d7dae0" fill-opacity="0.55"> (1)</tspan></text>
+<text x="20" y="538" xml:space="preserve"><tspan fill="#d7dae0">  </tspan><tspan fill="#f5c451">!</tspan><tspan fill="#d7dae0">  </tspan><tspan fill="#d7dae0" font-weight="700">billing</tspan><tspan fill="#d7dae0">  </tspan><tspan fill="#d7dae0" fill-opacity="0.55">1 file(s) changed since a1b2c3d</tspan></text>
+<text x="20" y="558" xml:space="preserve"><tspan fill="#d7dae0">      </tspan><tspan fill="#d7dae0" fill-opacity="0.55">src/modules/billing/refund.js</tspan></text>
+<text x="20" y="578" xml:space="preserve"><tspan fill="#d7dae0">      </tspan><tspan fill="#d7dae0" fill-opacity="0.55">inspect:</tspan><tspan fill="#d7dae0"> </tspan><tspan fill="#5ccfe6">git diff a1b2c3d -- src/modules/billing/</tspan></text>
+<text x="20" y="598" xml:space="preserve"></text>
+<text x="20" y="618" xml:space="preserve"><tspan fill="#f5c451">!</tspan><tspan fill="#d7dae0"> </tspan><tspan fill="#f5c451" font-weight="700">1 doc(s) to update</tspan><tspan fill="#d7dae0" fill-opacity="0.55"> · 1 up to date · HEAD a1b2c3d</tspan></text>
+<text x="20" y="638" xml:space="preserve"></text>
+<text x="20" y="658" xml:space="preserve"><tspan fill="#d7dae0" font-weight="700">Next</tspan></text>
+<text x="20" y="678" xml:space="preserve"><tspan fill="#d7dae0">  </tspan><tspan fill="#5ccfe6">update the docs above</tspan><tspan fill="#d7dae0">        </tspan><tspan fill="#d7dae0" fill-opacity="0.55">only where behaviour, rules or flow changed</tspan></text>
+<text x="20" y="698" xml:space="preserve"><tspan fill="#d7dae0">  </tspan><tspan fill="#5ccfe6">npx repocanon stamp billing</tspan><tspan fill="#d7dae0">  </tspan><tspan fill="#d7dae0" fill-opacity="0.55">after committing, for each doc you re-checked</tspan></text>
+</g>
+</svg>
