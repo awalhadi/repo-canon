@@ -121,21 +121,21 @@ async function handleInit(context) {
     if (unchangedCount) {
       console.log(`  = ${unchangedCount} other file(s) unchanged`);
     }
-    console.log(`Tools: ${toolLabels.join(', ') || 'none (AGENTS.md only)'} → saved in .repocanon.json (re-run \`repocanon init\` to change)`);
+    console.log(`Tools: ${toolLabels.join(', ') || 'none (AGENTS.md only)'} → saved in .repocanon.json (re-run \`npx repocanon init\` to change)`);
   }
 
   if (result.targets.config.status === 'invalid') {
     console.warn(`warning: ${result.targets.config.error}`);
   }
   if (selection.source === 'none') {
-    console.log(`No AI tool detected, so only AGENTS.md was written. Pick tools: repocanon init --targets=claude,cursor (choose from: ${VALID_TARGETS_HINT})`);
+    console.log(`No AI tool detected, so only AGENTS.md was written. Pick tools: npx repocanon init --targets=claude,cursor (choose from: ${VALID_TARGETS_HINT})`);
   }
 
   const analysis = analyzeProject(root, {});
   console.log(`\nIndexed ${analysis.modules.length} module candidates → .ai/INDEX.md`);
 
   if (result.log.some(([status, filePath]) => status === 'created' && filePath === '.ai/PROJECT.md')) {
-    console.log('\nNext: repocanon prompt fill   (paste into your AI agent)\n      repocanon doctor        (check the result)');
+    console.log('\nNext: npx repocanon prompt fill   (paste into your AI agent, or ask it to "fill the RepoCanon docs" over MCP)\n      npx repocanon doctor        (check the result)');
   }
 }
 

@@ -1,23 +1,70 @@
 # RepoCanon
-Stack-agnostic **project knowledge layer** for AI coding agents (Cursor, Claude Code, Windsurf, Copilot, Gemini, Cline, Antigravity…).
-Agents read a compact `.ai/` folder instead of the whole repo → fewer tokens, project rules known upfront, changes tracked.
+
+**Verified AGENTS.md and project memory for AI coding agents.** One small `.ai/` folder tells Claude Code, Cursor, GitHub Copilot, OpenAI Codex, Gemini CLI, Windsurf and Cline how your project works, and git checks that it is still true.
+
+[![npm version](https://img.shields.io/npm/v/repocanon)](https://www.npmjs.com/package/repocanon)
+[![npm downloads](https://img.shields.io/npm/dm/repocanon)](https://www.npmjs.com/package/repocanon)
+[![license: MIT](https://img.shields.io/npm/l/repocanon)](LICENSE)
+[![node](https://img.shields.io/node/v/repocanon)](https://nodejs.org)
+[![dependencies: 0](https://img.shields.io/badge/dependencies-0-brightgreen)](package.json)
+[![MCP server](https://img.shields.io/badge/MCP-server-blue)](#connect-the-mcp-server)
+
+Sponsored by **[Framimo](https://framimo.com)** — turn any clip into GIF, WebP, AVIF or MP4, right in your browser.
+
+## Why
+
+- **Agents re-learn your repo on every task.** They scan files, burn tokens, and still miss the rules code doesn't show: state machines, money and permission invariants, why a choice was made.
+- **Hand-written `CLAUDE.md` and rules files rot silently.** Nobody notices when they stop matching the code.
+- **Every tool wants its own file.** CLAUDE.md, `.cursor/rules`, Copilot instructions, GEMINI.md, `.windsurfrules`, `.clinerules`…
+
+RepoCanon keeps **one** knowledge layer (`AGENTS.md` + `.ai/`), points every tool you use at it, and uses git to tell you which docs went stale after a code change. It runs locally, calls no LLM and has zero dependencies.
 
 ## Quick start
+
+Requires Node.js 18+ and a git repository.
+
 ```bash
 cd your-project
-node /path/to/repocanon/bin/repocanon.js init   # later: npx repocanon init
-repocanon prompt fill      # paste into your AI agent → fills .ai/ docs
-repocanon hook             # optional pre-commit warning
-# daily loop
-repocanon sync --write     # what changed → which docs to update (.ai/.sync-report.md)
-repocanon prompt update    # paste into agent; after it finishes:
-repocanon stamp <module>
+npx repocanon init          # pick your AI tools (↑/↓, space, enter)
 ```
 
-## Choosing tools
-In a terminal, `init` opens a picker (↑/↓, space, `a` = all/none, enter) for the AI tools that should read the knowledge layer. `AGENTS.md` is always written; each tool you pick gets a small pointer file:
+Then let your agent fill the docs. Either:
 
-| id | tool | file written |
+- **With MCP** ([setup below](#connect-the-mcp-server)): tell your agent *"Fill the RepoCanon docs"*. It calls `rc_prepare_fill` and writes `.ai/*.md` itself.
+- **Without MCP:** run `npx repocanon prompt fill` and paste the output into your agent.
+
+Finally, check the result and commit:
+
+```bash
+npx repocanon doctor        # lint: size caps, leftover TODOs, broken paths, token budget
+git add -A && git commit -m "Add RepoCanon knowledge layer"
+npx repocanon stamp --all   # mark the docs verified at that commit
+git commit -am "Verify RepoCanon docs"
+```
+
+## What you get
+
+```
+AGENTS.md                 entry point every agent reads: run/test commands, rules, Definition of Done
+.ai/
+  PROJECT.md              purpose, stack, boundaries
+  INDEX.md                path → module map (auto block refreshed by `analyze`)
+  DOMAIN.md               business rules, states, invariants, glossary
+  CONVENTIONS.md          coding style and patterns
+  DECISIONS.md            why things are built this way
+  STATE.md                current focus and recent changes
+  modules/<name>.md       one doc per module: purpose, invariants, flow, code map, gotchas
+.repocanon.json           config (presets, modules, excludes, chosen tools)
+CLAUDE.md, .cursor/…      small pointer files, only for the tools you pick
+```
+
+Docs are a semantic index, never a copy of the code. When docs and code disagree, **code wins** and the doc gets fixed.
+
+## Choosing tools
+
+`init` opens a picker for the AI tools that should read the knowledge layer. `AGENTS.md` is always written; each tool you pick gets a small pointer file:
+
+| id | Tool | File written |
 |---|---|---|
 | `claude` | Claude Code | `CLAUDE.md` (`@AGENTS.md` import) |
 | `cursor` | Cursor | `.cursor/rules/project.mdc` |
@@ -27,88 +74,163 @@ In a terminal, `init` opens a picker (↑/↓, space, `a` = all/none, enter) for
 | `cline` | Cline | `.clinerules` |
 | `codex` | OpenAI Codex / ChatGPT | nothing extra — reads `AGENTS.md` natively |
 
-Your choice is saved as `targets` in `.repocanon.json`. Re-running `init` reopens the picker with that choice and marks each tool `set up` or `detected`; if nothing changed it prints `Up to date`. Untick a tool and `init` offers to remove its RepoCanon block. Only that block goes: your own text stays, and the file is deleted only if nothing else is in it.
+- **Re-run any time.** `init` reopens the picker with your saved choice and marks each tool `set up` or `detected`. If nothing changed it prints `Up to date`.
+- **Untick a tool** and `init` offers to remove its RepoCanon block. Only that block goes: your own text stays, and a file is deleted only if nothing else is in it.
+- **Scripts and CI** (no terminal): `--targets=claude,cursor`, `--targets=all` or `--targets=none`; `--yes` keeps the saved choice; `--prune` removes blocks of tools you no longer select.
 
-Scripts and CI (no terminal): `--targets=claude,cursor`, `--targets=all` or `--targets=none` picks directly; `--yes` keeps the saved choice (or the detected tools); `--prune` removes blocks of tools you no longer select.
+## Daily workflow
 
-## Install
+After you or your agent change code:
+
 ```bash
-cd /path/to/repocanon && npm link      # gives you the global `repocanon` command
-# no npm link permission? alias instead:
-echo "alias repocanon='node /path/to/repocanon/bin/repocanon.js'" >> ~/.zshrc && source ~/.zshrc
+npx repocanon sync          # which docs are stale, which files changed, what to inspect
+# your agent updates the affected .ai/*.md (or: npx repocanon prompt update → paste)
+git commit -am "Update billing + docs"
+npx repocanon stamp billing # mark only the docs you actually re-checked (code must be committed)
+```
+
+The stamp edits `verified_at` in that doc; it rides along with your next commit.
+
+With MCP connected, just say *"update the context docs"*: the agent calls `rc_sync_report` and edits the docs itself.
+
+Optional: `npx repocanon hook` installs a pre-commit warning when code changes without any `.ai/` update. It never blocks a commit.
+
+## Connect the MCP server
+
+`repocanon mcp` is a stdio [Model Context Protocol](https://modelcontextprotocol.io) server. Agents use it to fetch a budgeted context pack instead of scanning the repo, and to update the docs without copy-paste.
+
+Most tools take this block:
+
+```json
+{
+  "mcpServers": {
+    "repocanon": { "command": "npx", "args": ["-y", "repocanon", "mcp"] }
+  }
+}
+```
+
+| Tool | Where it goes |
+|---|---|
+| Claude Code | `.mcp.json` in the project, or `claude mcp add repocanon -- npx -y repocanon mcp` |
+| Cursor | `.cursor/mcp.json` in the project |
+| VS Code (Copilot agent mode) | `.vscode/mcp.json` — this file uses `"servers"` instead of `"mcpServers"` |
+| Gemini CLI | `.gemini/settings.json` in the project |
+| Windsurf | `~/.codeium/windsurf/mcp_config.json` (Settings → Cascade → MCP Servers) |
+| Cline | Cline panel → MCP Servers → Configure (`cline_mcp_settings.json`) |
+
+The server works on the folder it starts in. Global configs (Windsurf, Cline) usually start outside your project, so add the path: `"args": ["-y", "repocanon", "mcp", "--root=/abs/path/to/project"]`.
+
+| MCP tool | What it returns |
+|---|---|
+| `rc_context` | Budgeted context for a task: rules + the most relevant module docs. Call it first. |
+| `rc_module` | One module's full doc |
+| `rc_find_owner` | Which module owns a file |
+| `rc_status` | Freshness of every doc vs git |
+| `rc_prepare_fill` | Evidence-loaded brief for writing the docs |
+| `rc_sync_report` | What changed since each doc was verified |
+
+## Use in CI
+
+Fail a pull request when the knowledge layer is broken or stale:
+
+```yaml
+# .github/workflows/repocanon.yml
+name: repocanon
+on: [pull_request]
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }   # full history, so verified_at commits resolve
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npx -y repocanon doctor --ci   # fails on structural errors
+      - run: npx -y repocanon status --ci   # fails on stale or broken docs
 ```
 
 ## Commands
-| command | what it does |
-|---|---|
-| `init [--targets=a,b\|all\|none] [--yes] [--prune] [--force]` | `.ai/`, `AGENTS.md`, `.repocanon.json` + pointer files for the AI tools you pick (see [Choosing tools](#choosing-tools)); auto-detects stack + run/test cmds |
-| `analyze [--scaffold]` | regenerates module/path map in `.ai/INDEX.md`; `--scaffold` creates module doc stubs with `code_paths` |
-| `doctor [--ci] [--json]` | lint the layer: size caps, leftover TODOs, broken paths, missing IDE pointers, token budget vs repo |
-| `context [words] [--files=a,b] [--max=N]` | print the budgeted context pack an agent should read for a task |
-| `mcp` | MCP stdio server: `rc_context`, `rc_module`, `rc_find_owner`, `rc_status` (read-only) + `rc_prepare_fill`, `rc_sync_report` (agent calls these itself and writes the docs — no copy-paste) |
-| `status [--ci] [--json]` | fresh / stale / broken / unverified per doc (broken = `code_paths` no longer exist) |
-| `sync [--write] [--since=ref] [--json]` | changed files since each doc's `verified_at` → docs to update, `git diff` commands, signals (schema, routes, deps, config), unmapped files |
-| `stamp <name…> \| --all [--force]` | set `verified_at` to current commit on docs you re-checked; exact names only, refuses when their code has uncommitted changes |
-| `hook` | pre-commit warning (never blocks) |
-| `prompt fill [--compact]` | rich, evidence-loaded brief (structure, dependency/env-key scan, git hotspots, per-stack playbook, phased work plan, self-review checklist, exact final-report format). `--compact` prints the short v0.2-style prompt instead |
-| `prompt update` | prompt for syncing docs after code changes, pre-loaded with the `sync` report |
 
-## Config: `.repocanon.json`
+| Command | What it does |
+|---|---|
+| `init [--targets=a,b\|all\|none] [--yes] [--prune] [--force]` | Create `.ai/`, `AGENTS.md`, `.repocanon.json` and pointer files for the tools you pick; detects stack and run/test commands |
+| `analyze [--scaffold]` | Refresh the module map in `.ai/INDEX.md`; `--scaffold` creates module doc stubs |
+| `doctor [--ci] [--json]` | Lint the layer: size caps, TODOs, broken paths, missing pointers, token budget |
+| `status [--ci] [--json]` | Each doc: fresh / stale / broken / unverified |
+| `sync [--write] [--since=ref] [--json]` | Code changed since each doc was verified → docs to update (`--write` saves `.ai/.sync-report.md`) |
+| `context [words…] [--files=a,b] [--max=4000]` | Print the budgeted context pack for a task |
+| `stamp <name…> \| --all [--force]` | Mark docs verified at the current commit; refuses when their code has uncommitted changes |
+| `prompt fill [--compact]` | Brief to paste into an agent so it fills the docs |
+| `prompt update` | Brief for updating docs after code changes |
+| `hook` | Install the pre-commit warning (never blocks) |
+| `mcp` | Start the MCP server on stdio |
+
+Global flags: `--root=<dir>` runs against another folder; `--version`; `--help`.
+
+## Configuration
+
+`.repocanon.json` (created by `init`):
+
 ```json
 {
   "preset": "auto",
   "moduleRoots": ["src/domains"],
   "modules": { "checkout": ["app/Services/Checkout/", "app/Models/Order.php"] },
-  "exclude": ["legacy/", "vendor/"]
+  "exclude": ["legacy/", "vendor/"],
+  "targets": ["claude", "cursor"]
 }
 ```
-- `preset`: `auto` (from detected stack) or one of `laravel nextjs react vue nestjs node django rails go tauri`
-- `moduleRoots`: extra folders whose child folders are modules
-- `modules`: explicit module → paths (overrides auto-detected module of same name)
-- `exclude`: path prefixes ignored everywhere
 
-Presets merge the same domain across layers (e.g. Laravel `Billing` = Services + Actions + Controllers + Pages).
+- `preset`: `auto` (from the detected stack) or one of `laravel nextjs react vue nestjs node django rails go tauri`. Presets merge one domain across layers, e.g. Laravel `Billing` = Services + Actions + Controllers + Pages.
+- `moduleRoots`: extra folders whose child folders are modules.
+- `modules`: explicit module → paths; overrides a detected module with the same name.
+- `exclude`: path prefixes ignored everywhere.
+- `targets`: the AI tools `init` set up (managed by the picker).
 
-## Connecting the MCP server to your IDE agent
-`repocanon mcp` is a stdio [MCP](https://modelcontextprotocol.io) server. Read-only tools: `rc_context`, `rc_module`, `rc_find_owner`, `rc_status`. Authoring tools: `rc_prepare_fill`, `rc_sync_report` — these return the same evidence brief as `prompt fill`/`sync`, but as a tool result your agent can act on directly, writing `.ai/*.md` with its own file tools (no copy-paste into chat). Once connected, just tell your agent **"update the context docs"**.
+## How it compares
 
-Every IDE points its agent at the same server command, just via a different config file:
+| | Cross-tool | Checked against git | Token-budgeted | Local, no LLM calls |
+|---|---|---|---|---|
+| Hand-written `CLAUDE.md` / rules files | one file per tool | no | no | yes |
+| Repo packers (e.g. Repomix) | yes | n/a — packs raw code | partly | yes |
+| Agent memory banks | usually one tool | no | no | varies |
+| **RepoCanon** | **yes** | **yes** (`verified_at`, `code_paths`) | **yes** | **yes** |
 
-```json
-{ "mcpServers": { "repocanon": { "command": "repocanon", "args": ["mcp", "--root=/abs/path/to/project"] } } }
-```
+Repo packers show an agent *what the code is*. RepoCanon records what the code can't say — rules, decisions, boundaries — and tells you when that record goes stale.
 
-> If you didn't `npm link` (see [Install](#install)), replace `"command": "repocanon"` with `"command": "node", "args": ["/abs/path/to/repocanon/bin/repocanon.js", "mcp", "--root=/abs/path/to/project"]`.
+## FAQ
 
-### Claude Code
-Create `.mcp.json` in your project root with the JSON block above, or run:
-```bash
-claude mcp add repocanon -- repocanon mcp --root=/abs/path/to/project
-```
+**Does it call an LLM or upload my code?** No. RepoCanon never makes network calls. Your own agent reads and writes the docs.
 
-### Cursor
-Create `.cursor/mcp.json` in the project (or `~/.cursor/mcp.json` for a global/all-projects server) with the JSON block above.
+**Does it work with ChatGPT?** OpenAI Codex reads `AGENTS.md` natively. ChatGPT in the browser can't see your repo, but `npx repocanon context "your task"` prints a pack you can paste.
 
-### Windsurf
-Open Windsurf → Settings → Cascade → MCP Servers → "View raw config", which opens `~/.codeium/windsurf/mcp_config.json`. Add the JSON block above and save.
+**Will it overwrite my `CLAUDE.md` or other rules files?** No. It adds or updates one clearly marked block and leaves the rest of the file alone. Core docs in `.ai/` are only replaced with `init --force`.
 
-### VS Code (Copilot Agent mode)
-Create `.vscode/mcp.json` in the project with the JSON block above (VS Code will offer a "Start" code lens above the server entry). Alternatively run **MCP: Add Server** from the Command Palette and point it at the same command/args.
+**What about monorepos?** Map packages with `moduleRoots` or `modules` today. Per-package knowledge layers are on the [roadmap](https://github.com/awalhadi/repo-canon/blob/main/docs/ROADMAP.md).
 
-### Cline
-Open the Cline panel → MCP Servers icon → "Configure MCP Servers", which opens `cline_mcp_settings.json`. Add the JSON block above and save.
-
-### Gemini CLI / Antigravity / any other MCP client
-These all use the same `{"mcpServers": {...}}` shape — check that client's docs for where it stores MCP config (a JSON file or a settings UI) and paste the block above in.
-
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for design, threat model and roadmap. For embedding as a library, project layout, and contributor notes, see [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md). Run tests: `npm test`.
+**Can I use it as a library?** Yes: `require('repocanon')` exposes the same functions the CLI uses. See [CONTRIBUTING](https://github.com/awalhadi/repo-canon/blob/main/docs/CONTRIBUTING.md).
 
 ## Principles
-1. Docs = semantic index, never a code copy. **Code wins** on conflict.
+
+1. Docs are a semantic index, never a code copy. Code wins on conflict.
 2. Progressive disclosure: AGENTS.md → PROJECT → INDEX → one module → code.
 3. Invariants and business rules over implementation detail.
-4. Change-driven updates (Definition of Done) + git-based staleness (`verified_at`, `code_paths`).
-5. Zero dependencies, Node ≥18.
+4. Freshness is computed from git, not promised.
+5. Zero dependencies, Node.js 18+.
 
-## Roadmap
-Phase-by-phase tracker (done / remaining): [docs/ROADMAP.md](docs/ROADMAP.md).
+## Roadmap and contributing
+
+- What's done and what's next: [docs/ROADMAP.md](https://github.com/awalhadi/repo-canon/blob/main/docs/ROADMAP.md)
+- Design and threat model: [docs/ARCHITECTURE.md](https://github.com/awalhadi/repo-canon/blob/main/docs/ARCHITECTURE.md)
+- Running from source, project layout, tests: [docs/CONTRIBUTING.md](https://github.com/awalhadi/repo-canon/blob/main/docs/CONTRIBUTING.md)
+- Bugs and ideas: [GitHub issues](https://github.com/awalhadi/repo-canon/issues)
+
+## Sponsors
+
+**[Framimo](https://framimo.com)** — turn any clip into GIF, WebP, AVIF or MP4, right in your browser. Trim, crop, resize and compress animations; files are processed on your device.
+
+Want to sponsor RepoCanon? [Open an issue](https://github.com/awalhadi/repo-canon/issues).
+
+## License
+
+[MIT](LICENSE) © Md. A Awal Hadi

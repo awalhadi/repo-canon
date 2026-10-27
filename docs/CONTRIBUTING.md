@@ -2,6 +2,16 @@
 
 For product usage (install, commands, MCP setup) see [../README.md](../README.md). For design, threat model and roadmap see [ARCHITECTURE.md](ARCHITECTURE.md). This doc is for people working on RepoCanon itself.
 
+## Running from source
+```bash
+git clone https://github.com/awalhadi/repo-canon.git && cd repo-canon
+npm test
+npm link                    # global `repocanon` command pointing at this checkout
+# no permission for npm link? use an alias instead:
+echo "alias repocanon='node $PWD/bin/repocanon.js'" >> ~/.zshrc && source ~/.zshrc
+```
+For an MCP client, point it at the checkout: `"command": "node", "args": ["/abs/path/to/repo-canon/bin/repocanon.js", "mcp"]`.
+
 ## Embedding as a library
 ```js
 const repocanon = require('repocanon');   // src/index.js — the same services the CLI uses
