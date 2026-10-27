@@ -734,3 +734,48 @@ test('GitHub annotations: level mapping, file/line properties and escaping', () 
   assert.equal(formatGithubAnnotation('error', '50% done\nnext', { file: 'a,b.md' }), '::error file=a%2Cb.md,title=RepoCanon::50%25 done%0Anext');
   assert.equal(formatGithubAnnotation('info', 'note'), '::notice title=RepoCanon::note');
 });
+
+test('memory: rc_propose_adr numbers, orders and guards decision records', () => {
+  const { proposeAdr } = require('../src/services/memory.service');
+  const now = new Date('2026-10-27T12:00:00Z');
+  const repoDir = createTempRepo({ '.ai/DECISIONS.md': fs.readFileSync(path.join(__dirname, '../templates/DECISIONS.md'), 'utf8') });
+  const doc = () => fs.readFileSync(path.join(repoDir, '.ai/DECISIONS.md'), 'utf8');
+
+  assert.deepEqual(proposeAdr(repoDir, { title: 'Use Postgres', decision: 'One database', why: 'Transactions', now }).id, 'D-001');
+  assert.doesNotMatch(doc(), /TODO title/);                                // template stub replaced
+  fs.writeFileSync(path.join(repoDir, '.ai/DECISIONS.md'), doc().replace('## D-001', '## D-003'));
+  const second = proposeAdr(repoDir, { title: 'Queue in Redis', decision: 'Redis', why: 'Simple', supersedes: 'd-003', now });
+  assert.equal(second.id, 'D-004');
+  assert.ok(doc().indexOf('## D-004 Queue in Redis (2026-10-27)') < doc().indexOf('## D-003'));  // newest on top
+  assert.match(doc(), /- Supersedes: D-003/);
+
+  const before = doc();
+  assert.match(proposeAdr(repoDir, { title: 'use postgres', decision: 'x', why: 'y' }).problems[0], /already exists/);
+  assert.match(proposeAdr(repoDir, { title: 'x', decision: 'two\nlines', why: '' }).problems.join(' '), /one line.*why is empty/);
+  assert.match(proposeAdr(repoDir, { title: 'x', decision: 'y', why: 'z', supersedes: 'D-099' }).problems[0], /no decision D-099/);
+  const fakeKey = ['ghp', '_', 'a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8'].join('');
+  assert.match(proposeAdr(repoDir, { title: 'Token', decision: `use ${fakeKey}`, why: 'y' }).problems[0], /possible GitHub token/);
+  assert.equal(doc(), before);                                              // refused writes change nothing
+});
+
+test('memory: rc_checkpoint_state edits only the given sections and never stamps', () => {
+  const { checkpointState } = require('../src/services/memory.service');
+  const now = new Date('2026-10-27T12:00:00Z');
+  const state = fs.readFileSync(path.join(__dirname, '../templates/STATE.md'), 'utf8').replace(/\{\{head\}\}/, 'abc1234').replace(/\{\{date\}\}/g, '2026-01-01');
+  const repoDir = createTempRepo({ '.ai/STATE.md': state });
+  const doc = () => fs.readFileSync(path.join(repoDir, '.ai/STATE.md'), 'utf8');
+
+  const result = checkpointState(repoDir, { focus: 'Ship 0.6', in_progress: ['MCP write tools', 'Docs'], now });
+  assert.deepEqual(result.sections, ['Current focus', 'In progress']);
+  assert.match(doc(), /## Current focus\n- Ship 0\.6\n\n## In progress\n- MCP write tools\n- Docs\n\n## Known issues\n- TODO/);
+  assert.match(doc(), /^Updated: 2026-10-27$/m);
+  assert.match(doc(), /^verified_at: abc1234$/m);                           // no auto-stamp
+
+  for (let i = 0; i < 12; i++) checkpointState(repoDir, { change: `change ${i}`, now });
+  const recent = doc().split('## Recent significant changes')[1].split('\n').filter(l => l.startsWith('- '));
+  assert.equal(recent.length, 10);
+  assert.equal(recent[0], '- 2026-10-27: change 11');
+
+  assert.match(checkpointState(repoDir, {}).problems[0], /nothing to record/);
+  assert.match(checkpointState(repoDir, { in_progress: 'one' }).problems[0], /must be a list/);
+});
