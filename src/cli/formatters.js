@@ -21,6 +21,8 @@ function getHelpText() {
   init [--targets=a,b|all|none] [--yes] [--prune] [--force]
                            .ai/, AGENTS.md, .repocanon.json + pointer files for the AI tools you pick
                            (interactive picker in a terminal; re-run any time to add/remove tools)
+  setup [tool…|all] [--json]
+                           register the RepoCanon MCP server in each tool's config (default: the tools init set up)
   analyze [--scaffold]     refresh module/path map in .ai/INDEX.md (--scaffold: module doc stubs)
   doctor [--ci] [--json]   lint the knowledge layer: size caps, TODOs, broken paths, IDE pointers, token budget
   status [--ci] [--json]   docs fresh/stale/broken/unverified vs git

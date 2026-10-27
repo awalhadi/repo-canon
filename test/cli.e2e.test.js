@@ -257,3 +257,16 @@ test('context packs label stale and unverified docs; fresh docs carry no label',
   assert.match(executeTool(d, 'rc_context', { query: 'billing' }), /\| stale: modules\/billing\.md$/);
   assert.match(cf(d, 'context', 'billing').stderr, /\| 1 stale\]/);
 });
+
+test('setup: uses the tools init saved, second run is a no-op, unknown tools fail', () => {
+  const d = repo({ 'package.json': '{}' });
+  assert.equal(cf(d, 'setup').status, 1);
+  cf(d, 'init', '--targets=claude,cursor');
+  const first = cf(d, 'setup');
+  assert.equal(first.status, 0, first.stderr);
+  assert.match(first.stdout, /\+ \.mcp\.json \(created/); assert.match(first.stdout, /\+ \.cursor\/mcp\.json \(created/);
+  const second = cf(d, 'setup');
+  assert.match(second.stdout, /= \.mcp\.json \(already set up\)/); assert.doesNotMatch(second.stdout, /Restart/);
+  assert.match(cf(d, 'setup', 'codex').stdout, /global config, paste this into ~\/\.codex\/config\.toml/);
+  const bad = cf(d, 'setup', 'zed'); assert.equal(bad.status, 1); assert.match(bad.stderr, /unknown tool zed/);
+});

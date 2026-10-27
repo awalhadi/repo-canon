@@ -476,3 +476,31 @@ test('hook: installs once, upgrades the 0.5.0 snippet, keeps foreign hook lines'
   assert.ok(!upgraded.includes('# repocanon: warn if code changed'));
   assert.equal(installPreCommitHook(repoDir), 'already installed');
 });
+
+test('setup: writes MCP entries per tool, keeps other servers, is idempotent, never clobbers bad JSON', () => {
+  const { planSetup, applySetup } = require('../src/services/setup.service');
+  const repoDir = createTempRepo({
+    '.cursor/mcp.json': '{\n  "mcpServers": {\n    "other": { "command": "other-server" }\n  },\n  "extra": true\n}\n',
+    '.vscode/mcp.json': '{\n  // my servers\n  "servers": {}\n}\n'
+  });
+  const plan = planSetup(repoDir, ['claude', 'cursor', 'copilot', 'gemini', 'codex']);
+  assert.deepEqual(plan.map(r => [r.id, r.action]), [
+    ['claude', 'create'], ['cursor', 'add'], ['copilot', 'invalid'], ['gemini', 'create'], ['codex', 'manual']
+  ]);
+  applySetup(repoDir, plan);
+
+  const claude = JSON.parse(fs.readFileSync(path.join(repoDir, '.mcp.json'), 'utf8'));
+  assert.deepEqual(claude.mcpServers.repocanon, { command: 'npx', args: ['-y', 'repocanon', 'mcp'] });
+  const cursorText = fs.readFileSync(path.join(repoDir, '.cursor/mcp.json'), 'utf8');
+  const cursor = JSON.parse(cursorText);
+  assert.deepEqual(Object.keys(cursor), ['mcpServers', 'extra']);
+  assert.deepEqual(Object.keys(cursor.mcpServers), ['other', 'repocanon']);
+  assert.deepEqual(cursor.mcpServers.repocanon.args, ['-y', 'repocanon', 'mcp', '--root=${workspaceFolder}']);
+  assert.equal(fs.readFileSync(path.join(repoDir, '.vscode/mcp.json'), 'utf8'), '{\n  // my servers\n  "servers": {}\n}\n');
+  assert.match(plan[2].snippet, /"servers": \{\n\s+"repocanon": \{\n\s+"type": "stdio"/);
+  assert.match(plan[4].snippet, new RegExp(`^\\[mcp_servers\\.repocanon\\]\\ncommand = "npx"\\nargs = \\["-y", "repocanon", "mcp", "--root=${repoDir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"\\]$`));
+
+  assert.ok(planSetup(repoDir, ['claude', 'cursor', 'gemini']).every(r => r.action === 'unchanged'));
+  fs.writeFileSync(path.join(repoDir, '.mcp.json'), '{"mcpServers":{"repocanon":{"command":"node","args":["old.js"]}}}');
+  assert.equal(planSetup(repoDir, ['claude'])[0].action, 'update');
+});

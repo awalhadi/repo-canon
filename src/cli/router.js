@@ -14,6 +14,7 @@ const { handleHook } = require('./commands/hook.cmd');
 const { handlePrompt } = require('./commands/prompt.cmd');
 const { handleMcp } = require('./commands/mcp.cmd');
 const { handleSecrets } = require('./commands/secrets.cmd');
+const { handleSetup } = require('./commands/setup.cmd');
 
 const COMMAND_HANDLERS = {
   init: handleInit,
@@ -26,7 +27,8 @@ const COMMAND_HANDLERS = {
   hook: handleHook,
   prompt: handlePrompt,
   mcp: handleMcp,
-  secrets: handleSecrets
+  secrets: handleSecrets,
+  setup: handleSetup
 };
 
 /**

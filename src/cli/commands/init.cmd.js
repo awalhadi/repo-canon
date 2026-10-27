@@ -135,7 +135,7 @@ async function handleInit(context) {
   console.log(`\nIndexed ${analysis.modules.length} module candidates → .ai/INDEX.md`);
 
   if (result.log.some(([status, filePath]) => status === 'created' && filePath === '.ai/PROJECT.md')) {
-    console.log('\nNext: npx repocanon prompt fill   (paste into your AI agent, or ask it to "fill the RepoCanon docs" over MCP)\n      npx repocanon doctor        (check the result)');
+    console.log('\nNext: npx repocanon setup         (connect the MCP server to your tools)\n      npx repocanon prompt fill   (paste into your AI agent, or ask it to "fill the RepoCanon docs" over MCP)\n      npx repocanon doctor        (check the result)');
   }
 }
 
