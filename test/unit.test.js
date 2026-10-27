@@ -907,3 +907,40 @@ test('skills: nothing generated without evidence; RepoCanon never overwrites a s
   assert.equal(fs.readFileSync(path.join(repoDir, '.claude/skills/rc-verify-change/SKILL.md'), 'utf8'), '---\nname: rc-verify-change\ndescription: mine\n---\nmine\n');
   assert.equal(fs.existsSync(path.join(repoDir, '.agents/skills/old')), false);   // our stale copy, tool not chosen
 });
+
+test('workspaces: pnpm, npm, nx, go.work and Cargo members become packages', () => {
+  const { detectWorkspaces } = require('../src/core/workspaces');
+  const files = obj => createTempRepo(obj);
+  const list = dir => cp.execFileSync('git', ['ls-files'], { cwd: dir }).toString().trim().split('\n');
+  const summary = ws => ws.packages.map(p => `${p.slug}:${p.dir}:${p.kind}`);
+
+  let dir = files({
+    'pnpm-workspace.yaml': "packages:\n  - 'apps/*'\n  - packages/*\n  - '!packages/legacy'\n",
+    'turbo.json': '{}',
+    'package.json': '{"name":"root"}',
+    'apps/web/package.json': JSON.stringify({ name: '@acme/web', dependencies: { next: '15' } }),
+    'apps/admin/package.json': JSON.stringify({ name: '@acme/web' }),
+    'packages/ui/package.json': JSON.stringify({ name: '@acme/ui', dependencies: { react: '19' } }),
+    'packages/legacy/package.json': '{"name":"legacy"}',
+    'tools/x.js': ''
+  });
+  let ws = detectWorkspaces(dir, list(dir));
+  assert.deepEqual(ws.tools, ['pnpm', 'turbo']);
+  assert.deepEqual(summary(ws), ['apps-admin:apps/admin:app', 'apps-web:apps/web:app', 'ui:packages/ui:package']);  // twins named by path; react lib stays a package
+  assert.ok(ws.packages.find(p => p.dir === 'apps/web').stacks.includes('Next.js'));
+
+  dir = files({ 'package.json': JSON.stringify({ workspaces: { packages: ['services/**'] } }), 'services/api/package.json': JSON.stringify({ name: 'api', dependencies: { express: '4' } }), 'services/jobs/worker/package.json': '{"name":"worker"}' });
+  assert.deepEqual(summary(detectWorkspaces(dir, list(dir))), ['api:services/api:app', 'worker:services/jobs/worker:package']);
+
+  dir = files({ 'nx.json': '{}', 'libs/auth/project.json': '{"name":"auth"}', 'apps/shop/project.json': '{"name":"shop"}' });
+  assert.deepEqual(summary(detectWorkspaces(dir, list(dir))), ['shop:apps/shop:app', 'auth:libs/auth:package']);
+
+  dir = files({ 'go.work': 'go 1.22\n\nuse (\n\t./cmd/api\n\t./pkg/billing\n)\n', 'cmd/api/go.mod': 'module example.com/api\n', 'pkg/billing/go.mod': 'module example.com/billing\n' });
+  assert.deepEqual(summary(detectWorkspaces(dir, list(dir))), ['api:cmd/api:package', 'billing:pkg/billing:package']);
+
+  dir = files({ 'Cargo.toml': '[workspace]\nmembers = [\n  "crates/*",\n]\n', 'crates/core/Cargo.toml': '[package]\nname = "acme-core"\n', 'crates/cli/Cargo.toml': '[package]\nname = "acme-cli"\n' });
+  assert.deepEqual(detectWorkspaces(dir, list(dir)).packages.map(p => p.slug), ['acme-cli', 'acme-core']);
+
+  dir = files({ 'package.json': JSON.stringify({ workspaces: ['packages/*'] }), 'packages/only/package.json': '{}' });
+  assert.equal(detectWorkspaces(dir, list(dir)), null);                     // one package is not a monorepo
+});
