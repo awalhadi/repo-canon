@@ -67,7 +67,8 @@ test('args: boolean flags never swallow the next word', () => {
 });
 
 test('help: grouped overview, per-command help, did-you-mean', () => {
-  const run = (...args) => cp.spawnSync('node', [CLI, ...args], { encoding: 'utf8' });
+  const { FORCE_COLOR, ...env } = process.env;                                   // npm publish sets it
+  const run = (...args) => cp.spawnSync('node', [CLI, ...args], { encoding: 'utf8', env: { ...env, NO_COLOR: '1' } });
   const overview = run('--help').stdout;
   assert.match(overview, /^Start\n  init /m);
   assert.match(overview, /^For your AI agents\n/m);

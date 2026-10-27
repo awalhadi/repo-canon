@@ -1,7 +1,9 @@
 const test = require('node:test'), assert = require('node:assert'), fs = require('fs'), os = require('os'), path = require('path'), cp = require('child_process');
 const CLI = path.join(__dirname, '..', 'bin', 'repocanon.js');
 const g = (d, ...a) => cp.execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', ...a], { cwd: d, stdio: 'pipe' });
-const cf = (d, ...a) => cp.spawnSync('node', [CLI, ...a], { cwd: d, encoding: 'utf8' });
+// Plain output whatever the caller's terminal: `npm publish` runs tests with FORCE_COLOR set
+const PLAIN_ENV = (({ FORCE_COLOR, ...env }) => ({ ...env, NO_COLOR: '1' }))(process.env);
+const cf = (d, ...a) => cp.spawnSync('node', [CLI, ...a], { cwd: d, encoding: 'utf8', env: PLAIN_ENV });
 function repo(files) {
   const d = fs.mkdtempSync(path.join(os.tmpdir(), 'cf-'));
   for (const [f, c] of Object.entries(files)) { fs.mkdirSync(path.dirname(path.join(d, f)), { recursive: true }); fs.writeFileSync(path.join(d, f), c); }
@@ -335,7 +337,7 @@ test('adopt: one command from CLAUDE.md + memory bank to a clean, doctor-passing
 test('CI output: GitHub annotations in Actions, --strict fails on warnings, status shows the score', () => {
   const d = laravel(); cf(d, 'init', '--targets=claude');
   fs.appendFileSync(path.join(d, '.ai/PROJECT.md'), '\n```\napp/\n├── a\n├── b\n└── c\n```\n');
-  const env = { ...process.env, GITHUB_ACTIONS: 'true' };
+  const env = { ...PLAIN_ENV, GITHUB_ACTIONS: 'true' };
   const gh = cp.spawnSync('node', [CLI, 'doctor', '--ci'], { cwd: d, encoding: 'utf8', env });
   assert.equal(gh.status, 0);
   assert.match(gh.stdout, /^::warning file=\.ai\/PROJECT\.md,line=\d+,title=RepoCanon::\.ai\/PROJECT\.md:\d+ directory tree/m);
