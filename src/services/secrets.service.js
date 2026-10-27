@@ -1,5 +1,6 @@
 'use strict';
 
+const fs = require('fs');
 const path = require('path');
 const { read } = require('../core/fs');
 const { getStagedFiles, readStagedFile } = require('../core/git');
@@ -127,6 +128,15 @@ function scanSecrets(root) {
     docs.push({ rel: 'AGENTS.md', text: agentsText });
   }
   docs.push(...getKnowledgeDocs(root));
+  // Skills are copied into every tool's folder, so a key here spreads further
+  const skillsDir = path.join(root, '.ai', 'skills');
+  if (fs.existsSync(skillsDir)) {
+    for (const name of fs.readdirSync(skillsDir).sort()) {
+      const rel = `.ai/skills/${name}/SKILL.md`;
+      const text = read(path.join(root, rel));
+      if (text !== null) docs.push({ rel, text });
+    }
+  }
 
   return docs
     .map(doc => ({ doc: doc.rel, findings: findSecrets(doc.text) }))

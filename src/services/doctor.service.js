@@ -11,6 +11,7 @@ const { TARGETS } = require('../core/targets');
 const { scanKnowledgeLayer, INFERABLE_LABELS } = require('./inferable.service');
 const { scanSecrets, formatSecretFinding } = require('./secrets.service');
 const { planRules, getPendingRules } = require('./rules.service');
+const { planSkills, getPendingSkills, getSkillProblems } = require('./skills.service');
 const { getFreshnessScore } = require('./score.service');
 
 const MAX_INFERABLE_PER_DOC = 5;
@@ -141,6 +142,15 @@ function runDoctor(root) {
   const pendingRules = getPendingRules(planRules(root));
   if (pendingRules.length) {
     addFinding('warn', `scoped rule files are out of date (${pendingRules.length}: ${pendingRules.slice(0, 3).map(r => r.file).join(', ')}${pendingRules.length > 3 ? ', …' : ''}) — run: npx repocanon rules`);
+  }
+
+  const skillPlan = planSkills(root);
+  const pendingSkills = getPendingSkills(skillPlan);
+  if (pendingSkills.length) {
+    addFinding('warn', `skill files are out of date (${pendingSkills.length}: ${pendingSkills.slice(0, 3).map(r => r.file).join(', ')}${pendingSkills.length > 3 ? ', …' : ''}) — run: npx repocanon skills`);
+  }
+  for (const row of getSkillProblems(skillPlan)) {
+    addFinding('warn', `${row.file}: ${row.action === 'conflict' ? row.reason : `not copied to your tools — ${row.reason}`}`, { file: row.file, line: 1 });
   }
 
   // Content agents can learn from the code itself costs tokens on every task without helping

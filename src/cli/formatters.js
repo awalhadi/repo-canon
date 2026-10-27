@@ -23,6 +23,8 @@ function getHelpText() {
                            (interactive picker in a terminal; re-run any time to add/remove tools)
   rules [--check] [--json]  write per-module rule files (Cursor .mdc globs, Copilot applyTo, optional nested AGENTS.md)
                            that load only while editing that module; --check exits 1 if out of date
+  skills [--check] [--json] write .ai/skills/rc-verify-change (this repo's own lint/typecheck/test commands) and copy every
+                           .ai/skills/<name>/SKILL.md to .claude/skills and .agents/skills; --check exits 1 if out of date
   setup [tool…|all] [--json]
                            register the RepoCanon MCP server in each tool's config (default: the tools init set up)
   adopt [--dry-run] [--move] [--json]

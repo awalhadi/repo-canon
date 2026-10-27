@@ -27,6 +27,7 @@ const hookService = require('./services/hook.service');
 const targetsService = require('./services/targets.service');
 const inferableService = require('./services/inferable.service');
 const adoptService = require('./services/adopt.service');
+const skillsService = require('./services/skills.service');
 
 // CLI & MCP
 const cli = require('./cli/router');
@@ -51,6 +52,8 @@ module.exports = {
   applyTargets: targetsService.applyTargets,
   findInferable: inferableService.findInferableContent,
   adopt: adoptService.adoptProject,
+  planSkills: skillsService.planSkills,
+  applySkills: skillsService.applySkills,
 
   // Infrastructure & Core
   core: {

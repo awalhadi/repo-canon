@@ -8,6 +8,7 @@ const { TARGETS, TARGET_IDS, resolveTargetIds, detectTargets } = require('../../
 const { readManagedBlock } = require('../../core/blocks');
 const { CommandError } = require('../../core/errors');
 const { planRules, applyRules, getPendingRules } = require('../../services/rules.service');
+const { planSkills, applySkills, getPendingSkills } = require('../../services/skills.service');
 const { isInteractive, multiSelect, confirm } = require('../prompt');
 
 const STATUS_MAP = {
@@ -135,6 +136,10 @@ async function handleInit(context) {
   const writtenRules = getPendingRules(applyRules(root, planRules(root)));
   if (writtenRules.length) {
     console.log(`Scoped rules: ${writtenRules.length} file(s) updated (${writtenRules.map(r => r.file).join(', ')})`);
+  }
+  const writtenSkills = getPendingSkills(applySkills(root, planSkills(root)));
+  if (writtenSkills.length) {
+    console.log(`Skills: ${writtenSkills.length} file(s) updated (${writtenSkills.map(r => r.file).join(', ')})`);
   }
 
   const analysis = analyzeProject(root, {});

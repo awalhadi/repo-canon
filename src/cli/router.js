@@ -19,6 +19,7 @@ const { handleAgentHook } = require('./commands/agent-hook.cmd');
 const { handleRules } = require('./commands/rules.cmd');
 const { handleAdopt } = require('./commands/adopt.cmd');
 const { handleReport } = require('./commands/report.cmd');
+const { handleSkills } = require('./commands/skills.cmd');
 
 const COMMAND_HANDLERS = {
   init: handleInit,
@@ -35,6 +36,7 @@ const COMMAND_HANDLERS = {
   setup: handleSetup,
   'agent-hook': handleAgentHook,
   rules: handleRules,
+  skills: handleSkills,
   adopt: handleAdopt,
   report: handleReport
 };
