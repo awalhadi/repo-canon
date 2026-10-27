@@ -163,19 +163,21 @@ test('MCP tool execution directly via API', () => {
   cfApi.init(repoDir);
   cfApi.analyze(repoDir, { scaffold: true });
 
-  const contextResult = executeTool(repoDir, 'cf_context', { query: 'auth login', max_tokens: 1000 });
+  const contextResult = executeTool(repoDir, 'rc_context', { query: 'auth login', max_tokens: 1000 });
   assert.ok(typeof contextResult === 'string');
   assert.ok(contextResult.includes('.ai/PROJECT.md'));
 
-  const ownerResult = JSON.parse(executeTool(repoDir, 'cf_find_owner', { path: 'src/features/auth/login.js' }));
+  const ownerResult = JSON.parse(executeTool(repoDir, 'rc_find_owner', { path: 'src/features/auth/login.js' }));
   assert.equal(ownerResult[0].module, 'auth');
 
-  const statusResult = JSON.parse(executeTool(repoDir, 'cf_status', {}));
+  const statusResult = JSON.parse(executeTool(repoDir, 'rc_status', {}));
   assert.ok(Array.isArray(statusResult));
   assert.ok(statusResult.some(r => r.doc.includes('PROJECT.md')));
+
+  assert.throws(() => executeTool(repoDir, 'cf_context', {}), /unknown tool cf_context/);
 });
 
-test('MCP cf_prepare_fill and cf_sync_report return actionable text, not a copy-paste prompt', () => {
+test('MCP rc_prepare_fill and rc_sync_report return actionable text, not a copy-paste prompt', () => {
   const repoDir = createTempRepo({
     'package.json': '{"name": "test-pkg"}',
     'src/features/auth/login.js': 'export const login = () => {};'
@@ -184,12 +186,172 @@ test('MCP cf_prepare_fill and cf_sync_report return actionable text, not a copy-
   cfApi.init(repoDir);
   cfApi.analyze(repoDir, { scaffold: true });
 
-  const fillBrief = executeTool(repoDir, 'cf_prepare_fill', {});
+  const fillBrief = executeTool(repoDir, 'rc_prepare_fill', {});
   assert.ok(typeof fillBrief === 'string' && fillBrief.length > 0);
 
-  const compactBrief = executeTool(repoDir, 'cf_prepare_fill', { compact: true });
+  const compactBrief = executeTool(repoDir, 'rc_prepare_fill', { compact: true });
   assert.ok(compactBrief.length < fillBrief.length);
 
-  const syncReport = executeTool(repoDir, 'cf_sync_report', {});
+  const syncReport = executeTool(repoDir, 'rc_sync_report', {});
   assert.ok(typeof syncReport === 'string');
+});
+
+function packFixture() {
+  const repoDir = createTempRepo({
+    'package.json': '{"name": "pack-test"}',
+    'src/features/auth/login.js': 'x',
+    'src/features/author/profile.js': 'x',
+    'src/features/billing/invoice.js': 'x'
+  });
+  cfApi.init(repoDir);
+  cfApi.analyze(repoDir, { scaffold: true });
+  return repoDir;
+}
+
+test('pack: stopwords and partial words do not pull in modules', () => {
+  const repoDir = packFixture();
+  const result = cfApi.pack(repoDir, { query: 'fix the auth api', maxTokens: 4000 });
+  assert.deepEqual(result.modules, ['auth']);
+});
+
+test('pack: modules are ranked by relevance, rules come first', () => {
+  const repoDir = packFixture();
+  const mod = (name, body) => `---\nmodule: ${name}\nverified_at:\ncode_paths: [src/features/${name}/]\n---\n# ${name}\n${body}\n`;
+  fs.writeFileSync(path.join(repoDir, '.ai/modules/billing.md'), mod('billing', 'Invoice totals. Each invoice is immutable once sent. InvoiceService owns it.'));
+  fs.writeFileSync(path.join(repoDir, '.ai/modules/auth.md'), mod('auth', 'Login sends an invoice reminder.'));
+
+  const result = cfApi.pack(repoDir, { query: 'invoice', maxTokens: 4000 });
+  assert.deepEqual(result.modules, ['billing', 'auth']);
+  assert.ok(result.scores.billing > result.scores.auth);
+  const order = result.included.map(item => item.rel);
+  assert.deepEqual(order.slice(0, 3), ['.ai/PROJECT.md', '.ai/CONVENTIONS.md', '.ai/DOMAIN.md']);
+  assert.ok(order.indexOf('.ai/modules/billing.md') < order.indexOf('.ai/modules/auth.md'));
+  assert.equal(order.at(-1), '.ai/STATE.md');
+});
+
+test('pack: one huge doc cannot starve the module docs, budget holds', () => {
+  const repoDir = packFixture();
+  fs.writeFileSync(path.join(repoDir, '.ai/DOMAIN.md'), '# D\n' + 'rule\n'.repeat(5000));
+  const result = cfApi.pack(repoDir, { query: 'billing', maxTokens: 1500 });
+  assert.ok(result.tokens <= 1500, `tokens ${result.tokens}`);
+  const domain = result.included.find(item => item.rel === '.ai/DOMAIN.md');
+  assert.ok(domain.tokens <= 750, `domain ${domain.tokens}`);
+  assert.ok(result.included.some(item => item.rel === '.ai/modules/billing.md'));
+});
+
+test('truncateToTokens keeps the estimate within the limit', () => {
+  const { truncateToTokens } = require('../src/core/tokens');
+  const text = 'CommissionService computes totals, refunds and taxes. '.repeat(200);
+  const cut = truncateToTokens(text, 120);
+  assert.ok(estimateTokens(cut) <= 120);
+  assert.ok(estimateTokens(cut) > 100);
+  assert.equal(truncateToTokens('short', 50), 'short');
+});
+
+test('targets: ids, aliases, all/none and unknown names resolve without throwing', () => {
+  const { resolveTargetIds, TARGET_IDS } = require('../src/core/targets');
+  assert.deepEqual(resolveTargetIds('cloude, ChatGPT,cursor'), { ids: ['claude', 'cursor', 'codex'], unknown: [] });
+  assert.deepEqual(resolveTargetIds(['all']).ids, TARGET_IDS);
+  assert.deepEqual(resolveTargetIds('none'), { ids: [], unknown: [] });
+  assert.deepEqual(resolveTargetIds('claude,nope').unknown, ['nope']);
+});
+
+test('targets: detection looks for each tool\'s files and folders', () => {
+  const { detectTargets } = require('../src/core/targets');
+  const repoDir = createTempRepo({ '.cursor/mcp.json': '{}', 'GEMINI.md': '# mine\n' });
+  assert.deepEqual(detectTargets(repoDir), [
+    { id: 'cursor', evidence: '.cursor/' },
+    { id: 'gemini', evidence: 'GEMINI.md' }
+  ]);
+});
+
+test('config: targets are validated, updateConfigFile keeps other keys and never clobbers bad JSON', () => {
+  const { updateConfigFile } = require('../src/core/config');
+  assert.ok(validateConfig({ preset: 'auto', moduleRoots: [], modules: {}, exclude: [], targets: ['claude', 'zed'] })
+    .some(err => err.includes('target "zed" unknown')));
+
+  const repoDir = createTempRepo({ '.repocanon.json': '{\n  "preset": "laravel",\n  "exclude": ["legacy/"]\n}\n' });
+  assert.equal(updateConfigFile(repoDir, { targets: ['claude'] }).status, 'updated');
+  const saved = JSON.parse(fs.readFileSync(path.join(repoDir, '.repocanon.json'), 'utf8'));
+  assert.deepEqual(Object.keys(saved), ['preset', 'exclude', 'targets']);
+  assert.deepEqual(loadConfig(repoDir).targets, ['claude']);
+  assert.equal(updateConfigFile(repoDir, { targets: ['claude'] }).status, 'unchanged');
+
+  fs.writeFileSync(path.join(repoDir, '.repocanon.json'), '{ broken');
+  assert.equal(updateConfigFile(repoDir, { targets: [] }).status, 'invalid');
+  assert.equal(fs.readFileSync(path.join(repoDir, '.repocanon.json'), 'utf8'), '{ broken');
+});
+
+test('removeManagedBlock keeps user text and deletes block-only files', () => {
+  const { removeManagedBlock, readManagedBlock } = require('../src/core/blocks');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rc-blocks-'));
+  const mixed = path.join(dir, 'CLAUDE.md');
+  upsertManagedBlock(mixed, '@AGENTS.md', 'MY RULES\n\n');
+  assert.equal(readManagedBlock(mixed), '@AGENTS.md');
+  assert.equal(removeManagedBlock(mixed), 'removed');
+  assert.equal(fs.readFileSync(mixed, 'utf8'), 'MY RULES\n');
+  assert.equal(readManagedBlock(mixed), null);
+
+  const ruleOnly = path.join(dir, 'project.mdc');
+  upsertManagedBlock(ruleOnly, 'Read AGENTS.md', '---\nalwaysApply: true\n---\n');
+  assert.equal(removeManagedBlock(ruleOnly, '---\nalwaysApply: true\n---\n'), 'deleted');
+  assert.equal(fs.existsSync(ruleOnly), false);
+  assert.equal(removeManagedBlock(ruleOnly), 'absent');
+});
+
+test('targets service: plan previews create/append/unchanged/keep/remove, apply saves the choice', () => {
+  const { planTargets, applyTargets, resolveDefaultTargets } = require('../src/services/targets.service');
+  const repoDir = createTempRepo({ 'GEMINI.md': 'MY GEMINI RULES\n' });
+  assert.deepEqual(resolveDefaultTargets(repoDir), { ids: ['gemini'], source: 'detected' });
+
+  const first = planTargets(repoDir, ['claude', 'gemini', 'codex']);
+  assert.deepEqual(first.rows.map(r => [r.id, r.action]), [['claude', 'create'], ['gemini', 'append'], ['codex', 'native']]);
+  applyTargets(repoDir, first);
+  assert.deepEqual(loadConfig(repoDir).targets, ['claude', 'gemini', 'codex']);
+  assert.deepEqual(resolveDefaultTargets(repoDir), { ids: ['claude', 'gemini', 'codex'], source: 'saved' });
+
+  assert.ok(planTargets(repoDir, ['claude', 'gemini']).rows.every(r => r.action === 'unchanged'));
+
+  assert.deepEqual(planTargets(repoDir, ['claude']).rows.map(r => [r.id, r.action]), [['claude', 'unchanged'], ['gemini', 'keep']]);
+  const pruned = planTargets(repoDir, ['claude'], { prune: true });
+  assert.deepEqual(pruned.rows.map(r => r.action), ['unchanged', 'remove']);
+  applyTargets(repoDir, pruned);
+  assert.equal(fs.readFileSync(path.join(repoDir, 'GEMINI.md'), 'utf8'), 'MY GEMINI RULES\n');
+  assert.deepEqual(loadConfig(repoDir).targets, ['claude']);
+});
+
+test('picker: reduceSelection moves, wraps, toggles, selects all/none, confirms and cancels', () => {
+  const { createSelectState, reduceSelection } = require('../src/cli/prompt');
+  const items = [{ id: 'claude' }, { id: 'cursor' }, { id: 'codex' }];
+  let s = createSelectState(items, ['codex', 'nope']);
+  assert.deepEqual(s.selected, ['codex']);
+  s = reduceSelection(s, 'up');
+  assert.equal(s.cursor, 2);
+  s = reduceSelection(reduceSelection(s, 'down'), 'space');
+  assert.deepEqual(s.selected, ['claude', 'codex']);
+  s = reduceSelection(s, 'a');
+  assert.deepEqual(s.selected, ['claude', 'cursor', 'codex']);
+  s = reduceSelection(s, 'a');
+  assert.deepEqual(s.selected, []);
+  assert.equal(reduceSelection(s, 'x'), s);
+  assert.equal(reduceSelection(s, 'return').done, true);
+  assert.equal(reduceSelection(s, 'escape').cancelled, true);
+  assert.equal(reduceSelection(s, 'cancel').cancelled, true);
+});
+
+test('picker: renderMenu aligns columns and marks cursor, choice and status', () => {
+  const { createSelectState, renderMenu } = require('../src/cli/prompt');
+  const items = [
+    { id: 'claude', label: 'Claude Code', detail: 'CLAUDE.md', note: 'set up' },
+    { id: 'cline', label: 'Cline', detail: '.clinerules' }
+  ];
+  const text = renderMenu(createSelectState(items, ['claude']), { title: 'Pick', hint: 'keys', footer: 'foot' });
+  assert.equal(text, [
+    'Pick',
+    'keys',
+    '',
+    '  ❯ [x] Claude Code  CLAUDE.md    set up',
+    '    [ ] Cline        .clinerules',
+    '\nfoot'
+  ].join('\n'));
 });

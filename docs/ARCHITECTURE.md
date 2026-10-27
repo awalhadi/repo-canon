@@ -118,13 +118,15 @@ Two layers behave differently on bad input, deliberately:
 
 ## 10. Honest limits (what is NOT proven yet)
 - **Token savings are unmeasured.** `doctor` reports an estimate (word/punctuation-aware, not a real tokenizer, as of v0.5) of entry-context vs repo size, which bounds the *input* side only. A benchmark harness (same tasks, with/without `.ai/`, measure tool calls + tokens + success) is the only way to claim a number.
-- **`cf_prepare_fill`/`cf_sync_report` hand the calling agent a brief, not a guarantee.** They remove the human copy-paste step, but the agent still decides what to write; a bad agent can still write a bad doc. `doctor`/`status` catch structural drift after the fact, not authoring quality.
+- **`rc_prepare_fill`/`rc_sync_report` hand the calling agent a brief, not a guarantee.** They remove the human copy-paste step, but the agent still decides what to write; a bad agent can still write a bad doc. `doctor`/`status` catch structural drift after the fact, not authoring quality.
 - Module detection quality depends on folder conventions; unusual layouts need config.
 - Doc *quality* is only as good as the authoring agent; the tool verifies structure and freshness, not truth.
 - `context`/`pack` query matching is keyword/substring-based (module slug, code paths, and — as of v0.4 — the module's own doc body). It is not semantic search; a query using vocabulary absent from both paths and doc body will miss a relevant module.
 
 ## 11. Roadmap
-- **v0.4** *(done)* `cf_prepare_fill`/`cf_sync_report` MCP tools — an already-connected agent calls them and writes `.ai/*.md` with its own file tools; no human copy-paste required. Word/punctuation-aware token estimator replacing flat bytes/4.
+> Superseded by the phase tracker in [ROADMAP.md](ROADMAP.md); the history below is kept for context.
+
+- **v0.4** *(done)* `rc_prepare_fill`/`rc_sync_report` MCP tools — an already-connected agent calls them and writes `.ai/*.md` with its own file tools; no human copy-paste required. Word/punctuation-aware token estimator replacing flat bytes/4.
 - **v0.5** `npm publish` + `npx repocanon`; GitHub Action (CI drift-check, PR comment); benchmark harness; monorepo (per-package `.ai/`); `--fix` for safe auto-repairs (broken paths, pointer blocks).
 - **v0.6** symbol-level map (optional tree-sitter/ctags) inside module code maps; drift detection on *symbols*, not just files; relevance-ranked `context` packing (keyword-overlap scoring within budget, still zero-dependency).
 - **v0.7** plugin API for custom presets; optional `--ai` fill mode (direct Anthropic API call for non-agent CLI users; opt-in extra dependency, core stays zero-dep).

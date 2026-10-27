@@ -148,7 +148,7 @@ function formatSyncReport(report) {
 
   const lines = [
     '# RepoCanon sync report',
-    `HEAD: ${report.head} | global base: ${report.globalBase || 'none (run: repocanon stamp)'}`,
+    `HEAD: ${report.head} | global base: ${report.globalBase || 'none (run: repocanon stamp state)'}`,
     ''
   ];
 

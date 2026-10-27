@@ -17,11 +17,6 @@ class RepoCanonError extends Error {
 }
 
 /**
- * Backward compatibility alias.
- */
-const ContextForgeError = RepoCanonError;
-
-/**
  * Error thrown when configuration is invalid or missing.
  */
 class ConfigurationError extends RepoCanonError {
@@ -63,7 +58,6 @@ class CommandError extends RepoCanonError {
 
 module.exports = {
   RepoCanonError,
-  ContextForgeError,
   ConfigurationError,
   GitError,
   CommandError

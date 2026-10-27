@@ -43,6 +43,31 @@ function estimateTokens(text) {
 }
 
 /**
+ * Cuts text to the longest prefix whose estimateTokens() fits maxTokens,
+ * so a truncated section is measured by the same estimator that budgets it.
+ *
+ * @param {string|null|undefined} text
+ * @param {number} maxTokens
+ * @returns {string}
+ */
+function truncateToTokens(text, maxTokens) {
+  const value = text || '';
+  if (estimateTokens(value) <= maxTokens) return value;
+
+  let lo = 0;
+  let hi = value.length;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    if (estimateTokens(value.slice(0, mid)) <= maxTokens) {
+      lo = mid;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  return value.slice(0, lo);
+}
+
+/**
  * Estimates total source tokens across the entire repository.
  * Skips binaries, archives, lockfiles, and files larger than 1MB.
  * Uses the fast bytes/4 approximation (not estimateTokens' word-aware pass)
@@ -76,5 +101,6 @@ function estimateRepoTokens(root, preloadedFiles = null) {
 
 module.exports = {
   estimateTokens,
+  truncateToTokens,
   estimateRepoTokens
 };

@@ -9,7 +9,7 @@ const TEMPLATES_PROMPTS_DIR = path.resolve(__dirname, '../../../templates/prompt
 const KNOWN_PROMPTS = ['fill', 'update'];
 
 /**
- * Handles the `contextforge prompt` CLI command.
+ * Handles the `repocanon prompt` CLI command.
  * @throws {CommandError} when an unknown prompt name is requested.
  */
 function handlePrompt(context) {

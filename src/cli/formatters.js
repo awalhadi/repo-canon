@@ -18,7 +18,9 @@ function printJson(data) {
 function getHelpText() {
   return `repocanon ${pkg.version} — project knowledge layer (.ai/) for AI coding agents
 
-  init [--force]           .ai/, AGENTS.md + IDE pointers (managed blocks, existing content preserved), .repocanon.json
+  init [--targets=a,b|all|none] [--yes] [--prune] [--force]
+                           .ai/, AGENTS.md, .repocanon.json + pointer files for the AI tools you pick
+                           (interactive picker in a terminal; re-run any time to add/remove tools)
   analyze [--scaffold]     refresh module/path map in .ai/INDEX.md (--scaffold: module doc stubs)
   doctor [--ci] [--json]   lint the knowledge layer: size caps, TODOs, broken paths, IDE pointers, token budget
   status [--ci] [--json]   docs fresh/stale/broken/unverified vs git
@@ -26,11 +28,14 @@ function getHelpText() {
                            changed code since docs were verified → what to update
   context [words…] [--files=a,b] [--max=4000]
                            print a budgeted context pack for a task (what an agent should read)
-  stamp [name]             set verified_at = current commit (after confirming a doc)
+  stamp <name…> | --all [--force]
+                           set verified_at = current commit on docs you re-checked
+                           (refuses when their code has uncommitted changes)
   hook                     pre-commit warning (never blocks)
   prompt fill [--compact]  rich, evidence-loaded brief to paste into your agent (--compact: short form)
   prompt update            prompt for syncing docs after code changes
-  mcp                      MCP server on stdio (tools: rc_context/cf_context, rc_module, rc_find_owner, rc_status)
+  mcp                      MCP server on stdio (tools: rc_context, rc_module, rc_find_owner, rc_status,
+                           rc_prepare_fill, rc_sync_report)
 
   global: --root=<dir> run against another directory | --version`;
 }

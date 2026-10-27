@@ -12,6 +12,7 @@ const tokens = require('./core/tokens');
 const detector = require('./core/detector');
 const presets = require('./core/presets');
 const modules = require('./core/modules');
+const targets = require('./core/targets');
 
 // Services
 const initService = require('./services/init.service');
@@ -23,6 +24,7 @@ const packService = require('./services/pack.service');
 const promptService = require('./services/prompt.service');
 const factsService = require('./services/facts.service');
 const hookService = require('./services/hook.service');
+const targetsService = require('./services/targets.service');
 
 // CLI & MCP
 const cli = require('./cli/router');
@@ -43,6 +45,8 @@ module.exports = {
   buildFill: promptService.buildFillPrompt,
   facts: factsService.collectProjectFacts,
   installHook: hookService.installPreCommitHook,
+  planTargets: targetsService.planTargets,
+  applyTargets: targetsService.applyTargets,
 
   // Infrastructure & Core
   core: {
@@ -56,7 +60,8 @@ module.exports = {
     tokens,
     detector,
     presets,
-    modules
+    modules,
+    targets
   },
 
   // CLI & MCP

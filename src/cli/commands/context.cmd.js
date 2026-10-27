@@ -4,7 +4,7 @@ const { packContext } = require('../../services/pack.service');
 const { printJson } = require('../formatters');
 
 /**
- * Handles the `contextforge context` CLI command.
+ * Handles the `repocanon context` CLI command.
  */
 function handleContext(context) {
   const { root, args, options, isJson } = context;

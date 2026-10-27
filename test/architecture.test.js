@@ -47,7 +47,7 @@ const ALLOWED = {
   core: new Set(['core']),
   services: new Set(['core', 'services']),
   // cli is the outermost layer: it wires up every inner layer, including launching the MCP
-  // server as one of its own subcommands (`contextforge mcp`) — cli -> mcp is intended, not a leak.
+  // server as one of its own subcommands (`repocanon mcp`) — cli -> mcp is intended, not a leak.
   cli: new Set(['core', 'services', 'cli', 'mcp']),
   mcp: new Set(['core', 'services', 'mcp']),
   index: new Set(['core', 'services', 'cli', 'mcp', 'index']),

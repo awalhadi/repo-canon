@@ -26,7 +26,7 @@ function installPreCommitHook(root) {
   const hookPath = path.join(gitDir, 'hooks/pre-commit');
   const currentContent = read(hookPath);
 
-  if (currentContent && (currentContent.includes('repocanon') || currentContent.includes('contextforge'))) {
+  if (currentContent && currentContent.includes('repocanon')) {
     return 'already installed';
   }
 

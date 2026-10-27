@@ -117,7 +117,7 @@ function detectModules(files, config = {}, stacks = []) {
     }
   }
 
-  // 5. Explicit user configuration in .contextforge.json always overrides
+  // 5. Explicit user configuration in .repocanon.json always overrides
   for (const [name, paths] of Object.entries(config.modules || {})) {
     modulePathMap.set(toSlug(name), new Set(paths));
   }

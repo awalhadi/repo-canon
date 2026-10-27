@@ -26,8 +26,53 @@ test('init preserves existing CLAUDE.md and is idempotent', () => {
   const d = repo({ 'CLAUDE.md': 'MY OWN RULES\n', 'package.json': '{}' });
   cf(d, 'init'); const a = fs.readFileSync(path.join(d, 'CLAUDE.md'), 'utf8');
   assert.ok(a.includes('MY OWN RULES') && a.includes('AGENTS.md'));
+  assert.match(a, /repocanon:start -->\n@AGENTS\.md\n<!-- repocanon:end/);   // import, not a read-me pointer
   cf(d, 'init'); assert.equal(fs.readFileSync(path.join(d, 'CLAUDE.md'), 'utf8'), a);
   assert.equal((a.match(/repocanon:start/g) || []).length, 1);
+});
+
+test('init --targets writes only the chosen tools and saves the choice', () => {
+  const d = repo({ 'package.json': '{}' });
+  const r = cf(d, 'init', '--targets=claude,cursor');
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(fs.existsSync(path.join(d, 'CLAUDE.md')) && fs.existsSync(path.join(d, '.cursor/rules/project.mdc')));
+  for (const f of ['GEMINI.md', '.windsurfrules', '.clinerules', '.github/copilot-instructions.md']) assert.equal(fs.existsSync(path.join(d, f)), false, f);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(d, '.repocanon.json'), 'utf8')).targets, ['claude', 'cursor']);
+  assert.match(r.stdout, /Tools: Claude Code, Cursor/);
+});
+
+test('init re-run with saved targets is a no-op and says so', () => {
+  const d = repo({ 'package.json': '{}' }); cf(d, 'init', '--targets=claude,codex');
+  const snap = () => ['AGENTS.md', 'CLAUDE.md', '.repocanon.json', '.ai/STATE.md'].map(f => fs.readFileSync(path.join(d, f), 'utf8'));
+  const before = snap();
+  const r = cf(d, 'init');
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /Up to date — 2 tool\(s\): Claude Code, OpenAI Codex \/ ChatGPT\. Nothing changed\./);
+  assert.deepEqual(snap(), before);
+});
+
+test('init: deselected tools are kept unless --prune; prune keeps user text', () => {
+  const d = repo({ 'package.json': '{}', 'CLAUDE.md': 'MY OWN RULES\n' }); cf(d, 'init', '--targets=claude,cursor');
+  const kept = cf(d, 'init', '--targets=cursor');
+  assert.match(kept.stdout, /! CLAUDE\.md \(not selected — kept; use --prune to remove\)/);
+  assert.match(fs.readFileSync(path.join(d, 'CLAUDE.md'), 'utf8'), /@AGENTS\.md/);
+  const pruned = cf(d, 'init', '--targets=none', '--prune');
+  assert.equal(pruned.status, 0, pruned.stderr);
+  assert.equal(fs.readFileSync(path.join(d, 'CLAUDE.md'), 'utf8'), 'MY OWN RULES\n');
+  assert.equal(fs.existsSync(path.join(d, '.cursor/rules/project.mdc')), false);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(d, '.repocanon.json'), 'utf8')).targets, []);
+});
+
+test('init: unknown or empty --targets fails with the valid list; no tools detected → AGENTS.md only', () => {
+  const d = repo({ 'package.json': '{}' });
+  const bad = cf(d, 'init', '--targets=claude,zed');
+  assert.equal(bad.status, 1); assert.match(bad.stderr, /unknown target zed — choose from: claude, cursor/);
+  assert.equal(fs.existsSync(path.join(d, '.ai')), false);
+  assert.equal(cf(d, 'init', '--targets').status, 1);
+  const r = cf(d, 'init');
+  assert.match(r.stdout, /No AI tool detected, so only AGENTS\.md was written/);
+  assert.ok(fs.existsSync(path.join(d, 'AGENTS.md')));
+  for (const f of ['CLAUDE.md', 'GEMINI.md', '.cursor/rules/project.mdc']) assert.equal(fs.existsSync(path.join(d, f)), false, f);
 });
 
 test('malicious code_paths / verified_at never reach a shell', () => {
@@ -41,12 +86,41 @@ test('malicious code_paths / verified_at never reach a shell', () => {
 });
 
 test('status/sync flag changed module; stamp clears it', () => {
-  const d = laravel(); cf(d, 'init'); cf(d, 'analyze', '--scaffold'); g(d, 'add', '-A'); g(d, 'commit', '-qm', 'docs'); cf(d, 'stamp'); g(d, 'add', '-A'); g(d, 'commit', '-qm', 's');
+  const d = laravel(); cf(d, 'init'); cf(d, 'analyze', '--scaffold'); g(d, 'add', '-A'); g(d, 'commit', '-qm', 'docs'); cf(d, 'stamp', '--all'); g(d, 'add', '-A'); g(d, 'commit', '-qm', 's');
   assert.match(cf(d, 'status').stdout, /billing\.md\s+fresh/);
   fs.appendFileSync(path.join(d, 'app/Services/Billing/S.php'), 'y'); g(d, 'commit', '-qam', 'c');
   assert.match(cf(d, 'status').stdout, /billing\.md\s+stale/);
   assert.match(cf(d, 'sync').stdout, /billing\*\* — 1 file/);
   assert.equal(cf(d, 'status', '--ci').status, 1);
+});
+
+test('stamp: bare stamp refuses and changes nothing', () => {
+  const d = laravel(); cf(d, 'init'); cf(d, 'analyze', '--scaffold'); g(d, 'add', '-A'); g(d, 'commit', '-qm', 'docs');
+  const r = cf(d, 'stamp');
+  assert.equal(r.status, 1); assert.match(r.stderr, /needs a doc name \(or --all\)/);
+  assert.equal(g(d, 'status', '--porcelain').toString(), '');
+});
+
+test('stamp: names match exactly, never by substring', () => {
+  const d = laravel(); cf(d, 'init');
+  const mod = n => `---\nmodule: ${n}\nverified_at:\ncode_paths: [app/Services/Auth/]\n---\n# ${n}\n`;
+  fs.writeFileSync(path.join(d, '.ai/modules/user.md'), mod('user'));
+  fs.writeFileSync(path.join(d, '.ai/modules/users.md'), mod('users'));
+  g(d, 'add', '-A'); g(d, 'commit', '-qm', 'docs');
+  const r = cf(d, 'stamp', 'user');
+  assert.equal(r.status, 0, r.stderr); assert.match(r.stdout, /modules\/user\.md/); assert.doesNotMatch(r.stdout, /users\.md|STATE/);
+  assert.match(fs.readFileSync(path.join(d, '.ai/modules/user.md'), 'utf8'), /verified_at: [0-9a-f]{7}/);
+  assert.match(fs.readFileSync(path.join(d, '.ai/modules/users.md'), 'utf8'), /verified_at:\s*\n/);
+  const u = cf(d, 'stamp', 'nope'); assert.equal(u.status, 1); assert.match(u.stderr, /no doc named nope/);
+});
+
+test('stamp: uncommitted code_paths are refused unless --force', () => {
+  const d = laravel(); cf(d, 'init'); cf(d, 'analyze', '--scaffold'); g(d, 'add', '-A'); g(d, 'commit', '-qm', 'docs');
+  fs.appendFileSync(path.join(d, 'app/Services/Billing/S.php'), 'dirty');
+  const r = cf(d, 'stamp', 'billing');
+  assert.equal(r.status, 1); assert.match(r.stdout, /✗ .ai\/modules\/billing\.md: uncommitted changes \(app\/Services\/Billing\/S\.php\)/);
+  assert.match(cf(d, 'stamp', 'auth').stdout, /✓ .ai\/modules\/auth\.md/);   // other modules unaffected
+  const f = cf(d, 'stamp', 'billing', '--force'); assert.equal(f.status, 0); assert.match(f.stdout, /✓ .ai\/modules\/billing\.md/);
 });
 
 test('doctor: errors without AGENTS reference, --ci exit code', () => {
@@ -69,8 +143,8 @@ test('mcp: initialize, list, call over stdio', async () => {
   const send = (id, method, params) => p.stdin.write(JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n');
   send(1, 'initialize', { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 't', version: '0' } });
   p.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) + '\n');
-  send(2, 'tools/list', {}); send(3, 'tools/call', { name: 'cf_find_owner', arguments: { path: 'app/Actions/Billing/A.php' } });
-  send(4, 'tools/call', { name: 'cf_module', arguments: { name: '../../etc/passwd' } });
+  send(2, 'tools/list', {}); send(3, 'tools/call', { name: 'rc_find_owner', arguments: { path: 'app/Actions/Billing/A.php' } });
+  send(4, 'tools/call', { name: 'rc_module', arguments: { name: '../../etc/passwd' } });
   await new Promise(r => setTimeout(r, 1200)); p.kill();
   const msgs = buf.trim().split('\n').map(JSON.parse);
   assert.equal(msgs.length, 4);
@@ -107,4 +181,17 @@ test('doctor token budget reflects repo size', () => {
   const d = laravel(); cf(d, 'init');
   const r = JSON.parse(cf(d, 'doctor', '--json').stdout);
   assert.ok(r.budget.entryTokens > 0 && r.budget.repoTokens >= 0);
+  assert.ok(!r.findings.some(f => /entry context/.test(f.msg)), 'fresh init must fit the entry budget');
+  fs.appendFileSync(path.join(d, '.ai/PROJECT.md'), 'Overview of every folder in the repo. '.repeat(400));
+  const big = JSON.parse(cf(d, 'doctor', '--json').stdout);
+  assert.ok(big.findings.some(f => f.level === 'warn' && /entry context/.test(f.msg)));
+});
+
+test('doctor checks pointer files only for the chosen tools', () => {
+  const d = repo({ 'package.json': '{}' }); cf(d, 'init', '--targets=claude');
+  let r = JSON.parse(cf(d, 'doctor', '--json').stdout);
+  assert.ok(!r.findings.some(f => /GEMINI|windsurf|clinerules|copilot|cursor/i.test(f.msg)), JSON.stringify(r.findings));
+  fs.writeFileSync(path.join(d, 'CLAUDE.md'), 'just my notes\n');
+  r = JSON.parse(cf(d, 'doctor', '--json').stdout);
+  assert.ok(r.findings.some(f => f.level === 'warn' && /CLAUDE\.md: RepoCanon block missing \(Claude Code/.test(f.msg)));
 });

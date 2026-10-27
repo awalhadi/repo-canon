@@ -88,8 +88,7 @@ const MCP_TOOLS = [
  * @returns {string} Result text
  */
 function executeTool(root, toolName, args = {}) {
-  const normalized = toolName.replace(/^cf_/, 'rc_');
-  switch (normalized) {
+  switch (toolName) {
     case 'rc_context': {
       const result = packContext(root, {
         query: args.query || '',

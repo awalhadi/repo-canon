@@ -42,7 +42,7 @@ const DOC_LINE_CAPS = [
 const MODULE_DOC_LINE_CAP = 100;
 
 /**
- * Known IDE pointer files checked and created by ContextForge.
+ * Known IDE pointer files checked and created by RepoCanon.
  */
 const IDE_POINTERS = [
   'CLAUDE.md',
@@ -62,6 +62,19 @@ const CURSOR_RULE_FRONTMATTER = '---\nalwaysApply: true\n---\n';
  * Default text inserted into IDE pointer files.
  */
 const IDE_POINTER_TEXT = 'Read AGENTS.md first — it is the single source of truth for working in this repo. The knowledge layer lives in .ai/ (start at .ai/PROJECT.md, then .ai/INDEX.md).';
+
+/**
+ * CLAUDE.md pointer: an import, so Claude Code loads AGENTS.md itself instead of
+ * spending a read on it (a CLAUDE.md also disables its native AGENTS.md fallback).
+ */
+const CLAUDE_POINTER_TEXT = '@AGENTS.md';
+
+/**
+ * Entry context (AGENTS + PROJECT + INDEX) budget in estimated tokens. Overview
+ * text agents can infer from code costs tokens without improving results.
+ */
+const ENTRY_TOKEN_TARGET = 1000;
+const ENTRY_TOKEN_WARN = 2000;
 
 /**
  * Core documents initialized inside `.ai/`.
@@ -126,6 +139,9 @@ module.exports = {
   CURSOR_RULE_PATH,
   CURSOR_RULE_FRONTMATTER,
   IDE_POINTER_TEXT,
+  CLAUDE_POINTER_TEXT,
+  ENTRY_TOKEN_TARGET,
+  ENTRY_TOKEN_WARN,
   CORE_DOCS,
   STATUS_ICONS,
   TOKEN_SKIP_EXTENSIONS,

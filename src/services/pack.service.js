@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { read, isPathInside, listWorkspaceFiles } = require('../core/fs');
 const { parseFrontmatter, stripFrontmatter } = require('../core/frontmatter');
-const { estimateTokens } = require('../core/tokens');
+const { estimateTokens, truncateToTokens } = require('../core/tokens');
 const { loadConfig } = require('../core/config');
 const { detectProject } = require('../core/detector');
 const { detectModules } = require('../core/modules');
@@ -54,8 +54,76 @@ function getModuleMap(root) {
 }
 
 /**
+ * Task words that say what to do, not where — they matched almost every module.
+ */
+const STOPWORDS = new Set([
+  'the', 'and', 'for', 'with', 'this', 'that', 'from', 'into', 'onto', 'when', 'what', 'how', 'why',
+  'are', 'was', 'were', 'not', 'but', 'all', 'any', 'can', 'should', 'would', 'could', 'need', 'want',
+  'please', 'fix', 'add', 'adds', 'added', 'update', 'change', 'make', 'use', 'using', 'new', 'bug',
+  'issue', 'feature', 'code', 'file', 'files', 'some', 'there', 'their', 'have', 'has', 'also'
+]);
+
+const SCORE_SLUG = 5;
+const SCORE_PATH = 3;
+const SCORE_BODY_CAP = 3;
+const SCORE_FILE_MATCH = 1000;
+
+/**
+ * Splits text into lowercase word tokens, breaking camelCase ("CommissionService" → commission, service).
+ *
+ * @param {string} text
+ * @returns {string[]}
+ */
+function toWords(text) {
+  return String(text || '')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+}
+
+/**
+ * Whole-token match: exact, simple plural, or prefix for words of 5+ chars.
+ * "auth" must not hit "author"; "refund" should hit "refunds" / "refunded".
+ *
+ * @param {string} token
+ * @param {string} word
+ * @returns {boolean}
+ */
+function matchesWord(token, word) {
+  return token === word || token === `${word}s` || token === `${word}es` ||
+    (word.length >= 5 && token.startsWith(word));
+}
+
+/**
+ * Relevance of a module to the query words: slug and code-path hits weigh most,
+ * doc-body hits (real symbols a filled doc mentions) add up to a cap per word.
+ *
+ * @param {{ slug: string, paths: string[] }} mod
+ * @param {string} docBody
+ * @param {string[]} words
+ * @returns {number}
+ */
+function scoreModule(mod, docBody, words) {
+  const slugWords = toWords(mod.slug);
+  const pathWords = mod.paths.flatMap(toWords);
+  const bodyWords = toWords(docBody);
+  let score = 0;
+
+  for (const word of words) {
+    const hit = token => matchesWord(token, word);
+    if (slugWords.some(hit)) score += SCORE_SLUG;
+    if (pathWords.some(hit)) score += SCORE_PATH;
+    score += Math.min(SCORE_BODY_CAP, bodyWords.filter(hit).length);
+  }
+  return score;
+}
+
+/**
  * Assembles a budgeted, focused context pack for a task:
- * PROJECT.md + matched module docs + DOMAIN / CONVENTIONS / STATE.md, capped at maxTokens.
+ * PROJECT → CONVENTIONS → DOMAIN → modules ranked by relevance → STATE, capped at maxTokens.
+ * Rules come before modules so a large module set can't push them out; no single
+ * section may take more than half the budget.
  *
  * @param {string} root - Project root directory
  * @param {{ query?: string, files?: string[], maxTokens?: number }} [options={}]
@@ -64,46 +132,50 @@ function getModuleMap(root) {
  *   tokens: number,
  *   included: Array<{ rel: string, tokens: number }>,
  *   skipped: string[],
- *   modules: string[]
+ *   modules: string[],
+ *   scores: Record<string, number>
  * }}
  */
 function packContext(root, options = {}) {
   const { query = '', files = [], maxTokens = 4000 } = options;
   const mods = getModuleMap(root);
-  const chosen = new Map();
+  const scores = new Map();
 
-  // Match by target files
+  // Match by target files — always ranked above query matches
   for (const file of files) {
     const normalizedFile = file.replace(/^\.\//, '');
     for (const mod of mods) {
       if (mod.paths.some(p => isPathInside(normalizedFile, p))) {
-        chosen.set(mod.slug, mod);
+        scores.set(mod.slug, SCORE_FILE_MATCH);
       }
     }
   }
 
-  // Match by search query terms — searched against the module's slug, code paths,
-  // AND (when it exists) its doc body, since a filled-in doc mentions real symbols
-  // (e.g. "CommissionService") that the directory-level code_paths do not contain.
-  const searchWords = query
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter(w => w.length >= 3);
+  // Match by query words against slug, code paths and (when it exists) the doc body,
+  // since a filled-in doc mentions real symbols the directory-level code_paths do not.
+  const searchWords = [...new Set(toWords(query))].filter(w => w.length >= 3 && !STOPWORDS.has(w));
 
   if (searchWords.length) {
     for (const mod of mods) {
       const docBody = mod.doc ? stripFrontmatter(read(path.join(root, mod.doc)) || '') : '';
-      const haystack = `${mod.slug} ${mod.paths.join(' ')} ${docBody}`.toLowerCase();
-      if (searchWords.some(word => haystack.includes(word))) {
-        chosen.set(mod.slug, mod);
+      const score = scoreModule(mod, docBody, searchWords);
+      if (score > 0) {
+        scores.set(mod.slug, (scores.get(mod.slug) || 0) + score);
       }
     }
   }
 
-  // Assemble document parts
-  const parts = [['.ai/PROJECT.md', read(path.join(root, '.ai/PROJECT.md'))]];
+  const ranked = mods
+    .filter(mod => scores.has(mod.slug))
+    .sort((a, b) => scores.get(b.slug) - scores.get(a.slug) || a.slug.localeCompare(b.slug));
 
-  for (const mod of chosen.values()) {
+  // Assemble document parts
+  const parts = ['.ai/PROJECT.md', '.ai/CONVENTIONS.md', '.ai/DOMAIN.md'].map(rel => [
+    rel,
+    read(path.join(root, rel))
+  ]);
+
+  for (const mod of ranked) {
     if (mod.doc) {
       parts.push([mod.doc, read(path.join(root, mod.doc))]);
     } else {
@@ -114,10 +186,11 @@ function packContext(root, options = {}) {
     }
   }
 
-  for (const rel of ['.ai/DOMAIN.md', '.ai/CONVENTIONS.md', '.ai/STATE.md']) {
-    parts.push([rel, read(path.join(root, rel))]);
-  }
+  parts.push(['.ai/STATE.md', read(path.join(root, '.ai/STATE.md'))]);
 
+  const truncationMarker = '\n…[truncated]\n';
+  const markerTokens = estimateTokens(truncationMarker);
+  const sectionCap = Math.floor(maxTokens / 2);
   const outputSections = [];
   const included = [];
   const skipped = [];
@@ -129,16 +202,15 @@ function packContext(root, options = {}) {
     }
     let sectionText = `## ${relPath}\n${stripFrontmatter(rawContent).trim()}\n`;
     let tokens = estimateTokens(sectionText);
+    const allowance = Math.min(sectionCap, maxTokens - usedTokens);
 
-    if (usedTokens + tokens > maxTokens) {
-      const remainingTokens = maxTokens - usedTokens;
-      if (remainingTokens > 300) {
-        sectionText = `${sectionText.slice(0, remainingTokens * 4)}\n…[truncated]\n`;
-        tokens = remainingTokens;
-      } else {
+    if (tokens > allowance) {
+      if (allowance <= 300) {
         skipped.push(relPath);
         continue;
       }
+      sectionText = `${truncateToTokens(sectionText, allowance - markerTokens)}${truncationMarker}`;
+      tokens = estimateTokens(sectionText);
     }
 
     outputSections.push(sectionText);
@@ -151,7 +223,8 @@ function packContext(root, options = {}) {
     tokens: usedTokens,
     included,
     skipped,
-    modules: [...chosen.keys()]
+    modules: ranked.map(mod => mod.slug),
+    scores: Object.fromEntries(ranked.map(mod => [mod.slug, scores.get(mod.slug)]))
   };
 }
 

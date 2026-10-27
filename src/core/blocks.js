@@ -1,11 +1,10 @@
 'use strict';
 
+const fs = require('fs');
 const { read, write } = require('./fs');
 
 const BLOCK_START = '<!-- repocanon:start -->';
 const BLOCK_END = '<!-- repocanon:end -->';
-const LEGACY_BLOCK_START = '<!-- contextforge:start -->';
-const LEGACY_BLOCK_END = '<!-- contextforge:end -->';
 
 /**
  * Idempotently injects or replaces a managed block in a file.
@@ -24,11 +23,8 @@ function upsertManagedBlock(filePath, body, prefix = '') {
     return 'created';
   }
 
-  if (currentContent.includes(BLOCK_START) || currentContent.includes(LEGACY_BLOCK_START)) {
-    const hasCurrent = currentContent.includes(BLOCK_START);
-    const startPattern = hasCurrent ? BLOCK_START : LEGACY_BLOCK_START;
-    const endPattern = hasCurrent ? BLOCK_END : LEGACY_BLOCK_END;
-    const blockRegex = new RegExp(`${startPattern}[\\s\\S]*?${endPattern}`);
+  if (currentContent.includes(BLOCK_START)) {
+    const blockRegex = new RegExp(`${BLOCK_START}[\\s\\S]*?${BLOCK_END}`);
     const nextContent = currentContent.replace(blockRegex, () => blockContent);
     if (nextContent === currentContent) {
       return 'unchanged';
@@ -41,10 +37,55 @@ function upsertManagedBlock(filePath, body, prefix = '') {
   return 'appended';
 }
 
+/**
+ * Body of the managed block in a file.
+ *
+ * @param {string} filePath
+ * @returns {string|null} trimmed body, or null when the file or block is absent
+ */
+function readManagedBlock(filePath) {
+  const content = read(filePath);
+  if (content === null) {
+    return null;
+  }
+  const start = content.indexOf(BLOCK_START);
+  const end = content.indexOf(BLOCK_END, start);
+  if (start === -1 || end === -1) {
+    return null;
+  }
+  return content.slice(start + BLOCK_START.length, end).trim();
+}
+
+/**
+ * Removes only the managed block, never the user's own text. Deletes the file when
+ * nothing else is left (whitespace, or just the `prefix` RepoCanon wrote on creation).
+ *
+ * @param {string} filePath
+ * @param {string} [prefix='']
+ * @returns {'removed'|'deleted'|'absent'}
+ */
+function removeManagedBlock(filePath, prefix = '') {
+  const content = read(filePath);
+  if (content === null || !content.includes(BLOCK_START)) {
+    return 'absent';
+  }
+
+  const blockRegex = new RegExp(`\\n*${BLOCK_START}[\\s\\S]*?${BLOCK_END}\\n?`);
+  const rest = content.replace(blockRegex, '\n');
+  const leftover = rest.trim();
+
+  if (!leftover || (prefix && leftover === prefix.trim())) {
+    fs.unlinkSync(filePath);
+    return 'deleted';
+  }
+  write(filePath, `${rest.trim()}\n`);
+  return 'removed';
+}
+
 module.exports = {
   BLOCK_START,
   BLOCK_END,
-  LEGACY_BLOCK_START,
-  LEGACY_BLOCK_END,
-  upsertManagedBlock
+  upsertManagedBlock,
+  readManagedBlock,
+  removeManagedBlock
 };

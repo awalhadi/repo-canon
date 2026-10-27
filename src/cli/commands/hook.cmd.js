@@ -3,7 +3,7 @@
 const { installPreCommitHook } = require('../../services/hook.service');
 
 /**
- * Handles the `contextforge hook` CLI command.
+ * Handles the `repocanon hook` CLI command.
  */
 function handleHook(context) {
   const { root } = context;
