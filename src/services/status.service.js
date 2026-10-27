@@ -60,7 +60,7 @@ function getKnowledgeDocs(root) {
  * Checks freshness status of every doc in .ai/ relative to Git commits.
  *
  * @param {string} root - Project root directory
- * @returns {Array<{ doc: string, state: 'fresh'|'stale'|'broken'|'unverified'|'unknown'|'n/a', detail: string }>}
+ * @returns {Array<{ doc: string, state: 'fresh'|'stale'|'broken'|'unverified'|'unknown'|'n/a', detail: string, ignored: number, verifiedBy: string|null }>}
  */
 function getDocStatus(root) {
   const isGit = isInsideGitRepo(root);
@@ -109,7 +109,8 @@ function getDocStatus(root) {
       doc: doc.rel,
       state,
       detail,
-      ignored: ignoredCount
+      ignored: ignoredCount,
+      verifiedBy: doc.fm.verified_by || null
     });
   }
 
@@ -157,13 +158,15 @@ function getStampGuardPaths(doc) {
 }
 
 /**
- * Sets verified_at to the current HEAD commit on the named docs (or all with `all`).
+ * Sets verified_at to the current HEAD commit on the named docs (or all with `all`),
+ * and verified_by to who checked them.
  * Names match exactly; nothing is stamped when any name is unknown or none is given.
  * A doc whose code has uncommitted changes is refused unless `force` — its claims
  * would otherwise be "verified" against code that HEAD does not contain.
+ * An agent must name each doc it checked and can never force.
  *
  * @param {string} root - Project root directory
- * @param {{ names?: string[], all?: boolean, force?: boolean }|string} [options={}]
+ * @param {{ names?: string[], all?: boolean, force?: boolean, by?: 'human'|'agent' }|string} [options={}]
  *   A plain string is treated as a single name.
  * @returns {{
  *   head: string|null,
@@ -175,8 +178,10 @@ function getStampGuardPaths(doc) {
  * }}
  */
 function stampDocs(root, options = {}) {
-  const { names = [], all = false, force = false } =
+  const { names = [], all: allRequested = false, force: forceRequested = false, by = 'human' } =
     typeof options === 'string' ? { names: [options] } : options;
+  const all = by === 'agent' ? false : allRequested;
+  const force = by === 'agent' ? false : forceRequested;
   const docs = getKnowledgeDocs(root);
   const result = {
     head: getHeadShort(root),
@@ -214,7 +219,8 @@ function stampDocs(root, options = {}) {
       });
       continue;
     }
-    write(path.join(root, doc.rel), setFrontmatterValue(doc.text, 'verified_at', result.head));
+    const stamped = setFrontmatterValue(doc.text, 'verified_at', result.head);
+    write(path.join(root, doc.rel), setFrontmatterValue(stamped, 'verified_by', by));
     result.stamped.push(doc.rel);
   }
 

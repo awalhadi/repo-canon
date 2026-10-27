@@ -112,6 +112,8 @@ function formatReportMarkdown(report) {
   if (report.secrets) lines.push(`- 🔒 ${report.secrets} possible secret(s) in AGENTS.md / .ai/ — see the doctor annotations; remove before merging.`);
   if (report.pendingRules) lines.push(`- Scoped rule files out of date: ${report.pendingRules} — run \`npx repocanon rules\`.`);
   if (report.inferable) lines.push(`- ${report.inferable} block(s) in the docs repeat what the code shows (trees, dependency lists, pasted code) — consider deleting them.`);
+  const agentVerified = report.score.agentVerified || [];
+  if (agentVerified.length) lines.push(`- 🤖 ${agentVerified.length} doc(s) were last verified by an agent (${agentVerified.slice(0, 3).map(d => `\`${d}\``).join(', ')}${agentVerified.length > 3 ? ', …' : ''}) — a human review is worth it.`);
   if (behind.length) lines.push('- Update the docs above if behaviour, rules or flow changed, then `npx repocanon stamp <module>` after merging.');
   lines.push('', `<sub>RepoCanon ${pkg.version} · ${report.changedFiles} file(s) changed vs \`${report.base}\` (${report.mergeBase}) · only code changes count; tests, docs and formatting are ignored</sub>`);
 

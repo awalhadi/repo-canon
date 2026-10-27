@@ -26,7 +26,8 @@ function handleStatus(context) {
     const maxDocLength = Math.max(...rows.map(r => r.doc.length), 10);
     for (const row of rows) {
       const icon = STATUS_ICONS[row.state] || '?';
-      console.log(`${icon} ${row.doc.padEnd(maxDocLength)}  ${row.state.padEnd(10)} ${row.detail}`);
+      const label = row.state === 'fresh' && row.verifiedBy === 'agent' ? 'fresh (agent)' : row.state;
+      console.log(`${icon} ${row.doc.padEnd(maxDocLength)}  ${label.padEnd(13)} ${row.detail}`);
     }
     console.log(`\n${badCount} stale/broken, ${unverifiedCount} unverified · ${formatScore(score)}`);
   }

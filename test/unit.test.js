@@ -779,3 +779,29 @@ test('memory: rc_checkpoint_state edits only the given sections and never stamps
   assert.match(checkpointState(repoDir, {}).problems[0], /nothing to record/);
   assert.match(checkpointState(repoDir, { in_progress: 'one' }).problems[0], /must be a list/);
 });
+
+test('stamp: verified_by records who checked; agents must name docs and cannot force', () => {
+  const { stampDocs, getDocStatus } = require('../src/services/status.service');
+  const { getFreshnessScore } = require('../src/services/score.service');
+  const repoDir = createTempRepo({
+    'src/billing/pay.js': 'pay()\n',
+    '.ai/modules/billing.md': '---\nmodule: billing\ncode_paths: [src/billing]\nverified_at:\n---\n# Billing\n'
+  });
+  const doc = () => fs.readFileSync(path.join(repoDir, '.ai/modules/billing.md'), 'utf8');
+
+  assert.equal(stampDocs(repoDir, { all: true, by: 'agent' }).needsTarget, true);   // no --all for agents
+  fs.writeFileSync(path.join(repoDir, 'src/billing/pay.js'), 'pay(2)\n');
+  assert.equal(stampDocs(repoDir, { names: ['billing'], force: true, by: 'agent' }).refused.length, 1); // force ignored
+  cp.execFileSync('git', ['-c', 'user.email=t@t.com', '-c', 'user.name=tester', 'commit', '-qam', 'pay'], { cwd: repoDir });
+
+  assert.deepEqual(stampDocs(repoDir, { names: ['billing'], by: 'agent' }).stamped, ['.ai/modules/billing.md']);
+  assert.match(doc(), /^verified_by: agent$/m);
+  const row = getDocStatus(repoDir).find(r => r.doc === '.ai/modules/billing.md');
+  assert.deepEqual([row.state, row.verifiedBy], ['fresh', 'agent']);
+  assert.deepEqual(getFreshnessScore(repoDir).agentVerified, ['.ai/modules/billing.md']);
+
+  stampDocs(repoDir, { names: ['billing'] });
+  assert.match(doc(), /^verified_by: human$/m);
+  assert.doesNotMatch(doc(), /verified_by: agent/);
+  assert.deepEqual(getFreshnessScore(repoDir).agentVerified, []);
+});

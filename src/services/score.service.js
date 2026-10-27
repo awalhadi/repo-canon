@@ -14,7 +14,8 @@ const WEIGHTS = { fresh: 100, unverified: 50, unknown: 50, stale: 25, broken: 0 
  *
  * @param {string} root - Project root directory
  * @param {ReturnType<typeof getDocStatus>} [rows] - reuse rows the caller already has
- * @returns {{ score: number|null, counts: Record<string, number>, docs: number }}
+ * @returns {{ score: number|null, counts: Record<string, number>, docs: number, agentVerified: string[] }}
+ *   agentVerified: fresh docs whose last stamp came from an agent, for a human to re-check
  */
 function getFreshnessScore(root, rows = getDocStatus(root)) {
   const counts = { fresh: 0, stale: 0, broken: 0, unverified: 0, unknown: 0 };
@@ -23,7 +24,8 @@ function getFreshnessScore(root, rows = getDocStatus(root)) {
   const score = scored.length
     ? Math.round(scored.reduce((sum, row) => sum + WEIGHTS[row.state], 0) / scored.length)
     : null;
-  return { score, counts, docs: scored.length };
+  const agentVerified = scored.filter(row => row.state === 'fresh' && row.verifiedBy === 'agent').map(row => row.doc);
+  return { score, counts, docs: scored.length, agentVerified };
 }
 
 /**

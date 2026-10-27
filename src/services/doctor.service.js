@@ -175,10 +175,15 @@ function runDoctor(root) {
     addFinding('info', `entry context is ~${entryTokens} tokens (target ≤${ENTRY_TOKEN_TARGET}) — keep only commands, rules and boundaries`);
   }
 
+  const score = getFreshnessScore(root);
+  if (score.agentVerified.length) {
+    addFinding('info', `${score.agentVerified.length} doc(s) verified by an agent, not a human (${score.agentVerified.slice(0, 3).join(', ')}${score.agentVerified.length > 3 ? ', …' : ''}) — review them, then: repocanon stamp <doc>`);
+  }
+
   return {
     findings,
     docs,
-    score: getFreshnessScore(root),
+    score,
     budget: {
       entryTokens,
       repoTokens: repoTokensCount,
