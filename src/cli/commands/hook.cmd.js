@@ -18,8 +18,8 @@ function handleHook(context) {
     return;
   }
   ui.rows([
-    [ui.symbol.error, 'blocks', 'commits that add an API key, token or password to AGENTS.md or .ai/'],
-    [ui.symbol.warn, 'warns', 'when code changes without any .ai/ update'],
+    [ui.symbol.info, 'blocks', 'commits that add an API key, token or password to AGENTS.md or .ai/'],
+    [ui.symbol.info, 'warns', 'when code changes without any .ai/ update'],
     [ui.symbol.info, 'needs', 'repocanon installed: npm i -D repocanon (or globally)']
   ]);
   ui.verdict({ ok: 'Pre-commit hook ready', extra: 'skip once with git commit --no-verify' });
