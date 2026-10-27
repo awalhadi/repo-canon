@@ -49,6 +49,8 @@ function handleStatus(context) {
     ui.verdict({
       errors: count('broken'),
       warnings: count('stale'),
+      errorText: `${count('broken')} broken doc(s)`,
+      warningText: `${count('stale')} stale doc(s)`,
       ok: 'Every doc matches the code',
       extra: [
         `${rows.length} docs`,

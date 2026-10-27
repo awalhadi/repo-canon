@@ -11,6 +11,8 @@
 
 Sponsored by **[Framimo](https://framimo.com)** — turn any clip into GIF, WebP, AVIF or MP4, right in your browser.
 
+![repocanon status and sync in a terminal: which docs are stale, the files that changed, and the next command to run](docs/assets/terminal.svg)
+
 ## Why
 
 - **Agents re-learn your repo on every task.** They scan files, burn tokens, and still miss the rules code doesn't show: state machines, money and permission invariants, why a choice was made.
@@ -28,6 +30,46 @@ cd your-project
 npx repocanon init          # pick your AI tools (↑/↓, space, enter)
 ```
 
+<details>
+<summary>What you'll see</summary>
+
+<!-- example:init -->
+```text
+◆ repocanon init · shop
+
+  Stack  Node.js, Express
+  Tools  Claude Code, Cursor
+
+Files
+  +  .repocanon.json            created
+  +  .ai/.gitignore             created
+  +  .ai/INDEX.md               created
+  +  .ai/PROJECT.md             created
+  +  .ai/DOMAIN.md              created
+  +  .ai/CONVENTIONS.md         created
+  +  .ai/DECISIONS.md           created
+  +  .ai/STATE.md               created
+  +  .ai/prompts/update.md      created
+  +  .ai/modules/_TEMPLATE.md   created
+  +  AGENTS.md                  created
+  +  CLAUDE.md                  created
+  +  .cursor/rules/project.mdc  created
+
+Generated
+  ✓  Module map    2 module(s) → .ai/INDEX.md
+  ·  Scoped rules  up to date
+  ✓  Skills        3 file(s) updated: .ai/skills/rc-verify-change/SKILL.md, .claude/skills/rc-verify-change/SKILL.md, .agents/skills/rc-verify-change/SKILL.md
+
+✓ Knowledge layer created
+
+Next
+  npx repocanon setup        connect the MCP server to your tools
+  npx repocanon prompt fill  brief for your agent to fill the docs (or ask it over MCP)
+  npx repocanon doctor       check the result
+```
+
+</details>
+
 Then let your agent fill the docs. Either:
 
 - **With MCP** (`npx repocanon setup`, [details](#connect-the-mcp-server)): tell your agent *"Fill the RepoCanon docs"*. It calls `rc_prepare_fill` and writes `.ai/*.md` itself.
@@ -41,6 +83,50 @@ git add -A && git commit -m "Add RepoCanon knowledge layer"
 npx repocanon stamp --all   # mark the docs verified at that commit
 git commit -am "Verify RepoCanon docs"
 ```
+
+<details>
+<summary>What <code>doctor</code> shows</summary>
+
+<!-- example:doctor -->
+```text
+◆ repocanon doctor · shop
+
+Warnings (1)
+  !  scoped rule files are out of date (1: .cursor/rules/rc-billing.mdc) — run: npx repocanon rules
+
+Info (1)
+  i  27 TODO placeholder(s) remain in .ai/ — run: repocanon prompt fill
+
+Token budget
+  Entry context (AGENTS + PROJECT + INDEX)  ~980 tokens
+  Whole repo source                         ~1,053 tokens
+  Entry share of the repo                   93.07%
+  → estimates: word-aware for docs, bytes/4 for code
+
+Freshness █████████░ 91/100
+
+! 1 warning · 1 note(s)
+
+Next
+  npx repocanon prompt fill
+  npx repocanon rules
+  npx repocanon doctor       run again after fixing
+```
+
+</details>
+
+### Reading the output
+
+Every command prints the same shape: a header, rows, a one-line verdict, then **Next**: the exact commands to run. Symbols always come with a word, so the output also works without colour (`NO_COLOR=1`, `--no-color`, CI logs, screen readers).
+
+| Symbol | Means | | Symbol | Means |
+|---|---|---|---|---|
+| `✓` | ok / fresh | | `+` | file created |
+| `!` | warning / stale | | `~` | file updated |
+| `✗` | error / broken | | `-` | file removed |
+| `i` | info / unverified | | `=` / `·` | unchanged |
+
+Every command has `--help` with options and examples: `npx repocanon status --help`. `--json` and `--format=github` give machine-readable output for scripts and CI.
 
 ### Already have CLAUDE.md, Cursor rules or a Cline memory bank?
 
@@ -142,6 +228,46 @@ npx repocanon stamp billing # mark only the docs you actually re-checked (code m
 
 The stamp edits `verified_at` (and `verified_by: human`) in that doc; it rides along with your next commit.
 
+After a code change, `status` and `sync` show what drifted:
+
+<!-- example:status -->
+```text
+◆ repocanon status · shop
+
+  ✓  .ai/INDEX.md            fresh  2 commit(s) since verify
+  ✓  .ai/PROJECT.md          fresh  2 commit(s) since verify
+  ✓  .ai/DOMAIN.md           fresh  2 commit(s) since verify
+  ✓  .ai/CONVENTIONS.md      fresh  2 commit(s) since verify
+  ✓  .ai/DECISIONS.md        fresh  2 commit(s) since verify
+  ✓  .ai/STATE.md            fresh  2 commit(s) since verify
+  ✓  .ai/modules/auth.md     fresh
+  !  .ai/modules/billing.md  stale  1 code file(s) changed since verify
+
+Freshness █████████░ 91/100
+
+! 1 stale doc(s) · 8 docs
+
+Next
+  npx repocanon sync         what changed and which docs to update
+  npx repocanon stamp <doc>  after you re-checked a doc against the code
+```
+
+<!-- example:sync -->
+```text
+◆ repocanon sync · shop
+
+Docs to update (1)
+  !  billing  1 file(s) changed since a1b2c3d
+      src/modules/billing/refund.js
+      inspect: git diff a1b2c3d -- src/modules/billing/
+
+! 1 doc(s) to update · 1 up to date · HEAD a1b2c3d
+
+Next
+  update the docs above        only where behaviour, rules or flow changed
+  npx repocanon stamp billing  after committing, for each doc you re-checked
+```
+
 With MCP connected, just say *"update the context docs"*: the agent calls `rc_sync_report`, edits the docs, records decisions and progress with `rc_propose_adr` / `rc_checkpoint_state`, stamps what it re-checked with `rc_stamp` and finishes with `rc_verify`. Agent stamps write `verified_by: agent`: the doc counts as fresh, but `status` shows `fresh (agent)` and `doctor` and the PR report list it so a human can re-check. A human `repocanon stamp` replaces it.
 
 Optional: `npx repocanon hook` installs a pre-commit hook. It warns when code changes without any `.ai/` update (never blocks), and **blocks** a commit that would add an API key, token or password to `AGENTS.md` or `.ai/` docs (`git commit --no-verify` overrides). The secret check needs RepoCanon installed locally (`npm i -D repocanon`) or globally.
@@ -155,6 +281,20 @@ Optional: `npx repocanon hook` installs a pre-commit hook. It warns when code ch
 ```bash
 npx repocanon setup              # the tools you picked in init
 npx repocanon setup cursor copilot
+```
+
+<!-- example:setup -->
+```text
+◆ repocanon setup · shop
+
+  +  .mcp.json         created · repocanon server added
+  +  .cursor/mcp.json  created · repocanon server added
+
+✓ MCP server registered in 2 config(s)
+
+Next
+  restart or reload your tool                     so it starts the server
+  ask your agent: "use rc_context for this task"  to check it works
 ```
 
 `setup` adds only its own `repocanon` entry: other servers and settings in the file stay as they are, and re-running it changes nothing. A file that isn't plain JSON (for example `.vscode/mcp.json` with comments) is left alone and you get the block to paste. Tools with a global config (Windsurf, Cline, Codex) get a ready-to-paste snippet with your project path.
@@ -385,6 +525,7 @@ Repo packers show an agent *what the code is*. RepoCanon records what the code c
 - What's done and what's next: [docs/ROADMAP.md](https://github.com/awalhadi/repo-canon/blob/main/docs/ROADMAP.md)
 - Design and threat model: [docs/ARCHITECTURE.md](https://github.com/awalhadi/repo-canon/blob/main/docs/ARCHITECTURE.md)
 - Running from source, project layout, tests: [docs/CONTRIBUTING.md](https://github.com/awalhadi/repo-canon/blob/main/docs/CONTRIBUTING.md)
+- Releasing to npm and the MCP Registry (`mcp-publisher publish`): [docs/PUBLISHING.md](https://github.com/awalhadi/repo-canon/blob/main/docs/PUBLISHING.md)
 - Bugs and ideas: [GitHub issues](https://github.com/awalhadi/repo-canon/issues)
 
 ## Sponsors
