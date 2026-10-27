@@ -7,6 +7,7 @@ const { upsertManagedBlock } = require('../core/blocks');
 const { detectProject } = require('../core/detector');
 const { CORE_DOCS } = require('../core/constants');
 const { resolveDefaultTargets, planTargets, applyTargets } = require('./targets.service');
+const { renderEntryBlock } = require('./digest.service');
 
 const TEMPLATES_DIR = path.resolve(__dirname, '../../templates');
 
@@ -78,8 +79,7 @@ function initProject(root, options = {}) {
   putFile('.ai/modules/_TEMPLATE.md', read(path.join(TEMPLATES_DIR, 'module.md')));
 
   // Entry point instructions with managed block
-  const agentsTemplate = read(path.join(TEMPLATES_DIR, 'AGENTS.md'));
-  putManagedBlock('AGENTS.md', renderTemplate(agentsTemplate, templateVars));
+  putManagedBlock('AGENTS.md', renderEntryBlock(root));
 
   // Selected AI tools → pointer files (managed blocks)
   const applied = applyTargets(root, planTargets(root, selection.ids, { prune: options.prune }));

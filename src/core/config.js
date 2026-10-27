@@ -21,7 +21,7 @@ const DEFAULT_CONFIG = {
  * Optional keys: absent means "not chosen yet", which callers treat differently
  * from an empty value (e.g. `targets` absent = legacy all-pointers behaviour).
  */
-const OPTIONAL_KEYS = ['targets', 'nestedAgents', 'drift', 'driftIgnore'];
+const OPTIONAL_KEYS = ['targets', 'nestedAgents', 'drift', 'driftIgnore', 'entryDigest'];
 
 /**
  * Validates a configuration object against expected schema.
@@ -62,6 +62,10 @@ function validateConfig(config) {
 
   if (config.nestedAgents !== undefined && typeof config.nestedAgents !== 'boolean') {
     errors.push('nestedAgents must be true or false');
+  }
+
+  if (config.entryDigest !== undefined && typeof config.entryDigest !== 'boolean') {
+    errors.push('entryDigest must be true or false');
   }
 
   if (config.targets !== undefined) {
@@ -140,6 +144,10 @@ function loadConfig(root) {
 
     if (typeof config.nestedAgents !== 'boolean') {
       delete config.nestedAgents;
+    }
+
+    if (typeof config.entryDigest !== 'boolean') {
+      delete config.entryDigest;
     }
 
     if (!['significant', 'all'].includes(config.drift)) {

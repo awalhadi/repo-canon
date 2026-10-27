@@ -8,6 +8,7 @@ const { findInferableContent, INFERABLE_LABELS } = require('./inferable.service'
 const { getDocStatus, matchesDocName } = require('./status.service');
 const { runDoctor } = require('./doctor.service');
 const { formatScore } = require('./score.service');
+const { refreshEntryBlock } = require('./digest.service');
 
 const TEMPLATES_DIR = path.resolve(__dirname, '../../templates');
 const DECISIONS_DOC = '.ai/DECISIONS.md';
@@ -133,6 +134,7 @@ function proposeAdr(root, input = {}) {
 
   const updated = lines.join('\n');
   write(path.join(root, DECISIONS_DOC), updated);
+  refreshEntryBlock(root);
   const cap = getCap(DECISIONS_DOC);
   const lineCount = updated.split('\n').length;
   const warnings = lineCount > cap

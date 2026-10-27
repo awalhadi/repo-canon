@@ -1,7 +1,7 @@
 # {{name}} — AI Guide
 Stack: {{stack}}
-Run: `{{run}}` | Test: `{{test}}` | Lint: `{{lint}}`
-
+{{commands}}
+{{digest}}
 ## Knowledge layer (.ai/) — read this, not the whole repo
 Read order: `.ai/PROJECT.md` → `.ai/INDEX.md` → ONLY the relevant `.ai/modules/<x>.md`.
 Then open only the files listed in that module's code map.

@@ -469,3 +469,32 @@ test('monorepo: init + analyze map a pnpm/turbo workspace into package and app-f
   assert.match(fs.readFileSync(path.join(d, '.ai/modules/web-billing.md'), 'utf8'), /code_paths: \[apps\/web\/app\/\(app\)\/billing\/, apps\/web\/app\/api\/billing\/\]/);
   assert.deepEqual(fs.readdirSync(path.join(d, '.ai/modules')).filter(f => !f.startsWith('_')).sort(), ['ui.md', 'web-billing.md', 'web-pricing.md']);
 });
+
+test('entry digest: AGENTS.md carries the rules and decisions, follows them, and can be turned off', () => {
+  const d = repo({ 'package.json': JSON.stringify({ scripts: { test: 'node --test' } }) });
+  cf(d, 'init', '--targets=claude', '--yes');
+  const agents = () => fs.readFileSync(path.join(d, 'AGENTS.md'), 'utf8');
+  assert.doesNotMatch(agents(), /Project rules|TODO`/);                        // template stubs: no digest, no TODO commands
+  assert.match(agents(), /^Test: `npm test`$/m);
+
+  fs.writeFileSync(path.join(d, '.ai/CONVENTIONS.md'), '---\nverified_at:\n---\n# Conventions\n- Money is integer cents.\n- TODO\n');
+  const check = cf(d, 'rules', '--check');
+  assert.equal(check.status, 1); assert.match(check.stdout, /~ AGENTS\.md \(would be updated\)/);
+  cf(d, 'rules');
+  assert.match(agents(), /## Project rules[^\n]*\n- Money is integer cents\.\n/);
+
+  const { executeTool } = require('../src/mcp/tools');
+  executeTool(d, 'rc_propose_adr', { title: 'One error for bad codes', decision: 'Unknown codes fail with E_CODE_INVALID', why: 'No probing' });
+  assert.match(agents(), /- D-001 One error for bad codes: Unknown codes fail with E_CODE_INVALID/);   // ADR lands in the digest at once
+  assert.equal(cf(d, 'rules', '--check').status, 0);
+
+  fs.writeFileSync(path.join(d, '.repocanon.json'), JSON.stringify({ ...JSON.parse(fs.readFileSync(path.join(d, '.repocanon.json'), 'utf8')), entryDigest: false }));
+  cf(d, 'rules');
+  assert.doesNotMatch(agents(), /Project rules/);
+
+  const { buildRulesDigest } = require('../src/services/digest.service');
+  fs.writeFileSync(path.join(d, '.ai/CONVENTIONS.md'), Array.from({ length: 200 }, (_, i) => `- Rule number ${i} says something specific about the code.`).join('\n'));
+  const big = buildRulesDigest(d, { maxTokens: 300 });
+  assert.match(big, /… more in/);
+  assert.ok(require('../src/core/tokens').estimateTokens(big) <= 300);
+});

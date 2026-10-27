@@ -19,7 +19,7 @@ function handleRules(context) {
   if (isJson) {
     printJson(plan.map(({ content, ...row }) => row));
   } else if (!pending.length) {
-    console.log(`Up to date — ${plan.length} scoped rule file(s).`);
+    console.log(`Up to date — ${plan.filter(row => row.kind !== 'entry').length} scoped rule file(s).`);
   } else {
     const verb = { create: 'created', update: 'updated', remove: 'removed' };
     for (const row of pending) {
