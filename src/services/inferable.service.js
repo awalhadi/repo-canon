@@ -95,7 +95,7 @@ function toRuns(indexes, gap) {
  * @param {string} text - document text
  * @param {{ allowCatalogue?: boolean }} [options={}] - allowCatalogue: true for module docs
  *   and INDEX.md, whose code maps are supposed to list files
- * @returns {Array<{ line: number, kind: 'tree'|'code'|'deps'|'catalogue', tokens: number, hint: string }>}
+ * @returns {Array<{ line: number, endLine: number, kind: 'tree'|'code'|'deps'|'catalogue', tokens: number, hint: string }>}
  */
 function findInferableContent(text, options = {}) {
   const lines = getAuthoredLines(text);
@@ -105,7 +105,7 @@ function findInferableContent(text, options = {}) {
   const addFinding = (kind, start, end) => {
     const span = lines.slice(start, end + 1).join('\n');
     for (let i = start; i <= end; i++) flagged.add(i);
-    findings.push({ line: start + 1, kind, tokens: estimateTokens(span), hint: HINTS[kind] });
+    findings.push({ line: start + 1, endLine: end + 1, kind, tokens: estimateTokens(span), hint: HINTS[kind] });
   };
 
   // Fenced code blocks: source-language fences are code copies; any fence drawing a tree is a tree

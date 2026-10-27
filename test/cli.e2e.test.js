@@ -314,3 +314,19 @@ test('rules: init writes scoped rules for filled modules; --check and doctor cat
   assert.match(fs.readFileSync(path.join(d, '.cursor/rules/rc-billing.mdc'), 'utf8'), /never refund inline/);
   assert.equal(cf(d, 'rules', '--check').status, 0);
 });
+
+test('adopt: one command from CLAUDE.md + memory bank to a clean, doctor-passing layer; --dry-run writes nothing', () => {
+  const d = repo({ 'package.json': '{}', 'CLAUDE.md': '# App\n\n## Conventions\n- Money is stored in cents.\n', 'memory-bank/activeContext.md': '# Now\n- Migrating auth to OIDC.\n' });
+  const dry = cf(d, 'adopt', '--dry-run');
+  assert.equal(dry.status, 0, dry.stderr); assert.match(dry.stdout, /Dry run — nothing written/);
+  assert.equal(fs.existsSync(path.join(d, '.ai')), false);
+
+  const r = cf(d, 'adopt');
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /Created the knowledge layer/);
+  assert.match(r.stdout, /Imported \d+ tokens from 2 file\(s\)/);
+  assert.match(fs.readFileSync(path.join(d, '.ai/STATE.md'), 'utf8'), /Migrating auth to OIDC/);
+  const doc = JSON.parse(cf(d, 'doctor', '--json').stdout);
+  assert.ok(!doc.findings.some(f => f.level === 'error'), JSON.stringify(doc.findings));
+  assert.ok(!doc.findings.some(f => /tokens in \.ai\/ describe what agents can read/.test(f.msg)));
+});

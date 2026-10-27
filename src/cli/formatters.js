@@ -25,6 +25,9 @@ function getHelpText() {
                            that load only while editing that module; --check exits 1 if out of date
   setup [tool…|all] [--json]
                            register the RepoCanon MCP server in each tool's config (default: the tools init set up)
+  adopt [--dry-run] [--move] [--json]
+                           import CLAUDE.md, .cursorrules, Cursor/Copilot rules, GEMINI.md, .windsurfrules, .clinerules,
+                           memory-bank/ into .ai/ (drops inferable content and secrets); --move then retires the originals
   analyze [--scaffold]     refresh module/path map in .ai/INDEX.md (--scaffold: module doc stubs)
   doctor [--ci] [--json]   lint the knowledge layer: size caps, TODOs, broken paths, IDE pointers, token budget
   status [--ci] [--json]   docs fresh/stale/broken/unverified vs git
