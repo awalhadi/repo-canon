@@ -1,6 +1,6 @@
 {
   "name": "repocanon",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "mcpName": "io.github.awalhadi/repocanon",
   "description": "Verified AGENTS.md and project memory for AI coding agents (Claude Code, Cursor, Copilot, Codex, Gemini, Windsurf, Cline). Git-checked context docs, MCP server, zero dependencies.",
   "keywords": [

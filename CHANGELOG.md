@@ -19,7 +19,7 @@ All notable changes to RepoCanon. Versions follow [semver](https://semver.org); 
 - README: a terminal screenshot, real example output for `init`, `doctor`, `status`, `sync` and `setup` (checked by a test, so it can't drift), and a key to the output symbols.
 - New `docs/PUBLISHING.md`: the full release guide for npm, `mcp-publisher publish` to the MCP Registry, git tags, the GitHub release, the Action tag, optional CI automation, and troubleshooting.
 
-## 0.6.0 — 2026-10-27
+## 0.6.1 — 2026-10-27
 
 ### Added
 - GitHub Action (`uses: awalhadi/repo-canon@v0.6`): doctor with inline annotations, a job summary, one pull-request comment kept up to date, and `fail-on: error | stale | never`.
