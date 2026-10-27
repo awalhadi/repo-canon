@@ -40,7 +40,8 @@ test/cli.e2e.test.js        black-box tests of the real CLI against temp git rep
 
 ```bash
 npm version 0.5.1 --no-git-tag-version   # bump package.json (and package-lock.json if present)
-# set the same version in server.json: "version" and packages[0].version
+# set the same version in server.json ("version", packages[0].version) and
+# plugins/repocanon/.claude-plugin/plugin.json ("version" and the repocanon@^x pin in mcpServers + hooks/hooks.json)
 git commit -am "release: 0.5.1" && git tag v0.5.1
 npm publish                              # runs the tests first (prepublishOnly)
 mcp-publisher login github               # once; install: brew install mcp-publisher

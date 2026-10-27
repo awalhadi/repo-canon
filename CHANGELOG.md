@@ -9,6 +9,9 @@ All notable changes to RepoCanon. Versions follow [semver](https://semver.org); 
 - MCP Registry listing (`server.json`, `mcpName`): RepoCanon appears in the official registry as `io.github.awalhadi/repocanon`.
 - Secret scanning for `AGENTS.md` and `.ai/` docs: private keys, cloud/API tokens, JWTs, URLs with passwords and high-entropy password/token values. `doctor` reports them as errors, and a new `secrets [--staged] [--json] [--quiet]` command lists them masked.
 - Context packs (`context`, `rc_context`) label stale, broken and unverified docs so agents trust the code there; `packContext()` returns `freshness`.
+- `repocanon setup [tool…]` registers the MCP server in `.mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json` and `.gemini/settings.json` (only its own entry; invalid or commented JSON is left alone), and prints snippets for global configs (Windsurf, Cline, Codex).
+- `repocanon agent-hook session-start|stop`: a session briefing (use `rc_context`, stale docs) and an end-of-turn reminder when a module's code changed without its doc.
+- Claude Code plugin + marketplace (`/plugin marketplace add awalhadi/repo-canon`): MCP server, `repocanon` skill, SessionStart and Stop hooks.
 
 ### Changed
 - `prompt fill`, `prompt fill --compact` and `prompt update` tell agents to write only what the code can't show, with an explicit "Do not write" list.

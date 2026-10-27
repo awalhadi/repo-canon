@@ -30,7 +30,7 @@ npx repocanon init          # pick your AI tools (↑/↓, space, enter)
 
 Then let your agent fill the docs. Either:
 
-- **With MCP** ([setup below](#connect-the-mcp-server)): tell your agent *"Fill the RepoCanon docs"*. It calls `rc_prepare_fill` and writes `.ai/*.md` itself.
+- **With MCP** (`npx repocanon setup`, [details](#connect-the-mcp-server)): tell your agent *"Fill the RepoCanon docs"*. It calls `rc_prepare_fill` and writes `.ai/*.md` itself.
 - **Without MCP:** run `npx repocanon prompt fill` and paste the output into your agent.
 
 Finally, check the result and commit:
@@ -99,7 +99,16 @@ Optional: `npx repocanon hook` installs a pre-commit hook. It warns when code ch
 
 `repocanon mcp` is a stdio [Model Context Protocol](https://modelcontextprotocol.io) server. Agents use it to fetch a budgeted context pack instead of scanning the repo, and to update the docs without copy-paste.
 
-Most tools take this block:
+**Let RepoCanon write the config:**
+
+```bash
+npx repocanon setup              # the tools you picked in init
+npx repocanon setup cursor copilot
+```
+
+`setup` adds only its own `repocanon` entry: other servers and settings in the file stay as they are, and re-running it changes nothing. A file that isn't plain JSON (for example `.vscode/mcp.json` with comments) is left alone and you get the block to paste. Tools with a global config (Windsurf, Cline, Codex) get a ready-to-paste snippet with your project path.
+
+**Or add it by hand.** Most tools take this block:
 
 ```json
 {
@@ -117,6 +126,7 @@ Most tools take this block:
 | Gemini CLI | `.gemini/settings.json` in the project |
 | Windsurf | `~/.codeium/windsurf/mcp_config.json` (Settings → Cascade → MCP Servers) |
 | Cline | Cline panel → MCP Servers → Configure (`cline_mcp_settings.json`) |
+| OpenAI Codex | `~/.codex/config.toml`: `[mcp_servers.repocanon]` with `command = "npx"`, `args = ["-y", "repocanon", "mcp", "--root=/abs/path"]` |
 
 The server works on the folder it starts in. Global configs (Windsurf, Cline) usually start outside your project, so add the path: `"args": ["-y", "repocanon", "mcp", "--root=/abs/path/to/project"]`.
 
@@ -128,6 +138,24 @@ The server works on the folder it starts in. Global configs (Windsurf, Cline) us
 | `rc_status` | Freshness of every doc vs git |
 | `rc_prepare_fill` | Evidence-loaded brief for writing the docs |
 | `rc_sync_report` | What changed since each doc was verified |
+
+## Claude Code plugin
+
+The plugin connects Claude Code to the knowledge layer with one install, and keeps the docs current while Claude works:
+
+```text
+/plugin marketplace add awalhadi/repo-canon
+/plugin install repocanon@repocanon
+```
+
+| Part | What it does |
+|---|---|
+| MCP server | `rc_context`, `rc_sync_report` and the other tools above, for the project you open |
+| Session start | Tells Claude the layer exists, to call `rc_context` before exploring, and which docs are stale |
+| End of turn | If Claude changed a module's code but not its doc, asks it **once** to update the doc or say no change is needed |
+| `repocanon` skill | The workflow: context first, update docs after changes, never paste code, file lists or secrets |
+
+The hooks do nothing in projects without an `.ai/` folder. They run `npx repocanon`, so the first session downloads it once.
 
 ## Use in CI
 
@@ -164,7 +192,9 @@ jobs:
 | `prompt update` | Brief for updating docs after code changes |
 | `secrets [--staged] [--json] [--quiet]` | Scan `AGENTS.md` and `.ai/` (or their staged versions) for API keys, tokens and passwords; exits 1 if any are found |
 | `hook` | Install the pre-commit hook: warns on undocumented code changes, blocks secrets in docs |
+| `setup [tool…\|all] [--json]` | Register the MCP server in each tool's config (default: the tools `init` set up) |
 | `mcp` | Start the MCP server on stdio |
+| `agent-hook <session-start\|stop>` | Output for agent hooks: session briefing, end-of-turn doc reminder (used by the Claude Code plugin) |
 
 Global flags: `--root=<dir>` runs against another folder; `--version`; `--help`.
 
