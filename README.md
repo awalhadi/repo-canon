@@ -78,6 +78,21 @@ Docs are a semantic index, never a copy of the code. When docs and code disagree
 - **Untick a tool** and `init` offers to remove its RepoCanon block. Only that block goes: your own text stays, and a file is deleted only if nothing else is in it.
 - **Scripts and CI** (no terminal): `--targets=claude,cursor`, `--targets=all` or `--targets=none`; `--yes` keeps the saved choice; `--prune` removes blocks of tools you no longer select.
 
+## Scoped rules: module knowledge exactly where the agent is editing
+
+`npx repocanon rules` turns each filled module doc into rule files that a tool loads **only while the agent edits that module's files** — no tool call, no extra tokens anywhere else:
+
+| Tool | File | Loaded when editing |
+|---|---|---|
+| Cursor | `.cursor/rules/rc-<module>.mdc` (`globs`, `alwaysApply: false`) | files under the module's `code_paths` |
+| GitHub Copilot | `.github/instructions/rc-<module>.instructions.md` (`applyTo`) | the same files |
+| Codex, Claude Code (opt-in) | `<module folder>/AGENTS.md` with a pointer to the module doc | anything in that folder |
+
+- `.ai/modules/<module>.md` stays the single source. Generated files say so in their header; edit the doc, then run `rules` again.
+- Files are written only for the tools you selected in `init`. Nested `AGENTS.md` pointers are off by default; turn them on with `"nestedAgents": true` in `.repocanon.json`.
+- Modules whose doc is still the empty template get nothing. Removed docs and deselected tools have their generated files cleaned up; your own rule files are never touched.
+- `init` runs `rules` for you, `doctor` warns when the files are out of date, and `rules --check` fails CI until they're regenerated.
+
 ## Daily workflow
 
 After you or your agent change code:
@@ -175,6 +190,7 @@ jobs:
         with: { node-version: 20 }
       - run: npx -y repocanon doctor --ci   # fails on structural errors
       - run: npx -y repocanon status --ci   # fails on stale or broken docs
+      - run: npx -y repocanon rules --check # fails when scoped rule files are out of date
 ```
 
 ## Commands
@@ -192,6 +208,7 @@ jobs:
 | `prompt update` | Brief for updating docs after code changes |
 | `secrets [--staged] [--json] [--quiet]` | Scan `AGENTS.md` and `.ai/` (or their staged versions) for API keys, tokens and passwords; exits 1 if any are found |
 | `hook` | Install the pre-commit hook: warns on undocumented code changes, blocks secrets in docs |
+| `rules [--check] [--json]` | Write per-module scoped rule files (Cursor, Copilot, optional nested `AGENTS.md`); `--check` exits 1 if out of date |
 | `setup [tool…\|all] [--json]` | Register the MCP server in each tool's config (default: the tools `init` set up) |
 | `mcp` | Start the MCP server on stdio |
 | `agent-hook <session-start\|stop>` | Output for agent hooks: session briefing, end-of-turn doc reminder (used by the Claude Code plugin) |
@@ -208,7 +225,8 @@ Global flags: `--root=<dir>` runs against another folder; `--version`; `--help`.
   "moduleRoots": ["src/domains"],
   "modules": { "checkout": ["app/Services/Checkout/", "app/Models/Order.php"] },
   "exclude": ["legacy/", "vendor/"],
-  "targets": ["claude", "cursor"]
+  "targets": ["claude", "cursor"],
+  "nestedAgents": false
 }
 ```
 
@@ -217,6 +235,7 @@ Global flags: `--root=<dir>` runs against another folder; `--version`; `--help`.
 - `modules`: explicit module → paths; overrides a detected module with the same name.
 - `exclude`: path prefixes ignored everywhere.
 - `targets`: the AI tools `init` set up (managed by the picker).
+- `nestedAgents`: also write a pointer `AGENTS.md` into each module folder (default `false`).
 
 ## How it compares
 

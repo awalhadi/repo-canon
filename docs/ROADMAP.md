@@ -10,11 +10,11 @@ Full strategy and market analysis: [STRATEGY.md](STRATEGY.md) (local copy) · [s
 | Phase | Done | Total | Gate met |
 |---|---|---|---|
 | 0 · Trust & identity | 4 | 4 | yes — 30/30 tests green |
-| 1 · v0.5 Lean, scoped, distributed | 5 | 7 | no |
+| 1 · v0.5 Lean, scoped, distributed | 6 | 7 | no |
 | 2 · v0.6 Proof & teams | 0 | 5 | no |
 | 3 · v0.7 Moat | 0 | 4 | no |
 | 4 · v1.0+ Platform | 0 | 4 | no |
-| **Total** | **9** | **24** | |
+| **Total** | **10** | **24** | |
 
 ## Phase 0 — Trust & identity (week 1)
 - [x] **P0.1** Remove ContextForge (`bin/contextforge.js`, `templates/contextforge.json`, `cf_*` aliases, legacy block markers, JSDoc headers); claim `repocanon` on npm, MCP registry, Open VSX. *(npm `repocanon@0.5.0` published 2026-10-27. MCP Registry listing prepared in `server.json`, goes live with 0.5.1; Open VSX comes with P4.1.)*
@@ -26,7 +26,7 @@ Full strategy and market analysis: [STRATEGY.md](STRATEGY.md) (local copy) · [s
 
 ## Phase 1 — v0.5 Lean, scoped, distributed (~4 weeks)
 - [x] **P1.1** Inferable-content lint in `doctor`; rewrite the `prompt fill` brief to ask only for what code can't show. *(Branch `feat/inferable-lint`; ships in 0.5.1.)*
-- [ ] **P1.2** Path-scoped writers: nested AGENTS.md, `.cursor/rules/<module>.mdc` with `globs`, Copilot `*.instructions.md` with `applyTo`; doctor drift check source vs output.
+- [x] **P1.2** Path-scoped writers: nested AGENTS.md, `.cursor/rules/<module>.mdc` with `globs`, Copilot `*.instructions.md` with `applyTo`; doctor drift check source vs output. *(`repocanon rules`, branch `feat/scoped-rules`; nested AGENTS.md opt-in via `nestedAgents`.)*
 - [ ] **P1.3** `repocanon adopt`: import `.cursorrules`, `.cursor/rules`, CLAUDE.md, Cline memory bank; strip inferable content and report the saving.
 - [x] **P1.4** Secret/PII scanner (regex + entropy, zero-dep) in doctor, hook and MCP writes. *(doctor + `secrets` command + blocking hook done on `feat/secrets-freshness`; MCP-write scanning lands with P2.3.)*
 - [x] **P1.5** Claude Code plugin (MCP + SKILL.md + `SessionStart`/`Stop` hooks) and `repocanon setup <ide>`. *(Branch `feat/setup-plugin`; plugin installs once 0.5.1 is on npm.)*
