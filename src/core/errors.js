@@ -49,10 +49,12 @@ class CommandError extends RepoCanonError {
   /**
    * @param {string} message
    * @param {number} [exitCode=2]
+   * @param {string} [hint] - what to do about it, shown under the message
    */
-  constructor(message, exitCode = 2) {
+  constructor(message, exitCode = 2, hint) {
     super(message, 'ERR_COMMAND');
     this.exitCode = exitCode;
+    this.hint = hint;
   }
 }
 

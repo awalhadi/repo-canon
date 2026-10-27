@@ -2,6 +2,12 @@
 
 const path = require('path');
 
+/** Flags that never take a value, so `stamp --force billing` keeps `billing` as a name. */
+const BOOLEAN_FLAGS = new Set([
+  'json', 'ci', 'help', 'version', 'no-color', 'debug', 'yes', 'prune', 'force', 'all', 'check', 'strict',
+  'scaffold', 'write', 'dry-run', 'move', 'staged', 'quiet', 'compact', 'keep'
+]);
+
 /**
  * Parses raw command-line arguments into structured commands, flags, and options.
  *
@@ -15,7 +21,9 @@ const path = require('path');
  *   isJson: boolean,
  *   isCi: boolean,
  *   isHelp: boolean,
- *   isVersion: boolean
+ *   isVersion: boolean,
+ *   noColor: boolean,
+ *   isDebug: boolean
  * }}
  */
 function parseArgs(argv = []) {
@@ -36,7 +44,7 @@ function parseArgs(argv = []) {
         const key = arg.slice(2);
         // Check if next argument is a value rather than another flag
         const nextArg = argv[i + 1];
-        if (nextArg && !nextArg.startsWith('-')) {
+        if (nextArg && !nextArg.startsWith('-') && !BOOLEAN_FLAGS.has(key)) {
           options[key] = nextArg;
           i++;
         }
@@ -68,7 +76,9 @@ function parseArgs(argv = []) {
     isJson,
     isCi,
     isHelp,
-    isVersion
+    isVersion,
+    noColor: flags.has('--no-color'),
+    isDebug: flags.has('--debug')
   };
 }
 

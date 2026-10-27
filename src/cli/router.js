@@ -2,7 +2,9 @@
 
 const pkg = require('../../package.json');
 const { parseArgs } = require('./args');
-const { getHelpText } = require('./formatters');
+const { CommandError } = require('../core/errors');
+const { getUi, getErrorUi } = require('./ui');
+const { findCommand, suggestCommand, printOverview, printCommandHelp } = require('./help');
 const { handleInit } = require('./commands/init.cmd');
 const { handleAnalyze } = require('./commands/analyze.cmd');
 const { handleDoctor } = require('./commands/doctor.cmd');
@@ -48,27 +50,50 @@ const COMMAND_HANDLERS = {
  * @returns {Promise<void>}
  */
 async function runCli(rawArgv = process.argv.slice(2)) {
+  // `repocanon status | head` closes the pipe early: stop quietly, like other CLIs
+  for (const stream of [process.stdout, process.stderr]) {
+    stream.on('error', error => {
+      if (error.code === 'EPIPE') process.exit(0);
+      throw error;
+    });
+  }
+  let context = { noColor: rawArgv.includes('--no-color'), isDebug: rawArgv.includes('--debug') };
   try {
-    const context = parseArgs(rawArgv);
+    context = parseArgs(rawArgv);
+    // Machine formats never get colour, whatever the terminal
+    const plain = context.noColor || context.isJson || context.options.format === 'github' || context.options.format === 'json';
+    const ui = getUi({ noColor: plain });
+    context.ui = ui;
 
     if (context.isVersion) {
       console.log(pkg.version);
       return;
     }
 
+    // `repocanon help status`, `repocanon status --help`, or plain `repocanon`
+    const helpTarget = context.command === 'help' ? context.args[0] : context.command;
     if (context.isHelp || !context.command) {
-      console.log(getHelpText());
+      const command = helpTarget && findCommand(helpTarget);
+      if (command) printCommandHelp(ui, command);
+      else printOverview(ui);
       return;
     }
 
     const handler = COMMAND_HANDLERS[context.command];
-    if (handler) {
-      await handler(context);
-    } else {
-      console.log(getHelpText());
+    if (!handler) {
+      const guess = suggestCommand(context.command);
+      throw new CommandError(
+        `unknown command "${context.command}"`,
+        2,
+        guess ? `did you mean \`repocanon ${guess}\`? · all commands: repocanon --help` : 'all commands: repocanon --help'
+      );
     }
+    await handler(context);
   } catch (error) {
-    console.error(`repocanon: ${error.message}`);
+    const ui = getErrorUi({ noColor: context.noColor });
+    ui.line(`${ui.symbol.error} ${ui.c.bold(error.message)}`);
+    if (error.hint) ui.hint(error.hint);
+    if (context.isDebug && error.stack) ui.line(ui.c.dim(error.stack));
     process.exit(Number.isInteger(error.exitCode) ? error.exitCode : 2);
   }
 }
