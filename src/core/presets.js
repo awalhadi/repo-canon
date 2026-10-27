@@ -41,7 +41,27 @@ function hasStack(stacks, target) {
 }
 
 /**
+ * Folders that group code by technical layer rather than by domain. Inside a root, they
+ * are walked through, so internal/handler/user/ and internal/service/user/ both join `user`.
+ */
+const LAYER_DIRS = new Set([
+  'handler', 'handlers', 'service', 'services', 'repository', 'repositories', 'store', 'stores',
+  'domain', 'app', 'http', 'transport', 'model', 'models', 'usecase', 'usecases', 'delivery'
+]);
+
+const GO_LAYERS = ['handler', 'handlers', 'service', 'services', 'repository', 'store', 'domain', 'model', 'models', 'usecase']
+  .flatMap(layer => [`internal/${layer}`, `pkg/${layer}`]);
+const FASTAPI_LAYERS = ['routers', 'api/routes', 'api/*/endpoints', 'models', 'schemas', 'crud', 'services', 'repositories']
+  .flatMap(layer => [`app/${layer}`, `src/*/${layer}`]);
+
+/**
  * Presets mapping tech stacks to module discovery root folders or marker patterns.
+ *   roots: folders whose child folders are modules
+ *   marker: files whose folder is a module (e.g. *.module.ts)
+ *   layers: folders whose files are grouped by name; a name found in two or more layers
+ *     is a module (app/Models/Invoice.php + app/Http/Controllers/InvoiceController.php)
+ *   layerDirs: walk through layer folders inside roots
+ *   appRouter: Next.js App Router segments under app/ and src/app/ are modules
  */
 const PRESETS = {
   laravel: {
@@ -63,18 +83,41 @@ const PRESETS = {
       'resources/js/views',
       'resources/js/modules',
       'resources/js/store/modules',
-      'packages'
+      'packages',
+      'Modules',
+      'app/Filament/Resources'
+    ],
+    layers: [
+      'app/Models',
+      'app/Http/Controllers',
+      'app/Http/Requests',
+      'app/Http/Resources',
+      'app/Policies',
+      'app/Observers',
+      'app/Services',
+      'app/Actions',
+      'app/Jobs',
+      'app/Events',
+      'app/Listeners'
     ]
   },
   nextjs: {
-    match: stacks => hasStack(stacks, 'Next.js') || hasStack(stacks, 'Nuxt'),
+    match: stacks => hasStack(stacks, 'Next.js'),
     roots: [
       'src/features',
       'src/modules',
-      'src/app',
-      'app',
       'features',
       'modules'
+    ],
+    appRouter: true
+  },
+  nuxt: {
+    match: stacks => hasStack(stacks, 'Nuxt'),
+    roots: [
+      'modules',
+      'features',
+      'pages',
+      'server/api'
     ]
   },
   react: {
@@ -110,6 +153,15 @@ const PRESETS = {
       'src/features'
     ]
   },
+  fastapi: {
+    match: stacks => hasStack(stacks, 'FastAPI'),
+    roots: [
+      'app/modules',
+      'app/domains',
+      'app/features'
+    ],
+    layers: FASTAPI_LAYERS
+  },
   django: {
     match: stacks => hasStack(stacks, 'Django'),
     marker: /(^|\/)(apps|models)\.py$/
@@ -130,7 +182,9 @@ const PRESETS = {
       'internal',
       'cmd',
       'pkg'
-    ]
+    ],
+    layers: GO_LAYERS,
+    layerDirs: true
   },
   tauri: {
     match: stacks => hasStack(stacks, 'Tauri'),
@@ -143,6 +197,7 @@ const PRESETS = {
 
 module.exports = {
   PRESETS,
+  LAYER_DIRS,
   GENERIC_MODULE_ROOTS,
   FALLBACK_MODULE_ROOTS,
   GENERIC: GENERIC_MODULE_ROOTS,

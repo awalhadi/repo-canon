@@ -2,8 +2,40 @@
 
 const path = require('path');
 const { toSlug, isPathInside } = require('./fs');
-const { PRESETS, GENERIC_MODULE_ROOTS, FALLBACK_MODULE_ROOTS } = require('./presets');
+const { PRESETS, LAYER_DIRS, GENERIC_MODULE_ROOTS, FALLBACK_MODULE_ROOTS } = require('./presets');
 const { NOISE_MODULE_DIRS } = require('./constants');
+const { classifyPath } = require('./drift');
+
+/** File names that are plumbing in every layer, never a domain. */
+const GENERIC_STEMS = new Set([
+  'index', 'init', 'base', 'main', 'dep', 'deps', 'dependency', 'api', 'config', 'setting', 'util', 'helper',
+  'common', 'core', 'app', 'controller', 'model', 'schema', 'router', 'route', 'service', 'session', 'database', 'db'
+]);
+const ROLE_SUFFIX = /(Controller|Request|Resource|Collection|Policy|Observer|Service|Repository|Repo|Handler|Job|Listener|Action|Router|Routes|Schema|Schemas|Crud|Endpoints?|_service|_repository|_repo|_handler|_router|_routes|_schemas?|_models?|_crud|_store|_endpoints?)$/;
+const VERB_PREFIX = /^(Store|Update|Create|Delete|Destroy|Index|Show|Edit|List|Get)(?=[A-Z])/;
+
+/**
+ * The domain a layer file is about: InvoiceController.php, StoreInvoiceRequest.php and
+ * Invoice.php are all `invoice`; users.py and user_service.go are `user`. Null for plumbing.
+ *
+ * @param {string} file
+ * @returns {string|null}
+ */
+function getFileStem(file) {
+  const base = path.posix.basename(file).replace(/\..*$/, '');
+  const stripped = base.replace(VERB_PREFIX, '').replace(ROLE_SUFFIX, '');
+  let slug = toSlug(stripped.replace(/([a-z0-9])([A-Z])/g, '$1-$2'));
+  if (slug.endsWith('ies')) slug = `${slug.slice(0, -3)}y`;
+  else if (slug.endsWith('s') && !slug.endsWith('ss') && slug.length > 3) slug = slug.slice(0, -1);
+  return slug && !GENERIC_STEMS.has(slug) ? slug : null;
+}
+
+/**
+ * @param {string} pattern - a folder, where `*` matches one path segment
+ * @returns {RegExp}
+ */
+const toLayerRegex = pattern =>
+  new RegExp(`^${pattern.split('/').map(part => (part === '*' ? '[^/]+' : part.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))).join('/')}$`);
 
 /**
  * @typedef {Object} DetectedModule
@@ -62,6 +94,9 @@ function detectProjectModules(filteredFiles, config = {}, stacks = [], options =
 
   const roots = [...(config.moduleRoots || [])];
   const markers = [];
+  const layers = [];
+  let walkLayerDirs = false;
+  let appRouter = false;
 
   for (const [, preset] of activePresets) {
     if (preset.roots) {
@@ -70,17 +105,49 @@ function detectProjectModules(filteredFiles, config = {}, stacks = [], options =
     if (preset.marker) {
       markers.push(preset.marker);
     }
+    if (preset.layers) {
+      layers.push(...preset.layers.map(toLayerRegex));
+    }
+    walkLayerDirs = walkLayerDirs || Boolean(preset.layerDirs);
+    appRouter = appRouter || Boolean(preset.appRouter);
   }
 
   if (!activePresets.length && !roots.length) {
     roots.push(...GENERIC_MODULE_ROOTS);
   }
 
-  // 1. Process root folders
+  // 1. Process root folders (walking through layer folders such as internal/service/)
   for (const root of roots) {
     const normalizedRoot = root.replace(/\/$/, '');
     for (const childDir of getDirectChildren(normalizedRoot)) {
+      if (walkLayerDirs && LAYER_DIRS.has(path.basename(childDir))) {
+        for (const nested of getDirectChildren(childDir)) {
+          addModulePath(path.basename(nested), `${nested}/`);
+        }
+        continue;
+      }
       addModulePath(path.basename(childDir), `${childDir}/`);
+    }
+  }
+
+  // 1b. Next.js App Router: route segments are modules; (groups) are walked through,
+  // _private, [dynamic], @slots and (.)intercepts are not domains, api/<x> joins route <x>
+  if (appRouter) {
+    const walkRoutes = (base, isApi) => {
+      for (const childDir of getDirectChildren(base)) {
+        const name = path.basename(childDir);
+        if (/^\([^.].*\)$/.test(name)) {
+          walkRoutes(childDir, isApi);
+        } else if (name === 'api' && !isApi) {
+          walkRoutes(childDir, true);
+        } else if (!/^[_[@(]/.test(name)) {
+          addModulePath(name, `${childDir}/`);
+        }
+      }
+    };
+    for (const appDir of ['app', 'src/app']) {
+      const isAppRouter = filteredFiles.some(f => f.startsWith(`${appDir}/`) && /^(layout|page)\.[jt]sx?$/.test(f.slice(appDir.length + 1)));
+      if (isAppRouter) walkRoutes(appDir, false);
     }
   }
 
@@ -89,11 +156,30 @@ function detectProjectModules(filteredFiles, config = {}, stacks = [], options =
     for (const file of filteredFiles) {
       if (markerRegex.test(file)) {
         const dir = path.posix.dirname(file);
-        if (dir === '.' || dir === 'src' || /(^|\/)migrations$/.test(dir)) {
+        // app.module.ts is the application shell (src/, or src/app/ in Nx), not a domain
+        if (dir === '.' || dir === 'src' || /(^|\/)migrations$/.test(dir) || /(^|\/)app\.module\.ts$/.test(file)) {
           continue;
         }
         addModulePath(path.basename(dir), `${dir}/`);
       }
+    }
+  }
+
+  // 2b. Layered apps: a name found in two or more layers is a domain
+  if (layers.length) {
+    const stems = new Map();
+    for (const file of filteredFiles) {
+      const layerIndex = layers.findIndex(re => re.test(path.posix.dirname(file)));
+      if (layerIndex < 0 || classifyPath(file) === 'tests') continue;
+      const stem = getFileStem(file);
+      if (!stem) continue;
+      if (!stems.has(stem)) stems.set(stem, { layers: new Set(), files: [] });
+      stems.get(stem).layers.add(layerIndex);
+      stems.get(stem).files.push(file);
+    }
+    for (const [stem, { layers: found, files }] of stems) {
+      if (found.size < 2) continue;
+      for (const file of files) addModulePath(stem, file);
     }
   }
 
@@ -187,5 +273,6 @@ function detectModules(files, config = {}, stacks = [], workspaces = null) {
 
 module.exports = {
   detectModules,
-  detectProjectModules
+  detectProjectModules,
+  getFileStem
 };

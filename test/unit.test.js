@@ -964,3 +964,30 @@ test('monorepo modules: library packages whole, apps split by feature, root tool
   assert.deepEqual(detectModules(files, { preset: 'auto', moduleRoots: ['packages'] }, [], ws).map(m => m.slug), ['ui']);  // explicit roots win
   assert.match(cfApi.overview(repoDir).d.stacks.join(','), /Express/);                    // package stacks reach the overview
 });
+
+test('deep presets: App Router, flat Laravel, FastAPI layers, layered Go, Nx-style NestJS', () => {
+  const slugs = (files, stacks) => detectModules(files, { preset: 'auto' }, stacks).map(m => `${m.slug}:${m.paths.join(',')}`);
+
+  assert.deepEqual(slugs([
+    'app/layout.tsx', 'app/page.tsx', 'app/(marketing)/pricing/page.tsx', 'app/(app)/billing/page.tsx',
+    'app/api/billing/route.ts', 'app/[slug]/page.tsx', 'app/_lib/x.ts', 'app/@modal/page.tsx', 'app/(.)photo/page.tsx'
+  ], ['Next.js']), ['billing:app/(app)/billing/,app/api/billing/', 'pricing:app/(marketing)/pricing/']);
+
+  assert.deepEqual(slugs([
+    'app/Models/Invoice.php', 'app/Http/Controllers/InvoiceController.php', 'app/Http/Requests/StoreInvoiceRequest.php',
+    'app/Models/User.php', 'app/Http/Controllers/Controller.php', 'tests/Feature/InvoiceTest.php'
+  ], ['Laravel']), ['invoice:app/Http/Controllers/InvoiceController.php,app/Http/Requests/StoreInvoiceRequest.php,app/Models/Invoice.php']);
+
+  assert.deepEqual(slugs([
+    'app/routers/users.py', 'app/models/user.py', 'app/schemas/user.py', 'app/routers/health.py', 'app/routers/__init__.py', 'app/main.py'
+  ], ['Python', 'FastAPI']), ['user:app/models/user.py,app/routers/users.py,app/schemas/user.py']);
+
+  assert.deepEqual(slugs([
+    'internal/handler/user.go', 'internal/service/user_service.go', 'internal/handler/order/h.go', 'internal/service/order/s.go',
+    'internal/handler/user_test.go', 'internal/billing/b.go'
+  ], ['Go']), ['billing:internal/billing/', 'order:internal/handler/order/,internal/service/order/', 'user:internal/handler/user.go,internal/service/user_service.go']);
+
+  assert.deepEqual(slugs([
+    'src/app/app.module.ts', 'src/app/users/users.module.ts', 'src/app/billing/billing.module.ts'
+  ], ['NestJS']), ['billing:src/app/billing/', 'users:src/app/users/']);       // app.module.ts shell skipped
+});
