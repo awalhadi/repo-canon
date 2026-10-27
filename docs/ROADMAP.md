@@ -11,10 +11,10 @@ Full strategy and market analysis: [STRATEGY.md](STRATEGY.md) (local copy) · [s
 |---|---|---|---|
 | 0 · Trust & identity | 4 | 4 | yes — 30/30 tests green |
 | 1 · v0.5 Lean, scoped, distributed | 7 | 7 | yes — 5.0 s from a cold npx cache to a working `rc_context` (2026-10-27) |
-| 2 · v0.6 Proof & teams | 2 | 5 | no |
+| 2 · v0.6 Proof & teams | 3 | 5 | no |
 | 3 · v0.7 Moat | 0 | 4 | no |
 | 4 · v1.0+ Platform | 0 | 4 | no |
-| **Total** | **13** | **24** | |
+| **Total** | **14** | **24** | |
 
 ## Phase 0 — Trust & identity (week 1)
 - [x] **P0.1** Remove ContextForge (`bin/contextforge.js`, `templates/contextforge.json`, `cf_*` aliases, legacy block markers, JSDoc headers); claim `repocanon` on npm, MCP registry, Open VSX. *(npm `repocanon@0.5.0` published 2026-10-27. 0.5.1 prepared and tagged locally 2026-10-27 (MCP Registry listing ships with it once published); Open VSX comes with P4.1.)*
@@ -39,7 +39,7 @@ Full strategy and market analysis: [STRATEGY.md](STRATEGY.md) (local copy) · [s
 - [ ] **P2.1** Benchmark harness: no context vs hand-written AGENTS.md vs RepoCanon, ≥5 runs each, correctness + tokens, multiple languages.
 - [x] **P2.2** Meaningful-change drift, Freshness Score, `doctor --ci --strict` with `::error` annotations, GitHub Action PR comment. *(Branch `feat/drift-ci`; ships in 0.6.0.)*
 - [x] **P2.3** MCP write tools with validation: `rc_propose_adr`, `rc_checkpoint_state` (no auto-stamp), `rc_stamp` with `verified_by`, `rc_verify`. *(Branch `feat/mcp-write`; agent stamps count as fresh but are labelled `verified_by: agent`; ships in 0.6.0.)*
-- [ ] **P2.4** SKILL.md generator from repo evidence (scripts, Makefile, CI) into `.ai/skills/`, written out per tool.
+- [x] **P2.4** SKILL.md generator from repo evidence (scripts, Makefile, CI) into `.ai/skills/`, written out per tool. *(Branch `feat/skills`: `rc-verify-change` from scripts, Makefile, justfile, Taskfile and CI; copied to `.claude/skills/` and `.agents/skills/`; ships in 0.6.0.)*
 - [ ] **P2.5** Monorepo support (pnpm, nx, turbo, go.work, Cargo workspaces) and deep presets (Next.js App Router, Laravel, NestJS, FastAPI, Go).
 
 **Gate:** benchmark results published in README with a rerunnable method.

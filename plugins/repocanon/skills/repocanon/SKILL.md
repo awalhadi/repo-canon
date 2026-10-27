@@ -22,6 +22,8 @@ Call `rc_prepare_fill` and follow the brief it returns, writing `.ai/*.md` with 
 4. After the code is committed, call `rc_stamp` with only the docs you actually re-checked against the code. It records `verified_by: agent`, so a human can see it.
 5. Call `rc_verify` and fix what it reports until it says PASS.
 
+To check the code itself, use the `rc-verify-change` skill when the project has one: it lists the repo's own lint, typecheck and test commands.
+
 Without MCP, the CLI equivalents are: edit `.ai/STATE.md` / `.ai/DECISIONS.md` by hand, `npx repocanon stamp <doc>…`, and `npx repocanon doctor`.
 
 ## Never write into .ai/
