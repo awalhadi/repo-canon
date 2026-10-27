@@ -5,6 +5,7 @@ const { exists, read, write, listWorkspaceFiles } = require('../core/fs');
 const { loadConfig } = require('../core/config');
 const { detectProject } = require('../core/detector');
 const { detectModules } = require('../core/modules');
+const { detectWorkspaces } = require('../core/workspaces');
 
 const AUTO_BLOCK_START = '<!-- cf:auto:start -->';
 const AUTO_BLOCK_END = '<!-- cf:auto:end -->';
@@ -19,15 +20,21 @@ const TEMPLATES_DIR = path.resolve(__dirname, '../../templates');
  *   files: string[],
  *   d: ReturnType<typeof detectProject>,
  *   mods: Array<any>,
- *   top: Record<string, number>
+ *   top: Record<string, number>,
+ *   ws: ReturnType<typeof detectWorkspaces>
  * }}
  */
 function getProjectOverview(root) {
   const config = loadConfig(root);
   const files = listWorkspaceFiles(root);
   const project = detectProject(root);
+  const workspaces = detectWorkspaces(root, files);
+  if (workspaces) {
+    // A monorepo's frameworks live in its packages, not the root manifest
+    project.stacks = [...new Set([...project.stacks, ...workspaces.packages.flatMap(p => p.stacks)])];
+  }
 
-  const modules = detectModules(files, config, project.stacks).map(mod => {
+  const modules = detectModules(files, config, project.stacks, workspaces).map(mod => {
     const docPath = `.ai/modules/${mod.slug}.md`;
     return {
       ...mod,
@@ -47,7 +54,8 @@ function getProjectOverview(root) {
     files,
     d: project,
     mods: modules,
-    top: topLevelCounts
+    top: topLevelCounts,
+    ws: workspaces
   };
 }
 
@@ -60,10 +68,22 @@ function getProjectOverview(root) {
  * @returns {{ modules: Array<any>, scaffolded: string[], config: boolean }}
  */
 function analyzeProject(root, options = {}) {
-  const { cfg, mods, top } = getProjectOverview(root);
+  const { cfg, mods, top, ws } = getProjectOverview(root);
+
+  const workspaceLines = ws
+    ? [
+      `## Workspace (auto): ${ws.tools.join(' + ')}`,
+      '',
+      '| package | path | kind | stack |',
+      '|---|---|---|---|',
+      ...ws.packages.map(p => `| ${p.name} | ${p.dir}/ | ${p.kind} | ${p.stacks.filter(s => s !== 'Node.js').join(', ') || '—'} |`),
+      ''
+    ]
+    : [];
 
   const autoBlockContent = [
     AUTO_BLOCK_START,
+    ...workspaceLines,
     '## Top-level map (auto)',
     '',
     '| path | files | purpose |',

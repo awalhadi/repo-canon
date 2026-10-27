@@ -944,3 +944,23 @@ test('workspaces: pnpm, npm, nx, go.work and Cargo members become packages', () 
   dir = files({ 'package.json': JSON.stringify({ workspaces: ['packages/*'] }), 'packages/only/package.json': '{}' });
   assert.equal(detectWorkspaces(dir, list(dir)), null);                     // one package is not a monorepo
 });
+
+test('monorepo modules: library packages whole, apps split by feature, root tooling ignored', () => {
+  const { detectWorkspaces } = require('../src/core/workspaces');
+  const repoDir = createTempRepo({
+    'pnpm-workspace.yaml': 'packages:\n  - apps/*\n  - packages/*\n',
+    'package.json': '{"name":"root"}', 'scripts/release.js': '',
+    'apps/web/package.json': JSON.stringify({ name: '@acme/web', dependencies: { react: '19', express: '4' } }),
+    'apps/web/src/modules/billing/a.ts': '', 'apps/web/src/modules/auth/a.ts': '',
+    'apps/docs/package.json': JSON.stringify({ name: 'docs', dependencies: { express: '4' } }), 'apps/docs/index.js': '',
+    'packages/ui/package.json': JSON.stringify({ name: '@acme/ui' }), 'packages/ui/src/button.tsx': ''
+  });
+  const files = cp.execFileSync('git', ['ls-files'], { cwd: repoDir }).toString().trim().split('\n');
+  const ws = detectWorkspaces(repoDir, files);
+  const mods = detectModules(files, { preset: 'auto' }, [], ws);
+  assert.deepEqual(mods.map(m => `${m.slug}:${m.paths.join(',')}`), [
+    'docs:apps/docs/', 'ui:packages/ui/', 'web-auth:apps/web/src/modules/auth/', 'web-billing:apps/web/src/modules/billing/'
+  ]);
+  assert.deepEqual(detectModules(files, { preset: 'auto', moduleRoots: ['packages'] }, [], ws).map(m => m.slug), ['ui']);  // explicit roots win
+  assert.match(cfApi.overview(repoDir).d.stacks.join(','), /Express/);                    // package stacks reach the overview
+});

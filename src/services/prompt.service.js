@@ -232,6 +232,9 @@ function buildFillPrompt(root, options = {}) {
       [
         ['Project', `${overview.d.name}${projectFacts.readme ? ` — “${projectFacts.readme}”` : ''}`],
         ['Stack', stacks.join(' · ') || 'unknown'],
+        ...(overview.ws
+          ? [['Monorepo', `${overview.ws.tools.join(' + ')}: ${overview.ws.packages.filter(p => p.kind === 'package').length} package(s), ${overview.ws.packages.filter(p => p.kind === 'app').length} app(s) — each app's features and each package are modules`]]
+          : []),
         ['Commands', `run \`${overview.d.run}\` · test \`${overview.d.test}\` · lint \`${overview.d.lint}\``],
         [
           'Size',

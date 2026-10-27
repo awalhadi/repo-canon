@@ -8,6 +8,7 @@ const { estimateTokens, truncateToTokens } = require('../core/tokens');
 const { loadConfig } = require('../core/config');
 const { detectProject } = require('../core/detector');
 const { detectModules } = require('../core/modules');
+const { detectWorkspaces } = require('../core/workspaces');
 const { getDocStatus } = require('./status.service');
 
 /**
@@ -20,7 +21,7 @@ function getModuleMap(root) {
   const files = listWorkspaceFiles(root);
   const config = loadConfig(root);
   const project = detectProject(root);
-  const detected = detectModules(files, config, project.stacks);
+  const detected = detectModules(files, config, project.stacks, detectWorkspaces(root, files));
 
   const map = new Map(detected.map(m => [m.slug, { slug: m.slug, paths: m.paths, doc: null }]));
   const modulesDir = path.join(root, '.ai', 'modules');

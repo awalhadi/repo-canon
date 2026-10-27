@@ -15,6 +15,7 @@ const { loadConfig } = require('../core/config');
 const { getDriftOptions } = require('../core/drift');
 const { detectProject } = require('../core/detector');
 const { detectModules } = require('../core/modules');
+const { detectWorkspaces } = require('../core/workspaces');
 
 const SIGNALS = [
   ['data model / schema', /(^|\/)(migrations?|alembic)\/|schema\.prisma|\.sql$|(^|\/)schema\./, 'DOMAIN.md (states, invariants) + owning module doc'],
@@ -39,7 +40,7 @@ function syncProject(root, options = {}) {
   const files = listWorkspaceFiles(root);
   const config = loadConfig(root);
   const project = detectProject(root);
-  const detected = detectModules(files, config, project.stacks);
+  const detected = detectModules(files, config, project.stacks, detectWorkspaces(root, files));
   const driftOptions = { ...getDriftOptions(config), workingTree: true };
 
   const slugs = new Set(detected.map(m => m.slug));

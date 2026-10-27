@@ -13,18 +13,16 @@ const { NOISE_MODULE_DIRS } = require('./constants');
  */
 
 /**
- * Detects and aggregates modules across repository files using presets, folder conventions,
- * and user-defined configuration overrides.
+ * Modules of one project (a single-package repo, or one app inside a monorepo).
  *
- * @param {string[]} files - List of posix-normalized relative file paths
- * @param {Record<string, any>} config - Resolved project configuration
- * @param {string[]} stacks - Detected project technology stacks
- * @returns {DetectedModule[]} Sorted list of detected modules
+ * @param {string[]} filteredFiles - posix relative paths, already filtered by `exclude`
+ * @param {Record<string, any>} config
+ * @param {string[]} stacks
+ * @param {{ fallback?: boolean }} [options={}] - fallback: false keeps only what presets,
+ *   module roots and markers find (no src/* or top-level guesses)
+ * @returns {Map<string, Set<string>>} slug → paths
  */
-function detectModules(files, config = {}, stacks = []) {
-  const excludePatterns = config.exclude || [];
-  const filteredFiles = files.filter(file => !excludePatterns.some(pattern => isPathInside(file, pattern)));
-
+function detectProjectModules(filteredFiles, config = {}, stacks = [], options = {}) {
   const directories = new Set();
   for (const file of filteredFiles) {
     const parts = file.split('/');
@@ -100,7 +98,7 @@ function detectModules(files, config = {}, stacks = []) {
   }
 
   // 3. Fallback roots if nothing detected
-  if (!modulePathMap.size) {
+  if (!modulePathMap.size && options.fallback !== false) {
     for (const fallbackRoot of FALLBACK_MODULE_ROOTS) {
       for (const childDir of getDirectChildren(fallbackRoot)) {
         addModulePath(path.basename(childDir), `${childDir}/`);
@@ -109,7 +107,7 @@ function detectModules(files, config = {}, stacks = []) {
   }
 
   // 4. Fallback to top-level directories
-  if (!modulePathMap.size) {
+  if (!modulePathMap.size && options.fallback !== false) {
     for (const dir of directories) {
       if (!dir.includes('/')) {
         addModulePath(dir, `${dir}/`);
@@ -117,7 +115,58 @@ function detectModules(files, config = {}, stacks = []) {
     }
   }
 
-  // 5. Explicit user configuration in .repocanon.json always overrides
+  return modulePathMap;
+}
+
+/**
+ * Modules of a monorepo: each library package is one module; an app with two or more
+ * features is split into `<app>-<feature>` modules, otherwise it is one module.
+ * Files outside the packages (root tooling) belong to no module.
+ *
+ * @param {string[]} filteredFiles
+ * @param {{ packages: Array<{ slug: string, dir: string, kind: string, stacks: string[] }> }} workspaces
+ * @returns {Map<string, Set<string>>}
+ */
+function detectWorkspaceModules(filteredFiles, workspaces) {
+  const modulePathMap = new Map();
+  for (const pkg of workspaces.packages) {
+    const prefix = `${pkg.dir}/`;
+    if (pkg.kind === 'app') {
+      const appFiles = filteredFiles.filter(f => f.startsWith(prefix)).map(f => f.slice(prefix.length));
+      const features = detectProjectModules(appFiles, { preset: 'auto' }, pkg.stacks, { fallback: false });
+      if (features.size >= 2) {
+        for (const [feature, paths] of features) {
+          modulePathMap.set(`${pkg.slug}-${feature}`, new Set([...paths].map(p => `${prefix}${p}`)));
+        }
+        continue;
+      }
+    }
+    modulePathMap.set(pkg.slug, new Set([prefix]));
+  }
+  return modulePathMap;
+}
+
+/**
+ * Detects and aggregates modules across repository files using presets, folder conventions,
+ * monorepo packages and user-defined configuration overrides.
+ *
+ * @param {string[]} files - List of posix-normalized relative file paths
+ * @param {Record<string, any>} config - Resolved project configuration
+ * @param {string[]} stacks - Detected project technology stacks
+ * @param {ReturnType<typeof import('./workspaces').detectWorkspaces>} [workspaces=null]
+ * @returns {DetectedModule[]} Sorted list of detected modules
+ */
+function detectModules(files, config = {}, stacks = [], workspaces = null) {
+  const excludePatterns = config.exclude || [];
+  const filteredFiles = files.filter(file => !excludePatterns.some(pattern => isPathInside(file, pattern)));
+
+  // A chosen preset or explicit module roots mean the user has said how to split the repo
+  const useWorkspaces = workspaces && (config.preset || 'auto') === 'auto' && !(config.moduleRoots || []).length;
+  const modulePathMap = useWorkspaces
+    ? detectWorkspaceModules(filteredFiles, workspaces)
+    : detectProjectModules(filteredFiles, config, stacks);
+
+  // Explicit user configuration in .repocanon.json always overrides
   for (const [name, paths] of Object.entries(config.modules || {})) {
     modulePathMap.set(toSlug(name), new Set(paths));
   }
@@ -137,5 +186,6 @@ function detectModules(files, config = {}, stacks = []) {
 }
 
 module.exports = {
-  detectModules
+  detectModules,
+  detectProjectModules
 };
