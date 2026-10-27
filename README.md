@@ -93,7 +93,7 @@ The stamp edits `verified_at` in that doc; it rides along with your next commit.
 
 With MCP connected, just say *"update the context docs"*: the agent calls `rc_sync_report` and edits the docs itself.
 
-Optional: `npx repocanon hook` installs a pre-commit warning when code changes without any `.ai/` update. It never blocks a commit.
+Optional: `npx repocanon hook` installs a pre-commit hook. It warns when code changes without any `.ai/` update (never blocks), and **blocks** a commit that would add an API key, token or password to `AGENTS.md` or `.ai/` docs (`git commit --no-verify` overrides). The secret check needs RepoCanon installed locally (`npm i -D repocanon`) or globally.
 
 ## Connect the MCP server
 
@@ -122,7 +122,7 @@ The server works on the folder it starts in. Global configs (Windsurf, Cline) us
 
 | MCP tool | What it returns |
 |---|---|
-| `rc_context` | Budgeted context for a task: rules + the most relevant module docs. Call it first. |
+| `rc_context` | Budgeted context for a task: rules + the most relevant module docs, with stale docs labelled so the agent trusts the code there. Call it first. |
 | `rc_module` | One module's full doc |
 | `rc_find_owner` | Which module owns a file |
 | `rc_status` | Freshness of every doc vs git |
@@ -155,14 +155,15 @@ jobs:
 |---|---|
 | `init [--targets=a,b\|all\|none] [--yes] [--prune] [--force]` | Create `.ai/`, `AGENTS.md`, `.repocanon.json` and pointer files for the tools you pick; detects stack and run/test commands |
 | `analyze [--scaffold]` | Refresh the module map in `.ai/INDEX.md`; `--scaffold` creates module doc stubs |
-| `doctor [--ci] [--json]` | Lint the layer: size caps, TODOs, broken paths, missing pointers, token budget, and content agents can read from the code (directory trees, dependency lists, pasted code, file catalogues) |
+| `doctor [--ci] [--json]` | Lint the layer: secrets (error), size caps, TODOs, broken paths, missing pointers, token budget, and content agents can read from the code (directory trees, dependency lists, pasted code, file catalogues) |
 | `status [--ci] [--json]` | Each doc: fresh / stale / broken / unverified |
 | `sync [--write] [--since=ref] [--json]` | Code changed since each doc was verified → docs to update (`--write` saves `.ai/.sync-report.md`) |
-| `context [words…] [--files=a,b] [--max=4000]` | Print the budgeted context pack for a task |
+| `context [words…] [--files=a,b] [--max=4000]` | Print the budgeted context pack for a task; stale docs are labelled |
 | `stamp <name…> \| --all [--force]` | Mark docs verified at the current commit; refuses when their code has uncommitted changes |
 | `prompt fill [--compact]` | Brief to paste into an agent so it fills the docs |
 | `prompt update` | Brief for updating docs after code changes |
-| `hook` | Install the pre-commit warning (never blocks) |
+| `secrets [--staged] [--json] [--quiet]` | Scan `AGENTS.md` and `.ai/` (or their staged versions) for API keys, tokens and passwords; exits 1 if any are found |
+| `hook` | Install the pre-commit hook: warns on undocumented code changes, blocks secrets in docs |
 | `mcp` | Start the MCP server on stdio |
 
 Global flags: `--root=<dir>` runs against another folder; `--version`; `--help`.
@@ -201,6 +202,8 @@ Repo packers show an agent *what the code is*. RepoCanon records what the code c
 ## FAQ
 
 **Does it call an LLM or upload my code?** No. RepoCanon never makes network calls. Your own agent reads and writes the docs.
+
+**What if an agent pastes a secret into the docs?** `doctor` reports it as an error (so `doctor --ci` fails), `npx repocanon secrets` lists it masked, and the pre-commit hook blocks the commit. Mark a known false positive with `<!-- repocanon:allow-secret -->` on that line.
 
 **Does it work with ChatGPT?** OpenAI Codex reads `AGENTS.md` natively. ChatGPT in the browser can't see your repo, but `npx repocanon context "your task"` prints a pack you can paste.
 
