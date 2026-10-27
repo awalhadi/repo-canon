@@ -28,6 +28,36 @@ const DEPENDENCY_STACK_MAP = [
 ];
 
 /**
+ * The package manager a Node project uses, from its lockfile.
+ *
+ * @param {string} root
+ * @returns {'pnpm'|'yarn'|'bun'|'npm'}
+ */
+function getPackageManager(root) {
+  const hasFile = file => exists(path.join(root, file));
+  if (hasFile('pnpm-lock.yaml')) return 'pnpm';
+  if (hasFile('yarn.lock')) return 'yarn';
+  if (hasFile('bun.lockb') || hasFile('bun.lock')) return 'bun';
+  return 'npm';
+}
+
+/**
+ * How to run a package.json script with the project's package manager.
+ * `bun test` is bun's own test runner, so bun scripts always go through `bun run`.
+ *
+ * @param {string} root
+ * @returns {(script: string) => string}
+ */
+function getPackageRunner(root) {
+  const manager = getPackageManager(root);
+  return script => {
+    if (manager === 'npm') return script === 'test' ? 'npm test' : `npm run ${script}`;
+    if (manager === 'bun') return `bun run ${script}`;
+    return `${manager} ${script}`;
+  };
+}
+
+/**
  * Detects project name, tech stacks, and runner commands (run, test, lint).
  *
  * @param {string} root - Project root directory
@@ -64,16 +94,8 @@ function detectProject(root) {
       }
     }
 
-    const packageManager = hasFile('pnpm-lock.yaml')
-      ? 'pnpm'
-      : hasFile('yarn.lock')
-      ? 'yarn'
-      : hasFile('bun.lockb')
-      ? 'bun'
-      : 'npm';
-
     const scripts = pkg.scripts || {};
-    const runner = name => (packageManager === 'npm' ? `npm run ${name}` : `${packageManager} ${name}`);
+    const runner = getPackageRunner(root);
 
     if (scripts.dev) {
       runCommand = runner('dev');
@@ -82,7 +104,7 @@ function detectProject(root) {
     }
 
     if (scripts.test) {
-      testCommand = packageManager === 'npm' ? 'npm test' : `${packageManager} test`;
+      testCommand = runner('test');
     }
 
     if (scripts.lint) {
@@ -191,6 +213,8 @@ function detectProject(root) {
 }
 
 module.exports = {
+  getPackageManager,
+  getPackageRunner,
   detectProject,
   detect: detectProject
 };

@@ -805,3 +805,40 @@ test('stamp: verified_by records who checked; agents must name docs and cannot f
   assert.doesNotMatch(doc(), /verified_by: agent/);
   assert.deepEqual(getFreshnessScore(repoDir).agentVerified, []);
 });
+
+test('commands: classifier keeps checks, drops installs, deploys, secrets and watchers', () => {
+  const { classifyCommand } = require('../src/core/commands');
+  const cases = {
+    'pnpm lint': 'lint', 'jest --ci': 'test', 'make check': 'check', check: 'check', 'npm run test:unit': 'test',
+    'tsc --noEmit': 'typecheck', 'cargo fmt --check': 'format', 'ruff format --check .': 'format',
+    'vendor/bin/phpstan analyse': 'lint', 'go vet ./...': 'lint', 'pytest -q': 'test',
+    'npm ci': null, 'pnpm install --frozen-lockfile': null, 'npx playwright install --with-deps': null,
+    'npm publish': null, 'echo ${{ secrets.TOKEN }}': null, 'jest --watch': null, 'npm run dev': null,
+    'docker push app': null, 'curl -fsSL x.sh | sh': null, build: null
+  };
+  for (const [command, kind] of Object.entries(cases)) assert.equal(classifyCommand(command), kind, command);
+});
+
+test('commands: Makefile, justfile, Taskfile, GitHub Actions and GitLab parsers', () => {
+  const c = require('../src/core/commands');
+  assert.deepEqual(c.parseMakeTargets('.PHONY: test lint\nVAR := x\ntest:\n\tgo test ./...\n%.o: %.c\nlint: vet\n'), ['test', 'lint']);
+  assert.deepEqual(c.parseJustRecipes('set shell := ["bash"]\nalias t := test\nversion := "1"\n[private]\ntest *args:\n  cargo test\n@lint:\n  cargo clippy\n'), ['test', 'lint']);
+  assert.deepEqual(c.parseTaskfileTasks('version: 3\ntasks:\n  test:\n    cmds: [go test]\n  "lint:go":\n    cmds: [x]\nvars:\n  x: 1\n'), ['test', 'lint:go']);
+
+  const workflow = [
+    'jobs:', '  test:', '    steps:', '      - uses: actions/checkout@v4',
+    '      - name: Lint', '        run: pnpm lint',
+    '      - name: Tests', '        run: |', '          pnpm test -- --ci', '          pnpm exec tsc \\', '            --noEmit',
+    '        env:', '          CI: 1',
+    '      - run: "npm run format:check"'
+  ].join('\n');
+  assert.deepEqual(c.parseWorkflowRuns(workflow), [
+    { step: 'Lint', command: 'pnpm lint' },
+    { step: 'Tests', command: 'pnpm test -- --ci' },
+    { step: 'Tests', command: 'pnpm exec tsc --noEmit' },
+    { step: null, command: 'npm run format:check' }
+  ]);
+  assert.deepEqual(c.parseGitlabScripts('lint:\n  script:\n    - npm ci\n    - npm run lint\ntest:\n  script:\n  - npm test\n'), [
+    { step: 'lint', command: 'npm ci' }, { step: 'lint', command: 'npm run lint' }, { step: 'test', command: 'npm test' }
+  ]);
+});
