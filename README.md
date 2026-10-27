@@ -115,9 +115,9 @@ git commit -am "Update billing + docs"
 npx repocanon stamp billing # mark only the docs you actually re-checked (code must be committed)
 ```
 
-The stamp edits `verified_at` in that doc; it rides along with your next commit.
+The stamp edits `verified_at` (and `verified_by: human`) in that doc; it rides along with your next commit.
 
-With MCP connected, just say *"update the context docs"*: the agent calls `rc_sync_report` and edits the docs itself.
+With MCP connected, just say *"update the context docs"*: the agent calls `rc_sync_report`, edits the docs, records decisions and progress with `rc_propose_adr` / `rc_checkpoint_state`, stamps what it re-checked with `rc_stamp` and finishes with `rc_verify`. Agent stamps write `verified_by: agent`: the doc counts as fresh, but `status` shows `fresh (agent)` and `doctor` and the PR report list it so a human can re-check. A human `repocanon stamp` replaces it.
 
 Optional: `npx repocanon hook` installs a pre-commit hook. It warns when code changes without any `.ai/` update (never blocks), and **blocks** a commit that would add an API key, token or password to `AGENTS.md` or `.ai/` docs (`git commit --no-verify` overrides). The secret check needs RepoCanon installed locally (`npm i -D repocanon`) or globally.
 
@@ -164,6 +164,12 @@ The server works on the folder it starts in. Global configs (Windsurf, Cline) us
 | `rc_status` | Freshness of every doc vs git |
 | `rc_prepare_fill` | Evidence-loaded brief for writing the docs |
 | `rc_sync_report` | What changed since each doc was verified |
+| `rc_propose_adr` | **Writes** a numbered decision to `.ai/DECISIONS.md` (newest on top) |
+| `rc_checkpoint_state` | **Writes** focus, in-progress, known issues and a change line to `.ai/STATE.md`; never marks anything verified |
+| `rc_stamp` | **Writes** `verified_at` + `verified_by: agent` for named docs; refuses uncommitted code |
+| `rc_verify` | The "am I done?" check: errors, stale docs, score, then PASS or FAIL |
+
+Write tools validate before touching a file: one line per field, length limits, and no secrets, pasted code, trees or dependency lists. A refused write changes nothing. Every tool carries MCP annotations (`readOnlyHint`), so clients can auto-approve the read-only ones.
 
 ## Claude Code plugin
 

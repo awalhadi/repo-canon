@@ -106,7 +106,7 @@ function getStopNudge(root, input = {}) {
     decision: 'block',
     reason:
       `RepoCanon: you changed ${described}${more}. ` +
-      'If behaviour, rules or the flow changed, update that doc (no code copies, no file lists) and add a line to .ai/STATE.md. ' +
+      'If behaviour, rules or the flow changed, update that doc (no code copies, no file lists) and record it with rc_checkpoint_state (or a line in .ai/STATE.md); after committing, rc_stamp the docs you re-checked and run rc_verify. ' +
       'If nothing a future agent needs has changed, say so briefly and finish.'
   };
 }

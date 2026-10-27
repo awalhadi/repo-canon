@@ -17,9 +17,12 @@ Call `rc_prepare_fill` and follow the brief it returns, writing `.ai/*.md` with 
 
 ## After changing code
 1. Call `rc_sync_report` to see which docs your changes affect.
-2. Update a doc only where behaviour, rules, flow or ownership changed. Add one line to `.ai/STATE.md`; add a `.ai/DECISIONS.md` entry for a non-obvious choice.
-3. Run `npx repocanon doctor` and fix what it reports for the docs you touched.
-4. After the code is committed, run `npx repocanon stamp <doc>…` only for docs you actually re-checked.
+2. Update a doc only where behaviour, rules, flow or ownership changed.
+3. Record a non-obvious choice with `rc_propose_adr`, and where work stands with `rc_checkpoint_state` (focus, in progress, known issues, one line for the change). Both refuse secrets and pasted code, and neither marks anything verified.
+4. After the code is committed, call `rc_stamp` with only the docs you actually re-checked against the code. It records `verified_by: agent`, so a human can see it.
+5. Call `rc_verify` and fix what it reports until it says PASS.
+
+Without MCP, the CLI equivalents are: edit `.ai/STATE.md` / `.ai/DECISIONS.md` by hand, `npx repocanon stamp <doc>…`, and `npx repocanon doctor`.
 
 ## Never write into .ai/
 - Directory trees, dependency or version lists, file-by-file catalogues — agents read those from the repo.

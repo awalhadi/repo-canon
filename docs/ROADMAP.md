@@ -11,10 +11,10 @@ Full strategy and market analysis: [STRATEGY.md](STRATEGY.md) (local copy) · [s
 |---|---|---|---|
 | 0 · Trust & identity | 4 | 4 | yes — 30/30 tests green |
 | 1 · v0.5 Lean, scoped, distributed | 7 | 7 | yes — 5.0 s from a cold npx cache to a working `rc_context` (2026-10-27) |
-| 2 · v0.6 Proof & teams | 1 | 5 | no |
+| 2 · v0.6 Proof & teams | 2 | 5 | no |
 | 3 · v0.7 Moat | 0 | 4 | no |
 | 4 · v1.0+ Platform | 0 | 4 | no |
-| **Total** | **12** | **24** | |
+| **Total** | **13** | **24** | |
 
 ## Phase 0 — Trust & identity (week 1)
 - [x] **P0.1** Remove ContextForge (`bin/contextforge.js`, `templates/contextforge.json`, `cf_*` aliases, legacy block markers, JSDoc headers); claim `repocanon` on npm, MCP registry, Open VSX. *(npm `repocanon@0.5.0` published 2026-10-27. 0.5.1 prepared and tagged locally 2026-10-27 (MCP Registry listing ships with it once published); Open VSX comes with P4.1.)*
@@ -28,7 +28,7 @@ Full strategy and market analysis: [STRATEGY.md](STRATEGY.md) (local copy) · [s
 - [x] **P1.1** Inferable-content lint in `doctor`; rewrite the `prompt fill` brief to ask only for what code can't show. *(Branch `feat/inferable-lint`; ships in 0.5.1.)*
 - [x] **P1.2** Path-scoped writers: nested AGENTS.md, `.cursor/rules/<module>.mdc` with `globs`, Copilot `*.instructions.md` with `applyTo`; doctor drift check source vs output. *(`repocanon rules`, branch `feat/scoped-rules`; nested AGENTS.md opt-in via `nestedAgents`.)*
 - [x] **P1.3** `repocanon adopt`: import `.cursorrules`, `.cursor/rules`, CLAUDE.md, Cline memory bank; strip inferable content and report the saving. *(Branch `feat/adopt`; also drops secrets, `--move` retires originals.)*
-- [x] **P1.4** Secret/PII scanner (regex + entropy, zero-dep) in doctor, hook and MCP writes. *(doctor + `secrets` command + blocking hook done on `feat/secrets-freshness`; MCP-write scanning lands with P2.3.)*
+- [x] **P1.4** Secret/PII scanner (regex + entropy, zero-dep) in doctor, hook and MCP writes. *(doctor + `secrets` command + blocking hook done on `feat/secrets-freshness`; MCP-write scanning done with P2.3.)*
 - [x] **P1.5** Claude Code plugin (MCP + SKILL.md + `SessionStart`/`Stop` hooks) and `repocanon setup <ide>`. *(Branch `feat/setup-plugin`; plugin installs once 0.5.1 is on npm.)*
 - [x] **P1.6** Freshness labels on every `rc_context` section ("stale: N files changed, trust the code"). *(Branch `feat/secrets-freshness`.)*
 - [x] **P1.7** Interactive tool picker in `init` (Claude Code, Cursor, Copilot, Gemini/Antigravity, Windsurf, Cline, Codex/ChatGPT); choice saved as `targets` in `.repocanon.json`; re-runs show `set up` / `detected` and say `Up to date`; deselected tools removed only with consent (`--prune` in scripts); `doctor` checks only chosen tools. *(Branch `feat/init-targets`.)*
@@ -38,7 +38,7 @@ Full strategy and market analysis: [STRATEGY.md](STRATEGY.md) (local copy) · [s
 ## Phase 2 — v0.6 Proof & teams (1–2 months)
 - [ ] **P2.1** Benchmark harness: no context vs hand-written AGENTS.md vs RepoCanon, ≥5 runs each, correctness + tokens, multiple languages.
 - [x] **P2.2** Meaningful-change drift, Freshness Score, `doctor --ci --strict` with `::error` annotations, GitHub Action PR comment. *(Branch `feat/drift-ci`; ships in 0.6.0.)*
-- [ ] **P2.3** MCP write tools with validation: `rc_propose_adr`, `rc_checkpoint_state` (no auto-stamp), `rc_stamp` with `verified_by`, `rc_verify`.
+- [x] **P2.3** MCP write tools with validation: `rc_propose_adr`, `rc_checkpoint_state` (no auto-stamp), `rc_stamp` with `verified_by`, `rc_verify`. *(Branch `feat/mcp-write`; agent stamps count as fresh but are labelled `verified_by: agent`; ships in 0.6.0.)*
 - [ ] **P2.4** SKILL.md generator from repo evidence (scripts, Makefile, CI) into `.ai/skills/`, written out per tool.
 - [ ] **P2.5** Monorepo support (pnpm, nx, turbo, go.work, Cargo workspaces) and deep presets (Next.js App Router, Laravel, NestJS, FastAPI, Go).
 

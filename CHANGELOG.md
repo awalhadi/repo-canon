@@ -10,6 +10,9 @@ All notable changes to RepoCanon. Versions follow [semver](https://semver.org); 
 - Freshness Score (0–100) in `status`, `doctor` and their `--json` output.
 - `doctor --strict` fails on warnings too; `--format=github` (automatic for `--ci` in GitHub Actions) prints workflow annotations with file and line.
 - `driftIgnore` and `drift` settings in `.repocanon.json`.
+- MCP write tools: `rc_propose_adr` (numbered decision records), `rc_checkpoint_state` (STATE.md focus, in progress, known issues and change log, never auto-stamped), `rc_stamp` (agent stamps for named docs, never forced) and `rc_verify` (PASS/FAIL end-of-task check). Writes are refused when they contain secrets, pasted code, trees or dependency lists.
+- `verified_by` in doc frontmatter: `human` from `repocanon stamp`, `agent` from `rc_stamp`. `status` shows `fresh (agent)`; `doctor` and the PR report list agent-verified docs for review.
+- MCP tool annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`) on every tool.
 
 ### Changed
 - **Only meaningful code changes make a doc stale.** Whitespace-only edits, tests, prose docs and lockfiles are ignored (and counted in the detail); renames still count. Set `"drift": "all"` for the previous behaviour.
