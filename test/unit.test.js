@@ -417,3 +417,62 @@ test('inferable: a fresh init has nothing to flag', () => {
   cfApi.analyze(repoDir, { scaffold: true });
   assert.deepEqual(scanKnowledgeLayer(repoDir), []);
 });
+
+// Test-only values assembled at runtime so no secret-shaped literal sits in the repo
+const fakeSecret = (prefix, length, alphabet = 'aB3dE5fG7hJ9kL2mN4pQ6rS8tU0vW1xY') =>
+  prefix + Array.from({ length }, (_, i) => alphabet[(i * 7 + 3) % alphabet.length]).join('');
+
+test('secrets: provider formats and random assignments are found, previews stay masked', () => {
+  const { findSecrets } = require('../src/services/secrets.service');
+  const values = {
+    'GitHub token': fakeSecret('ghp_', 36),
+    'AWS access key': fakeSecret('AKIA', 16, 'ABCDEFGHJKLMNPQRSTUVWXYZ234567'),
+    'Anthropic API key': fakeSecret('sk-ant-', 40),
+    'OpenAI API key': fakeSecret('sk-proj-', 40),
+    'Stripe live key': fakeSecret('sk_live_', 24),
+    'Slack token': fakeSecret('xoxb-', 24),
+    'npm token': fakeSecret('npm_', 36),
+    'Google API key': fakeSecret('AIza', 35)
+  };
+  const lines = Object.values(values).map(v => `- key: ${v}`);
+  lines.push(['-----BEGIN', 'RSA PRIVATE KEY-----'].join(' '));
+  lines.push(`DATABASE_URL=postgres://app:${fakeSecret('', 14)}@db.internal:5432/app`);
+  lines.push(`client_secret: ${fakeSecret('', 24)}`);
+
+  const found = findSecrets(lines.join('\n'));
+  assert.deepEqual(found.map(f => f.kind), [...Object.keys(values), 'private key', 'URL with password', 'secret value']);
+  for (const f of found) {
+    assert.ok(f.preview.endsWith('…') && f.preview.length <= 5, f.preview);
+  }
+});
+
+test('secrets: placeholders, env names, low-entropy values and allow-listed lines stay quiet', () => {
+  const { findSecrets } = require('../src/services/secrets.service');
+  const quiet = [
+    'Env: STRIPE_SECRET_KEY, GITHUB_TOKEN, DB_PASSWORD (names only)',
+    'password: <your-password-here>',
+    'api_key = ${API_KEY}',
+    'token: {{ secrets.NPM_TOKEN }}',
+    'DATABASE_URL=postgres://user:password@localhost:5432/app',
+    'secret: changeme-changeme',
+    'password = aaaaaaaaaaaaaaaa',
+    'access_key: abcdefghijklmnop',
+    `- ci token ${fakeSecret('ghp_', 36)} <!-- repocanon:allow-secret -->`
+  ].join('\n');
+  assert.deepEqual(findSecrets(quiet), []);
+});
+
+test('hook: installs once, upgrades the 0.5.0 snippet, keeps foreign hook lines', () => {
+  const { installPreCommitHook, LEGACY_HOOK_SNIPPET } = require('../src/services/hook.service');
+  const repoDir = createTempRepo();
+  const hookPath = path.join(repoDir, '.git/hooks/pre-commit');
+  fs.writeFileSync(hookPath, `#!/bin/sh\necho "lint first"\n\n${LEGACY_HOOK_SNIPPET}`);
+
+  assert.match(installPreCommitHook(repoDir), /^updated/);
+  const upgraded = fs.readFileSync(hookPath, 'utf8');
+  assert.ok(upgraded.includes('echo "lint first"'));
+  assert.equal((upgraded.match(/# repocanon:start/g) || []).length, 1);
+  assert.ok(upgraded.includes('secrets --staged --quiet'));
+  assert.ok(!upgraded.includes('# repocanon: warn if code changed'));
+  assert.equal(installPreCommitHook(repoDir), 'already installed');
+});

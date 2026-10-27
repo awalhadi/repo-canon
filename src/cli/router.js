@@ -13,6 +13,7 @@ const { handleStamp } = require('./commands/stamp.cmd');
 const { handleHook } = require('./commands/hook.cmd');
 const { handlePrompt } = require('./commands/prompt.cmd');
 const { handleMcp } = require('./commands/mcp.cmd');
+const { handleSecrets } = require('./commands/secrets.cmd');
 
 const COMMAND_HANDLERS = {
   init: handleInit,
@@ -24,7 +25,8 @@ const COMMAND_HANDLERS = {
   stamp: handleStamp,
   hook: handleHook,
   prompt: handlePrompt,
-  mcp: handleMcp
+  mcp: handleMcp,
+  secrets: handleSecrets
 };
 
 /**

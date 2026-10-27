@@ -31,7 +31,9 @@ function getHelpText() {
   stamp <name…> | --all [--force]
                            set verified_at = current commit on docs you re-checked
                            (refuses when their code has uncommitted changes)
-  hook                     pre-commit warning (never blocks)
+  secrets [--staged] [--json]
+                           scan AGENTS.md and .ai/ (or their staged versions) for API keys, tokens, passwords
+  hook                     pre-commit hook: warns on undocumented code changes, blocks secrets in .ai/ docs
   prompt fill [--compact]  rich, evidence-loaded brief to paste into your agent (--compact: short form)
   prompt update            prompt for syncing docs after code changes
   mcp                      MCP server on stdio (tools: rc_context, rc_module, rc_find_owner, rc_status,

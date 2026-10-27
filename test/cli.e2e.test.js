@@ -207,3 +207,30 @@ test('doctor flags inferable content with file:line but --ci still passes; fill 
   assert.equal(cf(d, 'doctor', '--ci').status, 0);
   assert.match(cf(d, 'prompt', 'fill').stdout, /\*\*Do not write\*\*/);
 });
+
+test('secrets: doctor --ci fails, `secrets` reports masked, and the hook blocks the commit', () => {
+  const d = laravel(); cf(d, 'init', '--targets=claude'); g(d, 'add', '-A'); g(d, 'commit', '-qm', 'docs');
+  const token = 'ghp_' + 'aB3dE5fG7hJ9kL2mN4pQ6rS8tU0vW1xYz2Q4';   // built here, never a real token
+  fs.appendFileSync(path.join(d, '.ai/STATE.md'), `\n- deploy token: ${token}\n`);
+
+  const doc = cf(d, 'doctor', '--ci');
+  assert.equal(doc.status, 1);
+  assert.match(doc.stdout, /\.ai\/STATE\.md:\d+ possible GitHub token \(ghp_…\)/);
+  assert.doesNotMatch(doc.stdout, new RegExp(token));
+  assert.equal(cf(d, 'secrets').status, 1);
+
+  // hook resolves RepoCanon from node_modules/.bin, as an installed devDependency would
+  fs.mkdirSync(path.join(d, 'node_modules/.bin'), { recursive: true });
+  fs.writeFileSync(path.join(d, 'node_modules/.bin/repocanon'), `#!/bin/sh\nexec node "${CLI}" "$@"\n`, { mode: 0o755 });
+  assert.match(cf(d, 'hook').stdout, /installed/);
+  g(d, 'add', '.ai/STATE.md');
+  const blocked = cp.spawnSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-m', 'leak'], { cwd: d, encoding: 'utf8' });
+  assert.notEqual(blocked.status, 0);
+  assert.match(blocked.stdout + blocked.stderr, /commit blocked — secret in staged docs/);
+
+  fs.writeFileSync(path.join(d, '.ai/STATE.md'), fs.readFileSync(path.join(d, '.ai/STATE.md'), 'utf8').replace(token, 'stored in the CI secret store'));
+  g(d, 'add', '.ai/STATE.md');
+  const ok = cp.spawnSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-m', 'clean'], { cwd: d, encoding: 'utf8' });
+  assert.equal(ok.status, 0, ok.stdout + ok.stderr);
+  assert.equal(cf(d, 'secrets', '--quiet').stdout, '');
+});

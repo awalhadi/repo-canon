@@ -9,6 +9,7 @@ const { loadConfig, validateConfig } = require('../core/config');
 const { readManagedBlock } = require('../core/blocks');
 const { TARGETS } = require('../core/targets');
 const { scanKnowledgeLayer, INFERABLE_LABELS } = require('./inferable.service');
+const { scanSecrets, formatSecretFinding } = require('./secrets.service');
 
 const MAX_INFERABLE_PER_DOC = 5;
 const {
@@ -125,6 +126,13 @@ function runDoctor(root) {
 
   if (totalTodos > 0) {
     addFinding('info', `${totalTodos} TODO placeholder(s) remain in .ai/ — run: repocanon prompt fill`);
+  }
+
+  // Docs are committed and often published: a pasted key here is a leak
+  for (const { doc, findings: secretFindings } of scanSecrets(root)) {
+    for (const item of secretFindings) {
+      addFinding('error', formatSecretFinding(doc, item));
+    }
   }
 
   // Content agents can learn from the code itself costs tokens on every task without helping
