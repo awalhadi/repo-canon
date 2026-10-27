@@ -36,7 +36,7 @@ Then let your agent fill the docs. Either:
 Finally, check the result and commit:
 
 ```bash
-npx repocanon doctor        # lint: size caps, leftover TODOs, broken paths, token budget
+npx repocanon doctor        # lint: size caps, TODOs, broken paths, token budget, content agents can infer
 git add -A && git commit -m "Add RepoCanon knowledge layer"
 npx repocanon stamp --all   # mark the docs verified at that commit
 git commit -am "Verify RepoCanon docs"
@@ -155,7 +155,7 @@ jobs:
 |---|---|
 | `init [--targets=a,b\|all\|none] [--yes] [--prune] [--force]` | Create `.ai/`, `AGENTS.md`, `.repocanon.json` and pointer files for the tools you pick; detects stack and run/test commands |
 | `analyze [--scaffold]` | Refresh the module map in `.ai/INDEX.md`; `--scaffold` creates module doc stubs |
-| `doctor [--ci] [--json]` | Lint the layer: size caps, TODOs, broken paths, missing pointers, token budget |
+| `doctor [--ci] [--json]` | Lint the layer: size caps, TODOs, broken paths, missing pointers, token budget, and content agents can read from the code (directory trees, dependency lists, pasted code, file catalogues) |
 | `status [--ci] [--json]` | Each doc: fresh / stale / broken / unverified |
 | `sync [--write] [--since=ref] [--json]` | Code changed since each doc was verified → docs to update (`--write` saves `.ai/.sync-report.md`) |
 | `context [words…] [--files=a,b] [--max=4000]` | Print the budgeted context pack for a task |

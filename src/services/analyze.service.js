@@ -126,5 +126,7 @@ module.exports = {
   getProjectOverview,
   overview: getProjectOverview,
   analyzeProject,
-  analyze: analyzeProject
+  analyze: analyzeProject,
+  AUTO_BLOCK_START,
+  AUTO_BLOCK_END
 };

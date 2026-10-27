@@ -2,24 +2,16 @@
 verified_at: {{head}}
 ---
 # {{name}}
-> Keep ≤150 lines. Bullets/tables, no code dumps.
+> Keep it short (aim for ≤40 lines). Only what an agent cannot learn from the code; stack and commands live in AGENTS.md.
 
 ## What & why
 TODO: one-liner — what it does, for whom.
 
-## Stack
-{{stack}}
-
-## Commands
-- Run: `{{run}}`
-- Test: `{{test}}`
-- Lint: `{{lint}}`
-
-## Architecture (high level)
-TODO: 3–5 lines + optional mermaid diagram.
-
 ## Boundaries
-TODO: which layer owns what (e.g. controllers = I/O only, services = business logic, DB = source of truth).
+TODO: which layer owns what, and what must never call what (e.g. controllers = I/O only, services = business logic).
+
+## Non-obvious architecture
+TODO: only what the folder layout doesn't show (background jobs, multi-tenancy, caching, event flows). Delete this section if there is nothing.
 
 ## External services
 TODO: payment, email, storage, auth providers, queues.

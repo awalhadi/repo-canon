@@ -366,3 +366,54 @@ test('release metadata: server.json matches package.json for the MCP Registry', 
   assert.equal(server.packages[0].version, server.version);
   assert.deepEqual(server.packages[0].packageArguments, [{ type: 'positional', value: 'mcp' }]);
 });
+
+test('inferable: trees, pasted code, dependency lists and catalogues are flagged with line numbers', () => {
+  const { findInferableContent } = require('../src/services/inferable.service');
+  const doc = [
+    '# P',                                        // 1
+    '```',                                        // 2
+    'app/',                                       // 3
+    '├── Services/',                              // 4
+    '│   └── Billing/',                           // 5
+    '└── Models/',                                // 6
+    '```',                                        // 7
+    '- laravel/framework ^11.0',                  // 8
+    '- php 8.2',                                  // 9
+    '- vue@3.4.1',                                // 10
+    '- "axios": "^1.6.0"',                        // 11
+    '```ts',                                      // 12
+    'export function total(items) {',            // 13
+    '  return items.reduce((a, b) => a + b, 0);', // 14
+    '}',                                          // 15
+    '```'                                         // 16
+  ].join('\n');
+  const found = findInferableContent(doc);
+  assert.deepEqual(found.map(f => [f.kind, f.line]), [['tree', 2], ['deps', 8], ['code', 12]]);
+  assert.ok(found.every(f => f.tokens > 0 && f.hint));
+
+  const catalogue = Array.from({ length: 12 }, (_, i) => `- src/file${i}.js — does thing ${i}`).join('\n');
+  assert.equal(findInferableContent(catalogue)[0].kind, 'catalogue');
+  assert.deepEqual(findInferableContent(catalogue, { allowCatalogue: true }), []);
+});
+
+test('inferable: near misses stay quiet (shell/mermaid fences, few deps, short lists, prose versions, managed blocks)', () => {
+  const { findInferableContent } = require('../src/services/inferable.service');
+  const quiet = [
+    '```bash', 'php artisan serve', 'php artisan test', 'npm run dev', '```',
+    '```mermaid', 'graph TD', 'A --> B', 'B --> C', '```',
+    '- laravel/framework ^11.0', '- vue@3.4.1', '- php 8.2',
+    ...Array.from({ length: 11 }, (_, i) => `- src/file${i}.js — does thing ${i}`),
+    '- 2026-10-20: Released v0.4.0', '- 2026-10-22: Released v0.4.1', '- 2026-10-24: Released v0.4.2', '- 2026-10-26: Released v0.5.0',
+    '<!-- cf:auto:start -->', 'app/', '├── a', '├── b', '└── c', '<!-- cf:auto:end -->',
+    '<!-- repocanon:start -->', '```js', 'const a = 1;', 'const b = 2;', 'const c = 3;', '```', '<!-- repocanon:end -->'
+  ].join('\n');
+  assert.deepEqual(findInferableContent(quiet), []);
+});
+
+test('inferable: a fresh init has nothing to flag', () => {
+  const { scanKnowledgeLayer } = require('../src/services/inferable.service');
+  const repoDir = createTempRepo({ 'package.json': '{"name": "fresh"}', 'src/features/auth/login.js': 'x' });
+  cfApi.init(repoDir, { targets: ['claude', 'cursor'] });
+  cfApi.analyze(repoDir, { scaffold: true });
+  assert.deepEqual(scanKnowledgeLayer(repoDir), []);
+});

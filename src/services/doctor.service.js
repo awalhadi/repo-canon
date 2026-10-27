@@ -8,6 +8,9 @@ const { estimateTokens, estimateRepoTokens } = require('../core/tokens');
 const { loadConfig, validateConfig } = require('../core/config');
 const { readManagedBlock } = require('../core/blocks');
 const { TARGETS } = require('../core/targets');
+const { scanKnowledgeLayer, INFERABLE_LABELS } = require('./inferable.service');
+
+const MAX_INFERABLE_PER_DOC = 5;
 const {
   DOC_LINE_CAPS,
   MODULE_DOC_LINE_CAP,
@@ -122,6 +125,21 @@ function runDoctor(root) {
 
   if (totalTodos > 0) {
     addFinding('info', `${totalTodos} TODO placeholder(s) remain in .ai/ — run: repocanon prompt fill`);
+  }
+
+  // Content agents can learn from the code itself costs tokens on every task without helping
+  let inferableTokens = 0;
+  for (const { doc, findings: docFindings } of scanKnowledgeLayer(root)) {
+    for (const item of docFindings.slice(0, MAX_INFERABLE_PER_DOC)) {
+      addFinding('warn', `${doc}:${item.line} ${INFERABLE_LABELS[item.kind]} (~${item.tokens} tokens) — ${item.hint}`);
+    }
+    if (docFindings.length > MAX_INFERABLE_PER_DOC) {
+      addFinding('warn', `${doc}: +${docFindings.length - MAX_INFERABLE_PER_DOC} more inferable block(s)`);
+    }
+    inferableTokens += docFindings.reduce((sum, item) => sum + item.tokens, 0);
+  }
+  if (inferableTokens > 0) {
+    addFinding('info', `~${inferableTokens} tokens in .ai/ describe what agents can read from the code — delete them`);
   }
 
   for (const configError of validateConfig(config)) {

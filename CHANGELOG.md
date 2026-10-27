@@ -2,6 +2,16 @@
 
 All notable changes to RepoCanon. Versions follow [semver](https://semver.org); before 1.0, minor versions may break.
 
+## 0.5.1 — unreleased
+
+### Added
+- `doctor` flags content agents can read from the code — directory trees, dependency/version lists, pasted source code and file catalogues — with `file:line` and a token estimate. These are warnings, so `doctor --ci` still passes.
+- MCP Registry listing (`server.json`, `mcpName`): RepoCanon appears in the official registry as `io.github.awalhadi/repocanon`.
+
+### Changed
+- `prompt fill`, `prompt fill --compact` and `prompt update` tell agents to write only what the code can't show, with an explicit "Do not write" list.
+- New `PROJECT.md` template: no duplicated Stack/Commands (they live in AGENTS.md); "Non-obvious architecture" replaces the architecture overview.
+
 ## 0.5.0 — first npm release
 
 ### Breaking

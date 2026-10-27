@@ -200,9 +200,11 @@ function buildFillPrompt(root, options = {}) {
 
   appendSection('## 1 · Role & mission');
   lines.push(
-    `You are a **principal software architect and technical writer**. Extract this repository's *durable knowledge* into the \`.ai/\` layer so that any future agent can work correctly from **~2–4k tokens of context** instead of scanning **~${formatNumber(
+    `You are a **principal software architect and technical writer**. Extract what an agent **cannot learn by reading the code** — rules, decisions, boundaries, gotchas — into the \`.ai/\` layer, so any future agent works correctly from **~1k tokens of entry context plus one module doc** instead of scanning **~${formatNumber(
       Math.round(repoTokensCount / 1000)
     )}k tokens** of source.`,
+    '',
+    '*Why this matters:* context files that restate the codebase (overviews, structure, dependency lists) make agents slightly *less* successful and >20% more expensive. Every line you write must earn its tokens.',
     '',
     '**Success test** — a future agent, reading only `.ai/`, can answer:',
     '',
@@ -210,7 +212,7 @@ function buildFillPrompt(root, options = {}) {
       ['#', 'Question', 'Lives in'],
       [
         ['1', 'What is this system, for whom, and how is it run/deployed?', 'PROJECT.md'],
-        ['2', 'Where does the code for feature X live?', 'INDEX.md · modules/'],
+        ['2', 'Which module owns feature X, and what is non-obvious about it?', 'INDEX.md · modules/'],
         ['3', 'What must never break — rules, states, permissions, money?', 'DOMAIN.md'],
         ['4', 'How must new code be written, and what is forbidden?', 'CONVENTIONS.md'],
         ['5', 'Why is it built this way?', 'DECISIONS.md'],
@@ -359,7 +361,17 @@ function buildFillPrompt(root, options = {}) {
     '- Phrase rules as testable invariants: *“X must / must never Y”* (numbered `INV-01…` in DOMAIN.md).',
     '- Line caps: PROJECT ≤150 · DOMAIN ≤300 · CONVENTIONS ≤120 · module ≤100 · STATE ≤80.',
     '- Preserve existing human-written text and all frontmatter; **only** replace TODO placeholders and fix proven inaccuracies. Keep the `cf:auto` block in INDEX.md untouched.',
-    '- **Do not modify source code.**'
+    '- **Do not modify source code.**',
+    '',
+    '**Do not write** — an agent gets these by reading the repo, so they only cost tokens:',
+    '- directory trees or folder walkthroughs (the auto block in INDEX.md already maps modules)',
+    '- dependency or version lists (they are in the manifests)',
+    '- file-by-file catalogues outside a module\'s code map, and code maps that only restate file names',
+    '- explanations of how the framework works, or generic architecture prose',
+    '- pasted source code — point to it as `path:symbol`',
+    '- stack and run/test/lint commands — AGENTS.md already has them',
+    '',
+    '`repocanon doctor` flags directory trees, dependency lists, pasted code and file catalogues it finds in `.ai/`.'
   );
 
   lines.push('', '---');
@@ -369,7 +381,7 @@ function buildFillPrompt(root, options = {}) {
     '### Phase 1 · `PROJECT.md` + INDEX entry points',
     '**Look at**',
     ...resolvePlaybook(stacks, 'project').map(x => `- ${x}`),
-    '**Produce** — one-line purpose · users/actors · architecture in ≤5 lines · boundaries (what owns what) · external services · environments/deploy · entry points (add to INDEX.md “Entry points”).',
+    '**Produce** — one-line purpose · users/actors · boundaries (what owns what, what must not call what) · external services · environments/deploy · entry points that are not obvious from folder names (INDEX.md “Entry points”). Skip what the manifests and folder layout already show. Aim for ≤40 lines.',
     '**Done when** — an engineer new to the repo could run it and name every external dependency.'
   );
 
@@ -411,7 +423,7 @@ function buildFillPrompt(root, options = {}) {
   lines.push(
     '',
     '### Phase 6 · Verify',
-    '- Run `repocanon doctor` and fix every error/warning you caused. Then `repocanon stamp <doc>…` for each doc you actually re-checked (commit code first).'
+    '- Run `repocanon doctor` and fix every error/warning you caused — including every inferable-content warning (delete those blocks). Then `repocanon stamp <doc>…` for each doc you actually re-checked (commit code first).'
   );
 
   lines.push('', '---');
@@ -422,7 +434,8 @@ function buildFillPrompt(root, options = {}) {
     '- [ ] Nothing guessed — unknowns are `TODO: verify`',
     '- [ ] Line caps respected; entry context (AGENTS + PROJECT + INDEX) stays small',
     '- [ ] DOMAIN.md would prevent the 3 most likely mistakes a newcomer/agent would make here',
-    '- [ ] Module `code_paths` exist on disk'
+    '- [ ] Module `code_paths` exist on disk',
+    '- [ ] Nothing an agent could learn by reading the code: `repocanon doctor` reports no inferable content'
   );
 
   lines.push('', '---');

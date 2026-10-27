@@ -195,3 +195,15 @@ test('doctor checks pointer files only for the chosen tools', () => {
   r = JSON.parse(cf(d, 'doctor', '--json').stdout);
   assert.ok(r.findings.some(f => f.level === 'warn' && /CLAUDE\.md: RepoCanon block missing \(Claude Code/.test(f.msg)));
 });
+
+test('doctor flags inferable content with file:line but --ci still passes; fill brief says what not to write', () => {
+  const d = laravel(); cf(d, 'init', '--targets=claude');
+  fs.appendFileSync(path.join(d, '.ai/PROJECT.md'), '\n```\napp/\n├── Services/\n│   └── Billing/\n└── Models/\n```\n\n```js\nfunction total(items) {\n  return items.length;\n}\n```\n');
+  const r = JSON.parse(cf(d, 'doctor', '--json').stdout);
+  const msgs = r.findings.filter(f => f.level === 'warn').map(f => f.msg);
+  assert.ok(msgs.some(m => /^\.ai\/PROJECT\.md:\d+ directory tree \(~\d+ tokens\)/.test(m)), msgs.join('\n'));
+  assert.ok(msgs.some(m => /^\.ai\/PROJECT\.md:\d+ pasted source code/.test(m)), msgs.join('\n'));
+  assert.ok(r.findings.some(f => f.level === 'info' && /tokens in \.ai\/ describe what agents can read from the code/.test(f.msg)));
+  assert.equal(cf(d, 'doctor', '--ci').status, 0);
+  assert.match(cf(d, 'prompt', 'fill').stdout, /\*\*Do not write\*\*/);
+});
