@@ -596,3 +596,13 @@ test('rules: nested AGENTS.md pointers are opt-in and removed cleanly when turne
   applyRules(repoDir, planRules(repoDir));
   assert.equal(fs.readFileSync(path.join(repoDir, 'app/Services/Billing/AGENTS.md'), 'utf8'), 'Team note: billing owners are @payments.\n');
 });
+
+test('rules: template placeholders and the sections they leave empty never reach rule files', () => {
+  const { planRules } = require('../src/services/rules.service');
+  const repoDir = rulesFixture({ targets: ['cursor'] });
+  fs.writeFileSync(path.join(repoDir, '.ai/modules/billing.md'),
+    '---\nmodule: billing\nverified_at:\ncode_paths: [app/Services/Billing/]\n---\n# billing\n> ≤100 lines. Semantic index, not a code copy.\n\n## Purpose\nCharges customers.\n\n## Invariants\n- rule that must never break\n\n## Flow\n- step → step (no code)\n\n## Gotchas\n- Refunds run in a queue.\n');
+  const [row] = planRules(repoDir).filter(r => r.file.endsWith('rc-billing.mdc'));
+  assert.match(row.content, /## Purpose\nCharges customers\.\n\n## Gotchas\n- Refunds run in a queue\./);
+  assert.doesNotMatch(row.content, /rule that must never break|step → step|## Invariants|## Flow|≤100 lines/);
+});

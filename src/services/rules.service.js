@@ -55,6 +55,29 @@ function isFilled(body, templateLines) {
 }
 
 /**
+ * Removes `##` sections left with no content once template placeholders are gone,
+ * so a half-filled doc doesn't ship empty headings.
+ *
+ * @param {string[]} lines
+ * @returns {string[]}
+ */
+function dropEmptySections(lines) {
+  const kept = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (/^##\s/.test(lines[i])) {
+      let j = i + 1;
+      while (j < lines.length && !/^#{1,2}\s/.test(lines[j]) && !lines[j].trim()) j++;
+      if (j >= lines.length || /^#{1,2}\s/.test(lines[j])) {
+        i = j - 1;
+        continue;
+      }
+    }
+    kept.push(lines[i]);
+  }
+  return kept;
+}
+
+/**
  * code_paths → globs: a folder covers everything under it, a file covers itself.
  *
  * @param {string} root
@@ -99,11 +122,11 @@ function getRuleSources(root) {
   return getKnowledgeDocs(root)
     .filter(doc => doc.rel.startsWith('.ai/modules/'))
     .map(doc => {
-      const body = stripFrontmatter(doc.text)
-        .split('\n')
-        .filter(l => !templateLines.has(l.trim()) || !l.trim().startsWith('>'))
-        .join('\n')
-        .trim();
+      const body = dropEmptySections(
+        stripFrontmatter(doc.text)
+          .split('\n')
+          .filter(l => !templateLines.has(l.trim()))
+      ).join('\n').trim();
       return {
         slug: path.posix.basename(doc.rel, '.md'),
         rel: doc.rel,
