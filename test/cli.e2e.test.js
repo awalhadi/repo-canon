@@ -453,3 +453,19 @@ test('skills: init writes the verify skill per tool; conflicts, drift and desele
   cf(d, 'init', '--targets=claude', '--yes', '--prune');
   assert.equal(fs.existsSync(path.join(d, '.agents/skills/rc-verify-change')), false);
 });
+
+test('monorepo: init + analyze map a pnpm/turbo workspace into package and app-feature modules', () => {
+  const d = repo({
+    'pnpm-workspace.yaml': 'packages:\n  - apps/*\n  - packages/*\n', 'turbo.json': '{}', 'package.json': '{"name":"acme"}',
+    'apps/web/package.json': '{"name":"@acme/web","dependencies":{"next":"15"}}', 'apps/web/app/layout.tsx': 'x',
+    'apps/web/app/(app)/billing/page.tsx': 'x', 'apps/web/app/(marketing)/pricing/page.tsx': 'x', 'apps/web/app/api/billing/route.ts': 'x',
+    'packages/ui/package.json': '{"name":"@acme/ui"}', 'packages/ui/src/button.tsx': 'x'
+  });
+  assert.equal(cf(d, 'init', '--targets=claude', '--yes').status, 0);
+  cf(d, 'analyze', '--scaffold');
+  const index = fs.readFileSync(path.join(d, '.ai/INDEX.md'), 'utf8');
+  assert.match(index, /## Workspace \(auto\): pnpm \+ turbo[\s\S]*\| web \| apps\/web\/ \| app \| Next\.js[\s\S]*\| ui \| packages\/ui\/ \| package \|/);
+  assert.match(index, /\| web-billing \| apps\/web\/app\/\(app\)\/billing\/, apps\/web\/app\/api\/billing\/ \|/);
+  assert.match(fs.readFileSync(path.join(d, '.ai/modules/web-billing.md'), 'utf8'), /code_paths: \[apps\/web\/app\/\(app\)\/billing\/, apps\/web\/app\/api\/billing\/\]/);
+  assert.deepEqual(fs.readdirSync(path.join(d, '.ai/modules')).filter(f => !f.startsWith('_')).sort(), ['ui.md', 'web-billing.md', 'web-pricing.md']);
+});

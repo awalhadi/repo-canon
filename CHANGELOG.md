@@ -13,11 +13,14 @@ All notable changes to RepoCanon. Versions follow [semver](https://semver.org); 
 - MCP write tools: `rc_propose_adr` (numbered decision records), `rc_checkpoint_state` (STATE.md focus, in progress, known issues and change log, never auto-stamped), `rc_stamp` (agent stamps for named docs, never forced) and `rc_verify` (PASS/FAIL end-of-task check). Writes are refused when they contain secrets, pasted code, trees or dependency lists.
 - `verified_by` in doc frontmatter: `human` from `repocanon stamp`, `agent` from `rc_stamp`. `status` shows `fresh (agent)`; `doctor` and the PR report list agent-verified docs for review.
 - `repocanon skills [--check] [--json]` (also run by `init`): an Agent Skill, `.ai/skills/rc-verify-change/SKILL.md`, listing this repo's own format, lint, typecheck and test commands from package.json/composer.json scripts, Makefile, justfile, Taskfile and CI, with their sources. Every `.ai/skills/<name>/SKILL.md` is copied to `.claude/skills/` (Claude Code) and `.agents/skills/` (Cursor, Codex, Gemini CLI, Copilot) for the chosen tools. Edited sources are kept; skills RepoCanon didn't write are never overwritten; `doctor` warns on drift, conflicts and invalid skills, and the secret scan covers skills.
+- Monorepo support: pnpm, npm, yarn and bun workspaces, lerna, nx, turbo, go.work, Cargo and uv workspaces. Library packages become one module each; apps with two or more features become `<app>-<feature>` modules. `.ai/INDEX.md` gets a Workspace table and package stacks reach the fill brief.
+- Deeper presets: Next.js App Router segments (route groups, dynamic, private, parallel and intercepting routes handled; `api/<x>` joins `<x>`), flat Laravel and FastAPI apps grouped by domain name across layers, layered Go apps merged by domain, new `fastapi` and `nuxt` presets, nwidart `Modules/` and Filament resources for Laravel, and the NestJS `app.module.ts` shell skipped.
 - MCP tool annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`) on every tool.
 
 ### Changed
 - **Only meaningful code changes make a doc stale.** Whitespace-only edits, tests, prose docs and lockfiles are ignored (and counted in the detail); renames still count. Set `"drift": "all"` for the previous behaviour.
 - `status --json` returns `{ docs, score }` instead of an array.
+- Module suggestions differ for monorepos, Next.js (no more `[slug]` or `(group)` modules) and flat Laravel/FastAPI apps. Existing module docs and their `code_paths` are untouched; only `INDEX.md` and `analyze --scaffold` see the new split.
 - Bun projects run scripts with `bun run <script>` (`bun test` is bun's own test runner, not your `test` script).
 
 ## 0.5.1 — 2026-10-27
