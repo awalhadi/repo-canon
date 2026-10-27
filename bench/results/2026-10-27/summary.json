@@ -1,0 +1,98 @@
+{
+  "env": {
+    "date": "2026-10-27",
+    "cli": "2.1.178",
+    "model": "claude-sonnet-5-5",
+    "modelAlias": "claude-sonnet-5-5",
+    "node": "v22.21.1",
+    "os": "Linux 6.8.0-147-generic",
+    "budgetPerRunUsd": 1.5,
+    "timeoutMin": 15
+  },
+  "summary": [
+    {
+      "condition": "none",
+      "runs": 40,
+      "passes": 3,
+      "passRate": {
+        "rate": 0.075,
+        "low": 0.025835556771858226,
+        "high": 0.19864530159097524
+      },
+      "ruleAdherence": 0.5833333333333334,
+      "medianTokens": 194244,
+      "iqrTokens": [
+        151144.75,
+        229592
+      ],
+      "meanCostUsd": 0.3619701125,
+      "totalCostUsd": 14.4788045,
+      "medianTurns": 16,
+      "usedKnowledge": 0,
+      "medianSeconds": 31.0805
+    },
+    {
+      "condition": "agents-md",
+      "runs": 40,
+      "passes": 40,
+      "passRate": {
+        "rate": 1,
+        "low": 0.9123754607496077,
+        "high": 1
+      },
+      "ruleAdherence": 1,
+      "medianTokens": 235577,
+      "iqrTokens": [
+        193794.5,
+        244913
+      ],
+      "meanCostUsd": 0.3766583375,
+      "totalCostUsd": 15.066333499999999,
+      "medianTurns": 14.5,
+      "usedKnowledge": 0,
+      "medianSeconds": 34.6085
+    },
+    {
+      "condition": "repocanon-pointer",
+      "runs": 40,
+      "passes": 40,
+      "passRate": {
+        "rate": 1,
+        "low": 0.9123754607496077,
+        "high": 1
+      },
+      "ruleAdherence": 1,
+      "medianTokens": 415071.5,
+      "iqrTokens": [
+        370257.75,
+        452046.75
+      ],
+      "meanCostUsd": 0.62153145,
+      "totalCostUsd": 24.861258,
+      "medianTurns": 29,
+      "usedKnowledge": 1,
+      "medianSeconds": 55.391000000000005
+    },
+    {
+      "condition": "repocanon",
+      "runs": 40,
+      "passes": 40,
+      "passRate": {
+        "rate": 1,
+        "low": 0.9123754607496077,
+        "high": 1
+      },
+      "ruleAdherence": 1,
+      "medianTokens": 379703.5,
+      "iqrTokens": [
+        294057,
+        434035.75
+      ],
+      "meanCostUsd": 0.574722075,
+      "totalCostUsd": 22.988883,
+      "medianTurns": 26.5,
+      "usedKnowledge": 1,
+      "medianSeconds": 54.686499999999995
+    }
+  ]
+}

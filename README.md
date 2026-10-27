@@ -328,6 +328,25 @@ Global flags: `--root=<dir>` runs against another folder; `--version`; `--help`.
 - `entryDigest`: keep a digest of `.ai/CONVENTIONS.md` and `.ai/DECISIONS.md` (one line per decision, about 700 tokens at most) in the `AGENTS.md` block (default `true`). Agents reliably follow what is in their entry file and often skip a pointer to another file; `false` leaves only the pointer. `rules` regenerates the digest, and `doctor`, `rules --check` and the PR report flag it when it falls behind.
 - `driftIgnore`: extra paths whose changes never make a doc stale (folder prefixes ending in `/`, `*` and `**` globs). Tests, prose docs, lockfiles and whitespace-only edits are always ignored; `"drift": "all"` turns that off.
 
+## Benchmark
+
+Does project knowledge help, and does RepoCanon deliver it better than a hand-written `AGENTS.md`? Claude Code (`claude-sonnet-5-5`, CLI 2.1.178) ran 8 tasks in JavaScript, Python, PHP and Rust projects, 5 times under each of 4 conditions: 160 runs in all, on 2026-10-27. Each task touches project rules the code doesn't reveal. A run passes when hidden tests **and** rule checks pass.
+
+| Condition | Tasks passed (95% CI) | Rule checks | Median tokens | Mean cost |
+|---|---|---|---|---|
+| No project docs | 3/40 · 8% (3–20%) | 58% | 194k | $0.36 |
+| Hand-written `AGENTS.md` | 40/40 · 100% (91–100%) | 100% | 236k | $0.38 |
+| RepoCanon, pointer only (0.5) | 40/40 · 100% (91–100%) | 100% | 415k | $0.62 |
+| RepoCanon with rules digest (0.6) | 40/40 · 100% (91–100%) | 100% | 380k | $0.58 |
+
+What this shows, and what it doesn't:
+- **Writing the rules down is what matters.** Without them the agent passed 8% of runs; with them, every run passed.
+- **On these tasks, RepoCanon was no more correct than a good hand-written `AGENTS.md`, and it cost about 1.5× more.** Its agents read 6+ `.ai/` docs per run and made about twice as many edits, following the Definition of Done in `AGENTS.md`. Both knowledge formats hit 100%, so this benchmark can't separate them on correctness.
+- **The rules digest added in 0.6 cut cost by 8%** against the pointer-only design. Claude Code never called the MCP tools or the skill in these headless runs; it read the files directly.
+- **Where RepoCanon should help is not measured here:** docs drifting from code over time, large repos, and many tools. The next benchmark round targets those.
+
+Method, tasks and how to rerun it: [bench/README.md](bench/README.md). Raw results: [bench/results/2026-10-27/](bench/results/2026-10-27/summary.md).
+
 ## How it compares
 
 | | Cross-tool | Checked against git | Token-budgeted | Local, no LLM calls |

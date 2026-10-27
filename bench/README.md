@@ -2,6 +2,18 @@
 
 Does project knowledge help a coding agent follow a project's rules, and does RepoCanon's way of delivering that knowledge do better than a hand-written `AGENTS.md`? This folder holds everything needed to measure it again.
 
+## Results
+Latest run: [results/2026-10-27](results/2026-10-27/summary.md). This was 160 runs on `claude-sonnet-5-5`, costing $77.40.
+
+| Condition | Pass rate |
+|---|---|
+| none | 8% |
+| agents-md | 100% |
+| repocanon-pointer | 100% |
+| repocanon | 100% |
+
+The RepoCanon conditions cost about 1.5× the hand-written AGENTS.md. Across 80 RepoCanon runs, no agent called an `rc_*` MCP tool or used the skill. The README's [Benchmark section](../README.md#benchmark) explains how to read this.
+
 ## What is measured
 Claude Code runs 8 tasks in 4 small projects under 4 conditions:
 
