@@ -56,7 +56,7 @@ npx repocanon adopt --move      # originals become pointers, so tools stop readi
 ## What you get
 
 ```
-AGENTS.md                 entry point every agent reads: run/test commands, rules, Definition of Done
+AGENTS.md                 entry point every agent reads: commands, a digest of your rules and decisions, Definition of Done
 .ai/
   PROJECT.md              purpose, stack, boundaries
   INDEX.md                path → module map (auto block refreshed by `analyze`)
@@ -325,6 +325,7 @@ Global flags: `--root=<dir>` runs against another folder; `--version`; `--help`.
 - `exclude`: path prefixes ignored everywhere.
 - `targets`: the AI tools `init` set up (managed by the picker).
 - `nestedAgents`: also write a pointer `AGENTS.md` into each module folder (default `false`).
+- `entryDigest`: keep a digest of `.ai/CONVENTIONS.md` and `.ai/DECISIONS.md` (one line per decision, about 700 tokens at most) in the `AGENTS.md` block (default `true`). Agents reliably follow what is in their entry file and often skip a pointer to another file; `false` leaves only the pointer. `rules` regenerates the digest, and `doctor`, `rules --check` and the PR report flag it when it falls behind.
 - `driftIgnore`: extra paths whose changes never make a doc stale (folder prefixes ending in `/`, `*` and `**` globs). Tests, prose docs, lockfiles and whitespace-only edits are always ignored; `"drift": "all"` turns that off.
 
 ## How it compares
@@ -355,7 +356,7 @@ Repo packers show an agent *what the code is*. RepoCanon records what the code c
 ## Principles
 
 1. Docs are a semantic index, never a code copy. Code wins on conflict.
-2. Progressive disclosure: AGENTS.md → PROJECT → INDEX → one module → code.
+2. Progressive disclosure: AGENTS.md (with the rules digest) → PROJECT → INDEX → one module → code.
 3. Invariants and business rules over implementation detail.
 4. Freshness is computed from git, not promised.
 5. Zero dependencies, Node.js 18+.
