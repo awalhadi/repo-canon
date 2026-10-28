@@ -73,6 +73,7 @@ async function runOne(job, options) {
     index: job.index,
     pass: graded.pass,
     ...(graded.followed ? { followed: graded.followed } : {}),
+    ...(graded.docFixed !== undefined ? { docFixed: graded.docFixed } : {}),
     checks: graded.checks.map(({ name, ok }) => ({ name, ok })),
     failures: graded.checks.filter(c => !c.ok).map(c => ({ name: c.name, detail: (c.detail || '').slice(-600) })),
     agent,

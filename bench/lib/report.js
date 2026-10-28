@@ -22,13 +22,15 @@ function renderFollowed(runs, conditions) {
     '',
     'Each drift task changes one documented value in the code after the docs were verified. "Code" means the implementation applies the current value (right); "doc" means it applies the stale one.',
     '',
-    '| Condition | Followed the code | Followed the stale doc | Neither |',
-    '|---|---|---|---|',
+    '| Condition | Followed the code | Followed the stale doc | Neither | Fixed the stale doc |',
+    '|---|---|---|---|---|',
     ...conditions
       .filter(c => drift.some(r => r.condition === c))
       .map(c => {
         const total = drift.filter(r => r.condition === c).length;
-        return `| ${c} | ${count(c, 'code')}/${total} | ${count(c, 'doc')}/${total} | ${count(c, 'neither')}/${total} |`;
+        const checked = drift.filter(r => r.condition === c && r.docFixed !== undefined);
+        const fixed = checked.length ? `${checked.filter(r => r.docFixed).length}/${checked.length}` : '—';
+        return `| ${c} | ${count(c, 'code')}/${total} | ${count(c, 'doc')}/${total} | ${count(c, 'neither')}/${total} | ${fixed} |`;
       }),
     ''
   ];

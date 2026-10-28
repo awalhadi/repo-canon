@@ -68,10 +68,24 @@ function readText(dir, rel) {
 /**
  * @param {Array<{ name: string, ok: boolean, detail?: string }>} checks
  * @param {'code'|'doc'|'neither'} [followedSource] - drift tasks: whose value the implementation applies
- * @returns {{ pass: boolean, checks: typeof checks, followed?: string }}
+ * @param {{ docFixed?: boolean }} [extra] - drift tasks: diagnostics that don't decide the pass
+ * @returns {{ pass: boolean, checks: typeof checks, followed?: string, docFixed?: boolean }}
  */
-function result(checks, followedSource) {
-  return { pass: checks.every(c => c.ok), checks, ...(followedSource ? { followed: followedSource } : {}) };
+function result(checks, followedSource, extra = {}) {
+  return { pass: checks.every(c => c.ok), checks, ...(followedSource ? { followed: followedSource } : {}), ...extra };
+}
+
+/**
+ * Drift tasks: whether the agent corrected the stale docs it was given, i.e. none of the
+ * knowledge files that exist still contains the sentence that became false.
+ *
+ * @param {string} dir
+ * @param {string} staleText
+ * @returns {boolean}
+ */
+function staleDocFixed(dir, staleText) {
+  const files = ['AGENTS.md', ...sources(dir, '.ai', /\.md$/).map(s => s.rel)];
+  return !files.some(rel => readText(dir, rel).includes(staleText));
 }
 
 /**
@@ -87,4 +101,4 @@ function followed(observed, expected) {
   return 'neither';
 }
 
-module.exports = { copyDir, run, sources, readText, result, followed };
+module.exports = { copyDir, run, sources, readText, result, followed, staleDocFixed };
