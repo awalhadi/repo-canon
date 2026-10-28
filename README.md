@@ -11,7 +11,14 @@
 
 Sponsored by **[Framimo](https://framimo.com)** — turn any clip into GIF, WebP, AVIF or MP4, right in your browser.
 
-![repocanon status and sync in a terminal: which docs are stale, the files that changed, and the next command to run](docs/assets/terminal.svg)
+<p align="center">
+  <img src="docs/assets/overview.gif" width="960" alt="RepoCanon overview animation: AI coding agents re-learn your repo and miss its rules; npx repocanon init creates AGENTS.md and an .ai/ knowledge layer for Claude Code, Cursor, GitHub Copilot, Codex, Gemini CLI, Windsurf and Cline; the right module's rules reach the agent while it works; every rule is checked against the code with git; benchmark results; secret and prompt-injection checks.">
+</p>
+
+**In 30 seconds**
+- **What it is:** a small, local project-memory layer (`AGENTS.md` + `.ai/`) that every AI coding agent reads: the rules, decisions and gotchas your code can't show.
+- **What it does:** one command sets it up for all your tools, delivers each module's rules to the agent while it works, and checks every rule against the code with git, so stale ones are flagged, not trusted.
+- **How it helps:** agents follow your project's rules instead of guessing (8% → 100% of tasks passed once the rules were written down), and they keep the docs correct as they work. It runs locally, calls no LLM and has zero dependencies.
 
 ## Why
 
@@ -92,15 +99,15 @@ git commit -am "Verify RepoCanon docs"
 ◆ repocanon doctor · shop
 
 Warnings (1)
-  !  scoped rule files are out of date (1: .cursor/rules/rc-billing.mdc) — run: npx repocanon rules
+  !  scoped rule files are out of date (2: .cursor/rules/rc-billing.mdc, AGENTS.md) — run: npx repocanon rules
 
 Info (1)
   i  27 TODO placeholder(s) remain in .ai/ — run: repocanon prompt fill
 
 Token budget
-  Entry context (AGENTS + PROJECT + INDEX)  ~980 tokens
-  Whole repo source                         ~1,053 tokens
-  Entry share of the repo                   93.07%
+  Entry context (AGENTS + PROJECT + INDEX)  ~662 tokens
+  Whole repo source                         ~820 tokens
+  Entry share of the repo                   80.73%
   → estimates: word-aware for docs, bytes/4 for code
 
 Freshness █████████░ 91/100
@@ -215,7 +222,32 @@ RepoCanon reads pnpm, npm, yarn and bun workspaces, lerna, nx (`project.json`), 
 
 `.ai/INDEX.md` gets a Workspace table (package, path, app or package, stack), and the fill brief says it's a monorepo. To split differently, set `moduleRoots` or `modules`, or a fixed `preset`, in `.repocanon.json`; any of those turns the workspace split off.
 
+## Claims: rules tied to the code that proves them
+
+A plain rule in a doc is only as fresh as the whole doc. Annotate the rules that matter, and RepoCanon checks each one on its own:
+
+```markdown
+## Invariants
+- Money is integer cents. <!-- rc: anchor=src/money/cents.js#toCents -->
+- Floats are rejected. <!-- rc: test=test/money.test.js#rejects floats -->
+- Never round twice.
+```
+
+| Tier | Written as | Checked how | Goes wrong when |
+|---|---|---|---|
+| **enforced** | `test=path#test name` | the test file exists and contains that name; CI runs it | the test is deleted or renamed → **broken** |
+| **anchored** | `anchor=path#symbol` (`Class.method` works; a bare path anchors the whole file) | `stamp` stores a hash of the symbol's body in `.ai/canon.lock`; reformatting doesn't change it | the body's logic changes → **stale**; the symbol is gone → **broken** |
+| **asserted** | a plain bullet | the doc's own `verified_at` | — |
+
+- `repocanon claims` lists every claim with its tier and state. It exits 1 on a broken claim, or on a stale one with `--ci`.
+- `doctor` reports broken claims as errors and stale ones as warnings.
+- `rc_context` and the edit-time hook mark a stale claim on its doc, even when the doc as a whole looks fresh.
+- `stamp <doc>` (and `rc_stamp`) lock the claims of the docs it verifies. A claim whose code has uncommitted changes isn't locked.
+- Hashes are computed by the tool, never written by hand. Symbol lookup is pattern-based (JS/TS, Python, Go, Rust, PHP, Java-style methods), not a parser; anchor to the file if a symbol isn't found.
+
 ## Daily workflow
+
+![repocanon status and sync in a terminal: which docs are stale, the files that changed, and the next command to run](docs/assets/terminal.svg)
 
 After you or your agent change code:
 
@@ -329,7 +361,7 @@ The server works on the folder it starts in. Global configs (Windsurf, Cline) us
 | `rc_status` | Freshness of every doc vs git |
 | `rc_prepare_fill` | Evidence-loaded brief for writing the docs |
 | `rc_sync_report` | What changed since each doc was verified |
-| `rc_propose_adr` | **Writes** a numbered decision to `.ai/DECISIONS.md` (newest on top) |
+| `rc_propose_adr` | **Writes** a decision to its own file, `.ai/decisions/<date>-<slug>.md`, so parallel branches never conflict |
 | `rc_checkpoint_state` | **Writes** focus, in-progress, known issues and a change line to `.ai/STATE.md`; never marks anything verified |
 | `rc_stamp` | **Writes** `verified_at` + `verified_by: agent` for named docs; refuses uncommitted code |
 | `rc_verify` | The "am I done?" check: errors, stale docs, score, then PASS or FAIL |
@@ -349,6 +381,7 @@ The plugin connects Claude Code to the knowledge layer with one install, and kee
 |---|---|
 | MCP server | `rc_context`, `rc_sync_report` and the other tools above, for the project you open |
 | Session start | Tells Claude the layer exists, to call `rc_context` before exploring, and which docs are stale |
+| First read or edit in a module | Adds that module's Invariants and Gotchas (≤ ~300 tokens, once per module per session, labelled when the doc is stale), so the rules arrive before Claude changes the code, without an MCP call |
 | End of turn | If Claude changed a module's code but not its doc, asks it **once** to update the doc or say no change is needed |
 | `repocanon` skill | The workflow: context first, update docs after changes, never paste code, file lists or secrets |
 
@@ -423,13 +456,14 @@ jobs:
 | `stamp <name…> \| --all [--force]` | Mark docs verified at the current commit; refuses when their code has uncommitted changes |
 | `prompt fill [--compact]` | Brief to paste into an agent so it fills the docs |
 | `prompt update` | Brief for updating docs after code changes |
-| `secrets [--staged] [--json] [--quiet]` | Scan `AGENTS.md` and `.ai/` (or their staged versions) for API keys, tokens and passwords; exits 1 if any are found |
-| `hook` | Install the pre-commit hook: warns on undocumented code changes, blocks secrets in docs |
+| `claims [--ci] [--json]` | Rules tied to code (`anchor=`) or tests (`test=`): tier and state of each; exits 1 on a broken claim (and a stale one with `--ci`) |
+| `secrets [--staged] [--json] [--quiet]` | Scan `AGENTS.md`, `.ai/` and tool pointer files (or their staged versions) for API keys, tokens and passwords, and for unsafe instructions (hidden characters, instruction overrides, `curl … \| sh`); exits 1 if any are found |
+| `hook` | Install the pre-commit hook: warns on undocumented code changes, blocks secrets and unsafe instructions in docs |
 | `rules [--check] [--json]` | Write per-module scoped rule files (Cursor, Copilot, optional nested `AGENTS.md`); `--check` exits 1 if out of date |
 | `skills [--check] [--json]` | Write the verify-a-change skill and copy `.ai/skills/` to each tool's skills folder; `--check` exits 1 if out of date |
 | `setup [tool…\|all] [--json]` | Register the MCP server in each tool's config (default: the tools `init` set up) |
 | `mcp` | Start the MCP server on stdio |
-| `agent-hook <session-start\|stop>` | Output for agent hooks: session briefing, end-of-turn doc reminder (used by the Claude Code plugin) |
+| `agent-hook <session-start\|stop\|pre-edit>` | Output for agent hooks: session briefing, end-of-turn doc reminder, a module's rules on the first read or edit there (used by the Claude Code plugin) |
 
 Global flags: `--root=<dir>` runs against another folder; `--version`; `--help`.
 
@@ -487,6 +521,52 @@ What this shows, and what it doesn't:
 
 Method, tasks and how to rerun it: [bench/README.md](bench/README.md). Raw results: [bench/results/2026-10-27/](bench/results/2026-10-27/summary.md).
 
+### Drift pilot: a documented value changed in the code, the docs did not
+
+Each of 4 drift tasks verifies the docs, then commits a change to one value they describe (a fee rate, a default, a cap, an error code). Hidden tests expect the code's new value. 12 runs, one per task and condition, on 2026-10-28:
+
+| Condition | Passed | Followed the code / the stale doc | Mean cost |
+|---|---|---|---|
+| Hand-written `AGENTS.md`, now stale | 4/4 | 4 / 0 | $0.45 |
+| RepoCanon 0.6 | 4/4 | 4 / 0 | $0.64 |
+| RepoCanon 0.7 with hooks and claim anchors | 4/4 | 4 / 0 | $0.77 |
+
+- **The stale doc didn't mislead the agent.** When the changed value sits in a file the agent reads for the task, `claude-sonnet-5-5` trusts the code without being told. This design can't show a benefit from staleness warnings, so the planned 60-run version was not run.
+- **The hooks fired** (every 0.7 run received its module's rules) **and cost more**, partly because the end-of-turn hook asked agents to document folders that had no doc. That is fixed; see the cost round below.
+- A drift that could separate the conditions needs the changed fact to be somewhere the agent wouldn't otherwise look. See the cross-module round below.
+
+Raw results: [bench/results/2026-10-28-drift/](bench/results/2026-10-28-drift/summary.md).
+
+### Cost round: a lighter entry file (0.7)
+
+The pilot's tool counts traced the extra cost to two instructions in `AGENTS.md`: a read order (5–10 knowledge-doc reads per run) and a mandatory Definition of Done (9–15 edits). 0.7 replaced both: the entry lists only docs that have content, and asks for doc edits only when a rule, flow or decision changed. 44 runs on 2026-10-28, `claude-sonnet-5-5`:
+
+| | Passed | Mean cost | vs `AGENTS.md` | Knowledge-doc reads | Edits |
+|---|---|---|---|---|---|
+| Hand-written `AGENTS.md`, core suite | 16/16 | $0.39 | 1× | 0 | 4.4 |
+| RepoCanon 0.7 with hooks, core suite | 24/24 | $0.54 | **1.38×** (was 1.5× in v1) | 1.1–1.8 (was 6+) | 6.3 |
+| RepoCanon 0.7 with hooks, drift suite | 4/4 | $0.59 | 1.33× (was 1.7×) | 1.5 | 7.0 |
+
+- **Correctness held** without the read order: every run passed, including the core tasks whose rules live only in module docs.
+- **The remaining gap is doc maintenance, not reading.** About two extra edits per run come from the end-of-turn hook asking the agent to update the module doc it worked in. A hand-written `AGENTS.md` never does that work, so this is the price of docs that stay current, and the target of ≤1.2× was not met.
+
+Raw results: [bench/results/2026-10-28-cost/](bench/results/2026-10-28-cost/summary.md) and [2026-10-28-cost2/](bench/results/2026-10-28-cost2/summary.md).
+
+### Cross-module drift: the doc names the wrong place, and the fix lives in another module
+
+`node-cancel-xdrift`: the docs say `cancelOrder` restocks and the warehouse listeners only record shipments. A later commit moves restocking into the warehouse listener on `order.cancelled`. Following the doc restocks twice. Three rounds of 9 runs each (3 per condition): the drift as the newest commit, then buried under 12 unrelated commits, then the same with a grader check of the docs afterwards.
+
+| Condition | Followed the code | Fixed the stale doc (measured, last round) | Mean cost (last round) |
+|---|---|---|---|
+| Hand-written `AGENTS.md`, now stale | 9/9 | **0/3** | $0.37 |
+| RepoCanon 0.6 | 9/9 | **3/3** | $0.38 |
+| RepoCanon 0.7 with hooks | 9/9 | **3/3** | $0.41 |
+
+- **Correctness: no difference.** Every run, in every condition, found the listener and didn't restock twice. The agents read the code, the recent history and their own failing tests, and trusted those over the doc.
+- **Doc upkeep: a clear difference.** RepoCanon agents corrected the wrong sentence in every run. `AGENTS.md` agents never did: the doc that misled nobody this time is still wrong for the next agent and for people. Earlier rounds, judged from the agents' own summaries, agree (RepoCanon 12/12, `AGENTS.md` 2/6).
+- **Cost on this task was close**, 1.05–1.13× `AGENTS.md`.
+- Small samples (3 runs per cell); the numbers show a direction, not a rate. Raw results: [xdrift](bench/results/2026-10-28-xdrift/summary.md), [buried](bench/results/2026-10-28-xdrift-buried/summary.md), [doc check](bench/results/2026-10-28-xdrift-docfix/summary.md).
+
 ## How it compares
 
 | | Cross-tool | Checked against git | Token-budgeted | Local, no LLM calls |
@@ -494,7 +574,7 @@ Method, tasks and how to rerun it: [bench/README.md](bench/README.md). Raw resul
 | Hand-written `CLAUDE.md` / rules files | one file per tool | no | no | yes |
 | Repo packers (e.g. Repomix) | yes | n/a — packs raw code | partly | yes |
 | Agent memory banks | usually one tool | no | no | varies |
-| **RepoCanon** | **yes** | **yes** (`verified_at`, `code_paths`) | **yes** | **yes** |
+| **RepoCanon** | **yes** | **yes** (`verified_at`, `code_paths`, per-claim hashes) | **yes** | **yes** |
 
 Repo packers show an agent *what the code is*. RepoCanon records what the code can't say — rules, decisions, boundaries — and tells you when that record goes stale.
 
@@ -503,6 +583,8 @@ Repo packers show an agent *what the code is*. RepoCanon records what the code c
 **Does it call an LLM or upload my code?** No. RepoCanon never makes network calls. Your own agent reads and writes the docs.
 
 **What if an agent pastes a secret into the docs?** `doctor` reports it as an error (so `doctor --ci` fails), `npx repocanon secrets` lists it masked, and the pre-commit hook blocks the commit. Mark a known false positive with `<!-- repocanon:allow-secret -->` on that line.
+
+**What if someone plants instructions for the agent?** A pull request, a dependency or a build step can add text to AGENTS.md, `.ai/` or CLAUDE.md that agents will follow. `doctor` fails on hidden Unicode (bidi overrides, zero-width marks, tag characters), "ignore previous instructions"-style overrides, rules that hide work from the user, fake `<system>` markers and `curl … | sh`, and warns about instruction files git doesn't track. MCP writes refuse the same text, and the pre-commit hook blocks it. Mark intended text with `<!-- repocanon:allow-instruction -->`.
 
 **Does it work with ChatGPT?** OpenAI Codex reads `AGENTS.md` natively. ChatGPT in the browser can't see your repo, but `npx repocanon context "your task"` prints a pack you can paste.
 

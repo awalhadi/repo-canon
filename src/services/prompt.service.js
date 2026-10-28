@@ -412,7 +412,7 @@ function buildFillPrompt(root, options = {}) {
     '',
     '### Phase 4 · Module docs (top 3)',
     '- Rank candidates in §2.7 by **hotspot presence × business criticality**; pick 3. Create `.ai/modules/<slug>.md` from `_TEMPLATE.md`.',
-    '- Fill `code_paths` (fix them if §2.7 is wrong), Purpose, Invariants, Flow (steps, no code), Code map (`path: responsibility`), Gotchas (what the code does not make obvious).',
+    '- Fill `code_paths` (fix them if §2.7 is wrong), Purpose, Invariants, Flow (steps, no code), Code map (`path: responsibility`), Gotchas (what the code does not make obvious). For a rule that one function or test proves, add `<!-- rc: anchor=path#symbol -->` or `<!-- rc: test=path#test name -->` so it is checked on its own.',
     '**Done when** — “change feature X” can be answered by that one doc + the files in its code map.'
   );
 
@@ -427,7 +427,7 @@ function buildFillPrompt(root, options = {}) {
     '',
     '### Phase 6 · Verify',
     '- Run `repocanon doctor` (MCP: `rc_verify`) and fix every error/warning you caused — including every inferable-content warning (delete those blocks). Then `repocanon stamp <doc>…` (MCP: `rc_stamp`) for each doc you actually re-checked (commit code first).',
-    '- With MCP, record decisions with `rc_propose_adr` and progress with `rc_checkpoint_state` instead of editing DECISIONS.md / STATE.md by hand: they number entries, keep STATE within its cap and refuse secrets.'
+    '- With MCP, record decisions with `rc_propose_adr` and progress with `rc_checkpoint_state` instead of editing DECISIONS.md / STATE.md by hand: decisions get one file each in `.ai/decisions/` (no merge conflicts), STATE stays within its cap, and secrets are refused.'
   );
 
   lines.push('', '---');

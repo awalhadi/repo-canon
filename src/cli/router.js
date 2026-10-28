@@ -22,6 +22,7 @@ const { handleRules } = require('./commands/rules.cmd');
 const { handleAdopt } = require('./commands/adopt.cmd');
 const { handleReport } = require('./commands/report.cmd');
 const { handleSkills } = require('./commands/skills.cmd');
+const { handleClaims } = require('./commands/claims.cmd');
 
 const COMMAND_HANDLERS = {
   init: handleInit,
@@ -31,6 +32,7 @@ const COMMAND_HANDLERS = {
   sync: handleSync,
   context: handleContext,
   stamp: handleStamp,
+  claims: handleClaims,
   hook: handleHook,
   prompt: handlePrompt,
   mcp: handleMcp,

@@ -17,7 +17,7 @@ Call `rc_prepare_fill` and follow the brief it returns, writing `.ai/*.md` with 
 
 ## After changing code
 1. Call `rc_sync_report` to see which docs your changes affect.
-2. Update a doc only where behaviour, rules, flow or ownership changed.
+2. Update a doc only where behaviour, rules, flow or ownership changed. If `rc_context` marks a claim stale, re-read its anchored code and fix the rule.
 3. Record a non-obvious choice with `rc_propose_adr`, and where work stands with `rc_checkpoint_state` (focus, in progress, known issues, one line for the change). Both refuse secrets and pasted code, and neither marks anything verified.
 4. After the code is committed, call `rc_stamp` with only the docs you actually re-checked against the code. It records `verified_by: agent`, so a human can see it.
 5. Call `rc_verify` and fix what it reports until it says PASS.

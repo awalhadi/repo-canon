@@ -1,0 +1,1 @@
+{ "fixture": "rust-cli", "language": "Rust", "title": "max_results after the default changed", "suite": "drift", "driftMessage": "ux: show 50 notes per page by default, terminals are taller now (UX-31)" }

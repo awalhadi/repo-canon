@@ -27,7 +27,9 @@ function copyDir(src, dest) {
  * @returns {{ ok: boolean, output: string }}
  */
 function run(cwd, cmd, args, timeoutMs = 300000) {
-  const result = cp.spawnSync(cmd, args, { cwd, encoding: 'utf8', timeout: timeoutMs, env: { ...process.env, NO_COLOR: '1' } });
+  // Under `node --test`, NODE_TEST_CONTEXT makes a nested `node --test` report to the parent and exit 0
+  const { NODE_TEST_CONTEXT, ...env } = process.env;
+  const result = cp.spawnSync(cmd, args, { cwd, encoding: 'utf8', timeout: timeoutMs, env: { ...env, NO_COLOR: '1' } });
   return { ok: result.status === 0, output: `${result.stdout || ''}${result.stderr || ''}`.slice(-4000) };
 }
 
@@ -65,10 +67,38 @@ function readText(dir, rel) {
 
 /**
  * @param {Array<{ name: string, ok: boolean, detail?: string }>} checks
- * @returns {{ pass: boolean, checks: typeof checks }}
+ * @param {'code'|'doc'|'neither'} [followedSource] - drift tasks: whose value the implementation applies
+ * @param {{ docFixed?: boolean }} [extra] - drift tasks: diagnostics that don't decide the pass
+ * @returns {{ pass: boolean, checks: typeof checks, followed?: string, docFixed?: boolean }}
  */
-function result(checks) {
-  return { pass: checks.every(c => c.ok), checks };
+function result(checks, followedSource, extra = {}) {
+  return { pass: checks.every(c => c.ok), checks, ...(followedSource ? { followed: followedSource } : {}), ...extra };
 }
 
-module.exports = { copyDir, run, sources, readText, result };
+/**
+ * Drift tasks: whether the agent corrected the stale docs it was given, i.e. none of the
+ * knowledge files that exist still contains the sentence that became false.
+ *
+ * @param {string} dir
+ * @param {string} staleText
+ * @returns {boolean}
+ */
+function staleDocFixed(dir, staleText) {
+  const files = ['AGENTS.md', ...sources(dir, '.ai', /\.md$/).map(s => s.rel)];
+  return !files.some(rel => readText(dir, rel).includes(staleText));
+}
+
+/**
+ * Drift tasks: which source the implementation agrees with, judged by what a probe printed.
+ *
+ * @param {string} observed - the probe's output, normalised by the grader
+ * @param {{ code: string, doc: string }} expected
+ * @returns {'code'|'doc'|'neither'}
+ */
+function followed(observed, expected) {
+  if (observed === expected.code) return 'code';
+  if (observed === expected.doc) return 'doc';
+  return 'neither';
+}
+
+module.exports = { copyDir, run, sources, readText, result, followed, staleDocFixed };

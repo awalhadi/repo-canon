@@ -28,12 +28,12 @@ STAGED=$(git diff --cached --name-only)
 if echo "$STAGED" | grep -qv '^\\.ai/' && ! echo "$STAGED" | grep -q '^\\.ai/'; then
   echo "repocanon: code changed but .ai/ not touched (STATE.md / module doc?). Check: npx repocanon status"
 fi
-# Block secrets in staged AGENTS.md / .ai/ docs (override: git commit --no-verify)
+# Block secrets and unsafe instructions in staged agent docs (override: git commit --no-verify)
 if [ -x ./node_modules/.bin/repocanon ]; then RC=./node_modules/.bin/repocanon
 elif command -v repocanon >/dev/null 2>&1; then RC=repocanon
 else RC=""; fi
 if [ -n "$RC" ] && ! "$RC" secrets --staged --quiet; then
-  echo "repocanon: commit blocked — secret in staged docs (see above). Override: git commit --no-verify"
+  echo "repocanon: commit blocked — secret or unsafe instruction in staged docs (see above). Override: git commit --no-verify"
   exit 1
 fi
 ${HOOK_END}

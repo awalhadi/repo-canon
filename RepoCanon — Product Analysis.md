@@ -10,7 +10,7 @@ User asked for a senior AI/agent-engineer review of RepoCanon (v0.4.0, ~4.6k LOC
 **Core idea:** a git-anchored, budgeted `.ai/` knowledge layer (PROJECT / INDEX / DOMAIN / CONVENTIONS / DECISIONS / STATE / modules/*.md) that any agent reads instead of the whole repo. The tool is deterministic (detect, map, stale-check, budget); the agent writes prose.
 
 **Real strengths (keep these as the brand):**
-- **Freshness is computed, not promised** — `verified_at` + `code_paths` + `git diff` → fresh/stale/broken (`src/services/status.service.js`, `sync.service.js`). Almost no competitor does this.
+- **Freshness is computed, not promised** — `verified_at` + `code_paths` + `git diff` → fresh/stale/broken (`src/services/status.service.js`, `sync.service.js`). *(Correction, 2026-10-28: this is no longer rare. agents-doctor, agentslint, bernstein agents-md, etymd, docverity, drft-cli, mex and repo-harness all check agent docs for stale paths or commands. What stays distinctive is the commit-anchored "verified at X, meaningful change since" model; see docs/STRATEGY.md › Update 2026-10-28.)*
 - **Agent-agnostic** — AGENTS.md + IDE pointer files + MCP (`src/mcp/tools.js`), not locked to one IDE.
 - **Zero deps, no network, no shell** (`src/core/git.js` execFile + ref allow-list) — easy enterprise/security sign-off.
 - **Enforced architecture** (`test/architecture.test.js`) — contributors can't erode it.

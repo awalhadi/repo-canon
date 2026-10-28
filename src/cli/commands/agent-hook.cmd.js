@@ -1,7 +1,7 @@
 'use strict';
 
 const fs = require('fs');
-const { getSessionContext, getStopNudge } = require('../../services/agenthook.service');
+const { getSessionContext, getStopNudge, getEditContext } = require('../../services/agenthook.service');
 const { CommandError } = require('../../core/errors');
 
 /**
@@ -23,7 +23,7 @@ function readHookInput() {
 }
 
 /**
- * Handles `repocanon agent-hook <session-start|stop>`, called by agent hooks
+ * Handles `repocanon agent-hook <session-start|stop|pre-edit>`, called by agent hooks
  * (e.g. the Claude Code plugin). Always exits 0.
  */
 function handleAgentHook(context) {
@@ -40,7 +40,13 @@ function handleAgentHook(context) {
     if (nudge) console.log(JSON.stringify(nudge));
     return;
   }
-  throw new CommandError('usage: repocanon agent-hook <session-start|stop>', 1);
+  if (event === 'pre-edit') {
+    // PreToolUse: plain stdout never reaches the model, additionalContext does
+    const text = getEditContext(root, readHookInput());
+    if (text) console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', additionalContext: text } }));
+    return;
+  }
+  throw new CommandError('usage: repocanon agent-hook <session-start|stop|pre-edit>', 1);
 }
 
 module.exports = {

@@ -1,0 +1,1 @@
+{ "fixture": "py-api", "language": "Python", "title": "Rate limiting after the error code was renamed", "suite": "drift", "driftMessage": "api: rename rate_limited to too_many_requests to match the public API spec (API-77)" }

@@ -10,6 +10,7 @@ const { detectProject } = require('../core/detector');
 const { detectModules } = require('../core/modules');
 const { detectWorkspaces } = require('../core/workspaces');
 const { getDocStatus } = require('./status.service');
+const { getClaims } = require('./claims.service');
 
 /**
  * Builds a unified map of modules, merging detected modules with existing doc definitions.
@@ -215,6 +216,12 @@ function packContext(root, options = {}) {
   parts.push(['.ai/STATE.md', read(path.join(root, '.ai/STATE.md'))]);
 
   const statusByDoc = new Map(getDocStatus(root).map(row => [row.doc, row]));
+  // Claims whose code changed or vanished are named on their doc, even when the doc as a whole looks fresh
+  const claimLabels = new Map();
+  for (const claim of getClaims(root).claims.filter(c => c.state === 'stale' || c.state === 'broken')) {
+    const mark = claim.state === 'stale' ? '⚠' : '✗';
+    claimLabels.set(claim.doc, [...(claimLabels.get(claim.doc) || []), `> ${mark} claim "${claim.text}" is ${claim.state}: ${claim.detail}`]);
+  }
   const freshness = {};
   const truncationMarker = '\n…[truncated]\n';
   const markerTokens = estimateTokens(truncationMarker);
@@ -229,8 +236,8 @@ function packContext(root, options = {}) {
       continue;
     }
     const status = statusByDoc.get(relPath);
-    const label = getFreshnessLabel(status);
-    let sectionText = `## ${relPath}\n${label ? `${label}\n` : ''}${stripFrontmatter(rawContent).trim()}\n`;
+    const labels = [getFreshnessLabel(status), ...(claimLabels.get(relPath) || [])].filter(Boolean);
+    let sectionText = `## ${relPath}\n${labels.map(l => `${l}\n`).join('')}${stripFrontmatter(rawContent).trim()}\n`;
     let tokens = estimateTokens(sectionText);
     const allowance = Math.min(sectionCap, maxTokens - usedTokens);
 
@@ -263,6 +270,7 @@ function packContext(root, options = {}) {
 }
 
 module.exports = {
+  getFreshnessLabel,
   getModuleMap,
   moduleMap: getModuleMap,
   packContext,

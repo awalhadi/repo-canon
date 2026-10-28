@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { read } = require('../core/fs');
 const { getStagedFiles, readStagedFile } = require('../core/git');
+const { listDecisions, LEGACY_DECISIONS_DOC } = require('../core/decisions');
 const { getKnowledgeDocs } = require('./status.service');
 
 const ALLOW_MARKER = 'repocanon:allow-secret';
@@ -116,18 +117,24 @@ function isKnowledgeFile(rel) {
 }
 
 /**
- * Scans AGENTS.md and every .ai/ doc in the working tree.
+ * AGENTS.md, every .ai/ doc and every .ai/ skill in the working tree: the text agents
+ * are told to trust.
  *
  * @param {string} root - Project root directory
- * @returns {Array<{ doc: string, findings: ReturnType<typeof findSecrets> }>} docs with findings only
+ * @returns {Array<{ rel: string, text: string }>}
  */
-function scanSecrets(root) {
+function getScannedDocs(root) {
   const docs = [];
   const agentsText = read(path.join(root, 'AGENTS.md'));
   if (agentsText !== null) {
     docs.push({ rel: 'AGENTS.md', text: agentsText });
   }
   docs.push(...getKnowledgeDocs(root));
+  // Decision records are history, not freshness-tracked docs, but agents read them all the same
+  for (const { rel } of listDecisions(root).filter(d => d.rel !== LEGACY_DECISIONS_DOC)) {
+    const text = read(path.join(root, rel));
+    if (text !== null) docs.push({ rel, text });
+  }
   // Skills are copied into every tool's folder, so a key here spreads further
   const skillsDir = path.join(root, '.ai', 'skills');
   if (fs.existsSync(skillsDir)) {
@@ -137,8 +144,17 @@ function scanSecrets(root) {
       if (text !== null) docs.push({ rel, text });
     }
   }
+  return docs;
+}
 
-  return docs
+/**
+ * Scans AGENTS.md and every .ai/ doc in the working tree.
+ *
+ * @param {string} root - Project root directory
+ * @returns {Array<{ doc: string, findings: ReturnType<typeof findSecrets> }>} docs with findings only
+ */
+function scanSecrets(root) {
+  return getScannedDocs(root)
     .map(doc => ({ doc: doc.rel, findings: findSecrets(doc.text) }))
     .filter(entry => entry.findings.length);
 }
@@ -170,6 +186,8 @@ function formatSecretFinding(doc, finding) {
 
 module.exports = {
   findSecrets,
+  getScannedDocs,
+  isKnowledgeFile,
   scanSecrets,
   scanStagedSecrets,
   formatSecretFinding,

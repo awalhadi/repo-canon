@@ -66,8 +66,26 @@ Five checked facts reshape the roadmap. The "anujkushwaha612/ContextForge AST pr
 | Auto-wikis | DeepWiki, [Google Code Wiki](https://www.theregister.com/2025/11/17/google_previews_code_wiki/) | Regenerate docs; unstable output | Verified, stable docs owned by humans and agents together |
 | Agent memory | ByteRover, Cline Memory Bank, native IDE memory | Notes without verification | Git-anchored, CI-checked |
 | Architecture enforcement | dependency-cruiser, eslint-boundaries, Nx, ArchUnit | Mature, not agent-aware | Join them to the knowledge layer |
+| Agent-doc drift linters *(added 2026-10-28)* | agents-doctor, [agentslint](https://pypi.org/project/agentslint/), [bernstein agents-md](https://bernstein.readthedocs.io/en/latest/agents-md/), [etymd](https://github.com/triartleet/etymd), [docverity](https://glama.ai/mcp/servers/deveshagarwal/docverity), [drft-cli](https://docs.rs/crate/drft-cli/0.12.0), mex, repo-harness | Crowded; mostly path, command and link checks | Reference checks are table stakes. Compete on claim tiers, enforcement and governance |
+| Instruction-file security *(added 2026-10-28)* | [NVIDIA](https://developer.nvidia.com/blog/mitigating-indirect-agents-md-injection-attacks-in-agentic-environments/), [Pillar "Rules File Backdoor"](https://www.pillar.security/blog/new-vulnerability-in-github-copilot-and-cursor-how-hackers-can-weaponize-code-agents), agents-doctor "risky instructions" | Attacks published; defence mostly research | Integrity lint on every read surface plus an audit trail of who wrote and verified each claim |
 
 The main risks are IDE vendors adding drift checks to native memory, AGENTS.md adding path-scoping frontmatter, and rulesync adding verification. The answers are cross-agent CI enforcement, following the standard immediately, and shipping anchors and boundary checks first.
+
+### Update 2026-10-28: positioning after the drift-linter wave
+Freshness and reference checking is no longer rare, so it can't be the headline. The position to hold is **the governed knowledge layer for AI coding agents: every rule has an owner, a proof and an audit trail, and the rules that matter are enforced in CI.** That rests on four things the linters above don't combine:
+
+1. **Claim trust tiers.** Each invariant or gotcha is `enforced` (a named test or boundary rule proves it), `anchored` (tied to a symbol by a content hash the tool computes and stores in `.ai/canon.lock`; stale only when that symbol changes), or `asserted` (a person or agent vouches for it, and its age shows). Nothing is labelled more verified than it is. Per-claim staleness also stops alert fatigue on large repos.
+2. **Enforcement.** Boundary rules (P3.2) that fail CI with a message the agent can act on.
+3. **Write-path governance.** MCP writes are validated (secrets, inferable content, injection) and attributed. The next step is an append-only event log.
+4. **Delivery at edit time** with no tool call, because the benchmark showed headless agents never call MCP tools.
+
+**Scale finding:** `rc_propose_adr` numbers decisions sequentially (`D-NNN`) in one `DECISIONS.md`. Two branches will both create the same ID and conflict. The AGENTS.md rules digest is generated from that file, so even one file per decision still leaves a conflict in the generated block. The fix needs a design that covers both (see ROADMAP P3.6).
+
+**Benchmark v2 must be fair.** Compare against a hand-written AGENTS.md *plus* a reference linter, not against stale docs alone, and target no more than 1.1× the cost of AGENTS.md (today about 1.5×).
+
+**Benchmark evidence (2026-10-28, 112 runs):** writing the rules down is what makes agents correct (v1: 8% → 100%). A strong model doesn't follow a stale doc into a wrong implementation in a small repo: across three drift designs every condition followed the code. What RepoCanon measurably adds is **doc upkeep**: its agents fixed the stale doc 6/6, `AGENTS.md` agents 0/3. Cost: 1.05–1.38× a hand-written `AGENTS.md`. Lead with "docs that stay correct" and governance, not "stops agents from being misled".
+
+**Revenue order:** paid setup and agent-readiness audits now. A hosted GitHub App (org-wide PR checks, priced per repo) once about 10 teams use the Action. Enterprise exports of the audit trail as compliance evidence after that. The CLI, MCP server and Action stay MIT.
 
 ## Needs by project type
 

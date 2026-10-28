@@ -2,7 +2,28 @@
 
 All notable changes to RepoCanon. Versions follow [semver](https://semver.org); before 1.0, minor versions may break.
 
-## 0.6.1 — unreleased
+## 0.7.0 — unreleased
+
+### Added
+- **Claims with trust tiers.** A rule bullet can name what proves it: `<!-- rc: anchor=src/money.js#toCents -->` (anchored: a hash of that symbol's body, stored in `.ai/canon.lock` by `stamp`, so the claim goes stale only when that code's logic changes, not on reformatting) or `<!-- rc: test=test/money.test.js#rejects floats -->` (enforced: the named test must exist). New `repocanon claims [--ci] [--json]`. `doctor` errors on broken claims and warns on stale ones; `rc_context` and the edit-time hook mark stale claims; `stamp` and `rc_stamp` lock claims for the docs they verify. The annotations are stripped from the AGENTS.md digest and hook output.
+- **Canon integrity lint.** `doctor` now fails on text in AGENTS.md, `.ai/` docs, skills and tool pointer files (CLAUDE.md, `.cursor/rules`, Copilot, Gemini, Windsurf, Cline) that steers the agent instead of informing it. It catches hidden characters (bidi overrides, zero-width marks, Unicode tag characters), "ignore previous instructions"-style overrides, rules that hide work from the user, fake `<system>` markers, and `curl … | sh`. A false positive can be silenced with `<!-- repocanon:allow-instruction -->` on that line.
+- `doctor` warns about an AGENTS.md, CLAUDE.md, GEMINI.md or rules file anywhere in the repo that git does not track, since a build step or dependency can plant one.
+- MCP writes (`rc_propose_adr`, `rc_checkpoint_state`) refuse the same patterns.
+- `secrets` (and so the pre-commit hook, including hooks installed earlier) also blocks unsafe instructions in staged agent docs and pointer files. `--json` keeps its shape; each finding now has `type: secret | instruction`.
+- **Rules at edit time.** The Claude Code plugin adds a `PreToolUse` hook (`repocanon agent-hook pre-edit`) on Read, Edit, Write, MultiEdit and NotebookEdit. The first time Claude reads or edits a file in a module, the hook adds that module's Invariants and Gotchas as context. Hook context reaches the model next to the tool's result, so firing on Read is what makes the rules arrive before the edit (at most ~300 tokens, once per module per session, labelled when the doc is stale). The rules no longer depend on the agent calling an MCP tool, which the benchmark showed headless agents never do.
+
+### Changed (entry file)
+- **A lighter AGENTS.md block.** It keeps the commands and the rules digest, then lists only the `.ai/` docs that have content (template-only docs are no longer linked), two rules, and "after a change: update a doc only if a rule, flow or decision changed". The read order and the mandatory Definition of Done are gone. The session briefing no longer gives a read order, and the end-of-turn nudge makes one ask instead of checkpoint + stamp + verify. Measured: 1.38× the cost of a hand-written AGENTS.md on the core suite (was 1.5×), with every run passing. Your AGENTS.md block is rewritten on the next `repocanon rules` or `init`.
+
+### Fixed
+- The end-of-turn hook no longer asks the agent to document modules that have no doc (such as the generic `src` or `tests` folders), and ignores test-only changes and Python caches. In the drift benchmark these nudges cost extra turns.
+
+### Benchmark
+- Cross-module drift (`node-cancel-xdrift`, buried under 12 commits): every condition followed the code, but RepoCanon agents fixed the stale doc in 6/6 measured runs and hand-written `AGENTS.md` agents in 0/3. The edit-time hook's stale flag now names the code that changed.
+- New drift suite (`node bench/run.js --suite drift`) and condition `repocanon-hooks`. Pilot (12 runs): every condition followed the changed code over the stale doc, so this design can't show a benefit from staleness warnings. See README › Benchmark.
+
+### Changed (format)
+- **Decisions are one file each.** `rc_propose_adr` writes `.ai/decisions/<date>-<slug>.md` with the id `D-<date>-<slug>` instead of adding a numbered `D-NNN` entry to `.ai/DECISIONS.md`. Two branches or agents recording decisions no longer collide on an id or conflict on merge. Existing `DECISIONS.md` entries are still read, count as duplicates, and can be superseded. The AGENTS.md rules digest lists both formats and now leaves out superseded decisions. If the digest conflicts after a merge, run `repocanon rules`.
 
 ### Changed
 - **Every command's terminal output was redesigned.** Each one shows a header, aligned rows with one set of symbols and words, a one-line verdict, and **Next**: the exact commands to run. `status` and `doctor` show a Freshness meter. `doctor` groups findings into Errors, Warnings and Info and adds a token-budget table. `sync` lists the files to read for each module and the `git diff` to inspect.
@@ -16,6 +37,7 @@ All notable changes to RepoCanon. Versions follow [semver](https://semver.org); 
 - `repocanon … | head` exits quietly instead of crashing when the pipe closes.
 
 ### Docs
+- README opens with an animated overview (`docs/assets/overview.gif`, 163 KB, built by `scripts/render-overview-gif.py`): what RepoCanon is, what it does and how it helps, with the benchmark's numbers. A three-line "In 30 seconds" summary follows it.
 - README: a terminal screenshot, real example output for `init`, `doctor`, `status`, `sync` and `setup` (checked by a test, so it can't drift), and a key to the output symbols.
 - New `docs/PUBLISHING.md`: the full release guide for npm, `mcp-publisher publish` to the MCP Registry, git tags, the GitHub release, the Action tag, optional CI automation, and troubleshooting.
 

@@ -1,0 +1,1 @@
+{ "fixture": "node-shop", "language": "JavaScript", "title": "Order cancellation after the warehouse took over restocking", "suite": "drift", "buryCommits": 12, "driftMessage": "warehouse: restock on order.cancelled so every stock return goes through the warehouse (OPS-52)" }
