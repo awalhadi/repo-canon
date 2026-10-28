@@ -2,7 +2,7 @@
 
 All notable changes to RepoCanon. Versions follow [semver](https://semver.org); before 1.0, minor versions may break.
 
-## 0.6.1 — unreleased
+## 0.7.0 — unreleased
 
 ### Added
 - **Canon integrity lint.** `doctor` now fails on text in AGENTS.md, `.ai/` docs, skills and tool pointer files (CLAUDE.md, `.cursor/rules`, Copilot, Gemini, Windsurf, Cline) that steers the agent instead of informing it. It catches hidden characters (bidi overrides, zero-width marks, Unicode tag characters), "ignore previous instructions"-style overrides, rules that hide work from the user, fake `<system>` markers, and `curl … | sh`. A false positive can be silenced with `<!-- repocanon:allow-instruction -->` on that line.
