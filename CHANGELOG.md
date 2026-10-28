@@ -19,6 +19,7 @@ All notable changes to RepoCanon. Versions follow [semver](https://semver.org); 
 - The end-of-turn hook no longer asks the agent to document modules that have no doc (such as the generic `src` or `tests` folders), and ignores test-only changes and Python caches. In the drift benchmark these nudges cost extra turns.
 
 ### Benchmark
+- Cross-module drift (`node-cancel-xdrift`, buried under 12 commits): every condition followed the code, but RepoCanon agents fixed the stale doc in 6/6 measured runs and hand-written `AGENTS.md` agents in 0/3. The edit-time hook's stale flag now names the code that changed.
 - New drift suite (`node bench/run.js --suite drift`) and condition `repocanon-hooks`. Pilot (12 runs): every condition followed the changed code over the stale doc, so this design can't show a benefit from staleness warnings. See README › Benchmark.
 
 ### Changed (format)

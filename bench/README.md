@@ -90,6 +90,8 @@ Each drift task copies a core task and adds a policy value the docs describe cor
 
 **Pilot result (12 runs, $7.42, [results/2026-10-28-drift](results/2026-10-28-drift/summary.md)):** every run in every condition followed the code. The changed value sits next to the code the agent edits, so it reads it and trusts it. This design doesn't separate the conditions, and the 5-run version was not run. A useful drift puts the changed fact where the agent wouldn't otherwise look.
 
+**Cross-module round (27 runs, $10.75):** `node-cancel-xdrift` moves the fact into another module (restocking moves from `cancelOrder` to a warehouse listener), with `buryCommits: 12` so the drift isn't the newest commit, and a `docFixed` diagnostic (the stale sentence is gone from every knowledge file after the run). Every run followed the code. RepoCanon runs fixed the stale doc 6/6, `AGENTS.md` runs 0/3.
+
 Path and command linters for agent docs (etymd, agentslint and others) were not run as a condition. In these tasks every path and command in the doc still exists, so they have nothing to report by construction.
 
 ## Threats to validity

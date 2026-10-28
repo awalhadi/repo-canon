@@ -524,7 +524,7 @@ Each of 4 drift tasks verifies the docs, then commits a change to one value they
 
 - **The stale doc didn't mislead the agent.** When the changed value sits in a file the agent reads for the task, `claude-sonnet-5-5` trusts the code without being told. This design can't show a benefit from staleness warnings, so the planned 60-run version was not run.
 - **The hooks fired** (every 0.7 run received its module's rules) **and cost more**, partly because the end-of-turn hook asked agents to document folders that had no doc. That is fixed; see the cost round below.
-- A drift that could separate the conditions needs the changed fact to be somewhere the agent wouldn't otherwise look. That is the next design.
+- A drift that could separate the conditions needs the changed fact to be somewhere the agent wouldn't otherwise look. See the cross-module round below.
 
 Raw results: [bench/results/2026-10-28-drift/](bench/results/2026-10-28-drift/summary.md).
 
@@ -542,6 +542,21 @@ The pilot's tool counts traced the extra cost to two instructions in `AGENTS.md`
 - **The remaining gap is doc maintenance, not reading.** About two extra edits per run come from the end-of-turn hook asking the agent to update the module doc it worked in. A hand-written `AGENTS.md` never does that work, so this is the price of docs that stay current, and the target of ≤1.2× was not met.
 
 Raw results: [bench/results/2026-10-28-cost/](bench/results/2026-10-28-cost/summary.md) and [2026-10-28-cost2/](bench/results/2026-10-28-cost2/summary.md).
+
+### Cross-module drift: the doc names the wrong place, and the fix lives in another module
+
+`node-cancel-xdrift`: the docs say `cancelOrder` restocks and the warehouse listeners only record shipments. A later commit moves restocking into the warehouse listener on `order.cancelled`. Following the doc restocks twice. Three rounds of 9 runs each (3 per condition): the drift as the newest commit, then buried under 12 unrelated commits, then the same with a grader check of the docs afterwards.
+
+| Condition | Followed the code | Fixed the stale doc (measured, last round) | Mean cost (last round) |
+|---|---|---|---|
+| Hand-written `AGENTS.md`, now stale | 9/9 | **0/3** | $0.37 |
+| RepoCanon 0.6 | 9/9 | **3/3** | $0.38 |
+| RepoCanon 0.7 with hooks | 9/9 | **3/3** | $0.41 |
+
+- **Correctness: no difference.** Every run, in every condition, found the listener and didn't restock twice. The agents read the code, the recent history and their own failing tests, and trusted those over the doc.
+- **Doc upkeep: a clear difference.** RepoCanon agents corrected the wrong sentence in every run. `AGENTS.md` agents never did: the doc that misled nobody this time is still wrong for the next agent and for people. Earlier rounds, judged from the agents' own summaries, agree (RepoCanon 12/12, `AGENTS.md` 2/6).
+- **Cost on this task was close**, 1.05–1.13× `AGENTS.md`.
+- Small samples (3 runs per cell); the numbers show a direction, not a rate. Raw results: [xdrift](bench/results/2026-10-28-xdrift/summary.md), [buried](bench/results/2026-10-28-xdrift-buried/summary.md), [doc check](bench/results/2026-10-28-xdrift-docfix/summary.md).
 
 ## How it compares
 

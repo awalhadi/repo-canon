@@ -83,6 +83,8 @@ Freshness and reference checking is no longer rare, so it can't be the headline.
 
 **Benchmark v2 must be fair.** Compare against a hand-written AGENTS.md *plus* a reference linter, not against stale docs alone, and target no more than 1.1× the cost of AGENTS.md (today about 1.5×).
 
+**Benchmark evidence (2026-10-28, 112 runs):** writing the rules down is what makes agents correct (v1: 8% → 100%). A strong model doesn't follow a stale doc into a wrong implementation in a small repo: across three drift designs every condition followed the code. What RepoCanon measurably adds is **doc upkeep**: its agents fixed the stale doc 6/6, `AGENTS.md` agents 0/3. Cost: 1.05–1.38× a hand-written `AGENTS.md`. Lead with "docs that stay correct" and governance, not "stops agents from being misled".
+
 **Revenue order:** paid setup and agent-readiness audits now. A hosted GitHub App (org-wide PR checks, priced per repo) once about 10 teams use the Action. Enterprise exports of the audit trail as compliance evidence after that. The CLI, MCP server and Action stay MIT.
 
 ## Needs by project type
