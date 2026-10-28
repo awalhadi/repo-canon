@@ -65,6 +65,12 @@ const COMMANDS = [
     examples: [['npx repocanon stamp billing', 'after updating .ai/modules/billing.md'], ['npx repocanon stamp CONVENTIONS', 'a core doc']]
   },
   {
+    name: 'claims', group: 'daily', summary: 'Rules tied to code or tests: enforced, anchored, stale or broken',
+    usage: 'repocanon claims [--ci] [--json]',
+    flags: [['--ci', 'exit 1 on stale claims too, not just broken ones']],
+    examples: [['npx repocanon claims', 'which rules still match the code']]
+  },
+  {
     name: 'doctor', group: 'daily', summary: 'Check the docs: broken paths, secrets, size, stale rules, token budget',
     usage: 'repocanon doctor [--ci] [--strict] [--format=github] [--json]',
     flags: [
@@ -130,7 +136,7 @@ const COMMANDS = [
   },
   {
     name: 'agent-hook', group: 'hidden', summary: 'Output for agent hooks (used by the Claude Code plugin)',
-    usage: 'repocanon agent-hook <session-start|stop>', flags: [], examples: []
+    usage: 'repocanon agent-hook <session-start|stop|pre-edit>', flags: [], examples: []
   }
 ];
 

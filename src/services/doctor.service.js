@@ -14,6 +14,7 @@ const { scanInjections, findUntrackedInstructionFiles, formatIntegrityFinding } 
 const { planRules, getPendingRules } = require('./rules.service');
 const { planSkills, getPendingSkills, getSkillProblems } = require('./skills.service');
 const { getFreshnessScore } = require('./score.service');
+const { getClaims, getClaimFindings } = require('./claims.service');
 
 const MAX_INFERABLE_PER_DOC = 5;
 const {
@@ -148,6 +149,11 @@ function runDoctor(root) {
   }
   for (const rel of findUntrackedInstructionFiles(root)) {
     addFinding('warn', formatIntegrityFinding(rel, { kind: 'untracked' }), { file: rel });
+  }
+
+  // A claim names the code or test that proves it: a missing one is an error, a changed one a warning
+  for (const { level, msg, file, line } of getClaimFindings(getClaims(root).claims)) {
+    addFinding(level, msg, { file, line });
   }
 
   const pendingRules = getPendingRules(planRules(root));

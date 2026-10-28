@@ -5,6 +5,7 @@ All notable changes to RepoCanon. Versions follow [semver](https://semver.org); 
 ## 0.7.0 — unreleased
 
 ### Added
+- **Claims with trust tiers.** A rule bullet can name what proves it: `<!-- rc: anchor=src/money.js#toCents -->` (anchored: a hash of that symbol's body, stored in `.ai/canon.lock` by `stamp`, so the claim goes stale only when that code's logic changes, not on reformatting) or `<!-- rc: test=test/money.test.js#rejects floats -->` (enforced: the named test must exist). New `repocanon claims [--ci] [--json]`. `doctor` errors on broken claims and warns on stale ones; `rc_context` and the edit-time hook mark stale claims; `stamp` and `rc_stamp` lock claims for the docs they verify. The annotations are stripped from the AGENTS.md digest and hook output.
 - **Canon integrity lint.** `doctor` now fails on text in AGENTS.md, `.ai/` docs, skills and tool pointer files (CLAUDE.md, `.cursor/rules`, Copilot, Gemini, Windsurf, Cline) that steers the agent instead of informing it. It catches hidden characters (bidi overrides, zero-width marks, Unicode tag characters), "ignore previous instructions"-style overrides, rules that hide work from the user, fake `<system>` markers, and `curl … | sh`. A false positive can be silenced with `<!-- repocanon:allow-instruction -->` on that line.
 - `doctor` warns about an AGENTS.md, CLAUDE.md, GEMINI.md or rules file anywhere in the repo that git does not track, since a build step or dependency can plant one.
 - MCP writes (`rc_propose_adr`, `rc_checkpoint_state`) refuse the same patterns.

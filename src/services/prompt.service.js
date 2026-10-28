@@ -412,7 +412,7 @@ function buildFillPrompt(root, options = {}) {
     '',
     '### Phase 4 · Module docs (top 3)',
     '- Rank candidates in §2.7 by **hotspot presence × business criticality**; pick 3. Create `.ai/modules/<slug>.md` from `_TEMPLATE.md`.',
-    '- Fill `code_paths` (fix them if §2.7 is wrong), Purpose, Invariants, Flow (steps, no code), Code map (`path: responsibility`), Gotchas (what the code does not make obvious).',
+    '- Fill `code_paths` (fix them if §2.7 is wrong), Purpose, Invariants, Flow (steps, no code), Code map (`path: responsibility`), Gotchas (what the code does not make obvious). For a rule that one function or test proves, add `<!-- rc: anchor=path#symbol -->` or `<!-- rc: test=path#test name -->` so it is checked on its own.',
     '**Done when** — “change feature X” can be answered by that one doc + the files in its code map.'
   );
 

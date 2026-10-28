@@ -215,6 +215,29 @@ RepoCanon reads pnpm, npm, yarn and bun workspaces, lerna, nx (`project.json`), 
 
 `.ai/INDEX.md` gets a Workspace table (package, path, app or package, stack), and the fill brief says it's a monorepo. To split differently, set `moduleRoots` or `modules`, or a fixed `preset`, in `.repocanon.json`; any of those turns the workspace split off.
 
+## Claims: rules tied to the code that proves them
+
+A plain rule in a doc is only as fresh as the whole doc. Annotate the rules that matter, and RepoCanon checks each one on its own:
+
+```markdown
+## Invariants
+- Money is integer cents. <!-- rc: anchor=src/money/cents.js#toCents -->
+- Floats are rejected. <!-- rc: test=test/money.test.js#rejects floats -->
+- Never round twice.
+```
+
+| Tier | Written as | Checked how | Goes wrong when |
+|---|---|---|---|
+| **enforced** | `test=path#test name` | the test file exists and contains that name; CI runs it | the test is deleted or renamed → **broken** |
+| **anchored** | `anchor=path#symbol` (`Class.method` works; a bare path anchors the whole file) | `stamp` stores a hash of the symbol's body in `.ai/canon.lock`; reformatting doesn't change it | the body's logic changes → **stale**; the symbol is gone → **broken** |
+| **asserted** | a plain bullet | the doc's own `verified_at` | — |
+
+- `repocanon claims` lists every claim with its tier and state. It exits 1 on a broken claim, or on a stale one with `--ci`.
+- `doctor` reports broken claims as errors and stale ones as warnings.
+- `rc_context` and the edit-time hook mark a stale claim on its doc, even when the doc as a whole looks fresh.
+- `stamp <doc>` (and `rc_stamp`) lock the claims of the docs it verifies. A claim whose code has uncommitted changes isn't locked.
+- Hashes are computed by the tool, never written by hand. Symbol lookup is pattern-based (JS/TS, Python, Go, Rust, PHP, Java-style methods), not a parser; anchor to the file if a symbol isn't found.
+
 ## Daily workflow
 
 After you or your agent change code:
@@ -424,6 +447,7 @@ jobs:
 | `stamp <name…> \| --all [--force]` | Mark docs verified at the current commit; refuses when their code has uncommitted changes |
 | `prompt fill [--compact]` | Brief to paste into an agent so it fills the docs |
 | `prompt update` | Brief for updating docs after code changes |
+| `claims [--ci] [--json]` | Rules tied to code (`anchor=`) or tests (`test=`): tier and state of each; exits 1 on a broken claim (and a stale one with `--ci`) |
 | `secrets [--staged] [--json] [--quiet]` | Scan `AGENTS.md`, `.ai/` and tool pointer files (or their staged versions) for API keys, tokens and passwords, and for unsafe instructions (hidden characters, instruction overrides, `curl … \| sh`); exits 1 if any are found |
 | `hook` | Install the pre-commit hook: warns on undocumented code changes, blocks secrets and unsafe instructions in docs |
 | `rules [--check] [--json]` | Write per-module scoped rule files (Cursor, Copilot, optional nested `AGENTS.md`); `--check` exits 1 if out of date |
@@ -495,7 +519,7 @@ Method, tasks and how to rerun it: [bench/README.md](bench/README.md). Raw resul
 | Hand-written `CLAUDE.md` / rules files | one file per tool | no | no | yes |
 | Repo packers (e.g. Repomix) | yes | n/a — packs raw code | partly | yes |
 | Agent memory banks | usually one tool | no | no | varies |
-| **RepoCanon** | **yes** | **yes** (`verified_at`, `code_paths`) | **yes** | **yes** |
+| **RepoCanon** | **yes** | **yes** (`verified_at`, `code_paths`, per-claim hashes) | **yes** | **yes** |
 
 Repo packers show an agent *what the code is*. RepoCanon records what the code can't say — rules, decisions, boundaries — and tells you when that record goes stale.
 

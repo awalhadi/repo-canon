@@ -8,6 +8,7 @@ const { loadConfig } = require('../core/config');
 const { detectProject } = require('../core/detector');
 const { estimateTokens } = require('../core/tokens');
 const { listDecisions, LEGACY_DECISIONS_DOC } = require('../core/decisions');
+const { ANNOTATION } = require('../core/claims');
 
 const TEMPLATES_DIR = path.resolve(__dirname, '../../templates');
 const DIGEST_TOKEN_BUDGET = 700;
@@ -23,7 +24,7 @@ function getAuthoredBullets(text) {
     .split('\n')
     .map(line => line.trim())
     .filter(line => /^[-*] \S/.test(line) && !/\bTODO\b/.test(line) && !/^[-*] \S+:\s*$/.test(line))
-    .map(line => `- ${line.slice(2)}`);
+    .map(line => `- ${line.slice(2).replace(ANNOTATION, '').trim()}`);
 }
 
 /**

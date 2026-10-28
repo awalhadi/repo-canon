@@ -52,7 +52,7 @@ Full strategy and market analysis: [STRATEGY.md](STRATEGY.md) (local copy) · [s
 - Both knowledge formats scored 100%, so this task set can't tell them apart. The next round should test drift (docs that went stale), large repos, and several tools.
 
 ## Phase 3 — v0.7 Moat (3–6 months)
-- [ ] **P3.1** Anchored invariants, checked claims (paths, symbols, commands, env keys), `rc_impact` tool. *(Shape updated 2026-10-28: claim IDs with trust tiers `enforced` / `anchored` / `asserted`; tool-computed hashes in a generated `.ai/canon.lock`; staleness per claim instead of per file; tier and age shown on every `rc_context` section. See STRATEGY › Update 2026-10-28.)*
+- [~] **P3.1** Anchored invariants, checked claims (paths, symbols, commands, env keys), `rc_impact` tool. *(Shape updated 2026-10-28: claim IDs with trust tiers `enforced` / `anchored` / `asserted`; tool-computed hashes in a generated `.ai/canon.lock`; staleness per claim instead of per file; tier and age shown on every `rc_context` section. See STRATEGY › Update 2026-10-28.)* *(Done on `feat/governance`: `anchor=`/`test=` annotations, tiers, `.ai/canon.lock`, `repocanon claims`, doctor/context/hook/stamp wiring. Still open: checked paths/commands/env keys as claims, `rc_impact`, per-claim staleness replacing file-level staleness for fully anchored docs.)*
 - [ ] **P3.2** Boundary rules: zero-dep import checker + generated dependency-cruiser / eslint-boundaries configs.
 - [ ] **P3.3** `context --for-diff` with modules one import away; optional tree-sitter plugin.
 - [ ] **P3.4** Gotcha mining from git history (reverts, fix commits, hotspots); STATE handoff packet.

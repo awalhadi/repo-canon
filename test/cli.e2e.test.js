@@ -540,3 +540,67 @@ test('entry digest: AGENTS.md carries the rules and decisions, follows them, and
   assert.match(big, /… more in/);
   assert.ok(require('../src/core/tokens').estimateTokens(big) <= 300);
 });
+
+test('claims: unlocked → stamped fresh → stale on a logic change, not a reformat → broken when the code or test goes', () => {
+  const d = repo({
+    'package.json': '{"name":"shop","scripts":{"test":"node --test"}}',
+    '.repocanon.json': JSON.stringify({ modules: { money: ['src/money'] } }),
+    'src/money/cents.js': 'export function toCents(x) {\n  return Math.round(x * 100);\n}\n',
+    'test/money.test.js': "test('rejects floats', () => {});\n"
+  });
+  cf(d, 'init', '--targets=claude');
+  fs.writeFileSync(path.join(d, '.ai/modules/money.md'), [
+    '---', 'module: money', 'verified_at:', 'code_paths: [src/money]', '---', '# Money', '## Invariants',
+    '- Money is integer cents. <!-- rc: anchor=src/money/cents.js#toCents -->',
+    '- Floats are rejected. <!-- rc: test=test/money.test.js#rejects floats -->',
+    '- Never round twice.',
+    '- Outside the repo. <!-- rc: anchor=../etc/passwd -->', ''
+  ].join('\n'));
+  g(d, 'add', '-A'); g(d, 'commit', '-qm', 'init');
+  const claims = () => JSON.parse(cf(d, 'claims', '--json').stdout);
+  const state = id => claims().claims.find(c => c.id === id).state;
+
+  let report = claims();
+  assert.deepEqual(report.claims.map(c => [c.id, c.tier, c.state]), [
+    ['money/money-is-integer-cents', 'anchored', 'unlocked'],
+    ['money/floats-are-rejected', 'enforced', 'fresh'],
+    ['money/outside-the-repo', 'anchored', 'broken']
+  ]);
+  assert.equal(report.asserted, 1);
+  assert.equal(cf(d, 'claims').status, 1);                                  // a broken claim fails
+  const doctor = JSON.parse(cf(d, 'doctor', '--json').stdout).findings;
+  assert.ok(doctor.some(f => f.level === 'error' && /claim money\/outside-the-repo broken: anchor must be a repo-relative path/.test(f.msg)));
+
+  fs.writeFileSync(path.join(d, '.ai/modules/money.md'), fs.readFileSync(path.join(d, '.ai/modules/money.md'), 'utf8').replace(/- Outside the repo.*\n/, ''));
+  g(d, 'commit', '-qam', 'drop bad claim');
+  const stamp = cf(d, 'stamp', 'money');
+  assert.match(stamp.stdout, /\.ai\/canon\.lock\s+1 claim anchor\(s\) locked/);
+  assert.match(fs.readFileSync(path.join(d, '.ai/canon.lock'), 'utf8'), /^money\/money-is-integer-cents\tsrc\/money\/cents\.js#toCents\t[0-9a-f]{12}$/m);
+  g(d, 'add', '-A'); g(d, 'commit', '-qm', 'stamp');
+  assert.equal(state('money/money-is-integer-cents'), 'fresh');
+  assert.match(cf(d, 'claims').stdout, /1 enforced · 1 anchored · 1 asserted/);
+
+  const code = path.join(d, 'src/money/cents.js');
+  fs.writeFileSync(code, 'export function toCents(x) {\n\n    return Math.round(x  *  100);\n}\n'); g(d, 'commit', '-qam', 'fmt');
+  assert.equal(state('money/money-is-integer-cents'), 'fresh');            // reformat: still fresh
+
+  fs.writeFileSync(code, 'export function toCents(x) {\n  return Math.floor(x * 100);\n}\n'); g(d, 'commit', '-qam', 'floor');
+  assert.equal(state('money/money-is-integer-cents'), 'stale');
+  assert.equal(cf(d, 'claims').status, 0); assert.equal(cf(d, 'claims', '--ci').status, 1);
+  const pack = JSON.parse(cf(d, 'context', '--files=src/money/cents.js', '--json').stdout);
+  assert.match(pack.text, /> ⚠ claim "Money is integer cents\." is stale: src\/money\/cents\.js#toCents changed/);
+  const hook = cp.spawnSync('node', [CLI, 'agent-hook', 'pre-edit'], { cwd: d, encoding: 'utf8', input: JSON.stringify({ tool_input: { file_path: code } }) });
+  const context = JSON.parse(hook.stdout).hookSpecificOutput.additionalContext;
+  assert.match(context, /- \(stale: its code changed — check the code\) Money is integer cents\./);
+  assert.doesNotMatch(context, /<!-- rc:/);                                 // annotations never cost the agent tokens
+
+  fs.writeFileSync(code, 'export function toCents(x) {\n  return 0;\n}\n');
+  assert.match(cf(d, 'stamp', 'money', '--force').stdout, /claim money\/money-is-integer-cents\s+not locked: src\/money\/cents\.js has uncommitted changes/);
+
+  fs.writeFileSync(code, 'export const other = 1;\n');
+  fs.writeFileSync(path.join(d, 'test/money.test.js'), "test('accepts floats', () => {});\n");
+  report = claims();
+  assert.match(report.claims[0].detail, /symbol toCents not found in src\/money\/cents\.js/);
+  assert.match(report.claims[1].detail, /test "rejects floats" not found/);
+  assert.equal(cf(d, 'doctor', '--ci').status, 1);
+});

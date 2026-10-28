@@ -2,6 +2,7 @@
 
 const path = require('path');
 const { stampDocs } = require('../../services/status.service');
+const { lockClaims } = require('../../services/claims.service');
 const { CommandError } = require('../../core/errors');
 
 /**
@@ -27,11 +28,16 @@ function handleStamp(context) {
     throw new CommandError(`no doc named ${result.unknown.join(', ')}: nothing stamped`, 1, `known docs: ${knownList}`);
   }
 
+  // Verifying a doc vouches for its claims: record the code they were checked against
+  const claims = lockClaims(root, result.stamped);
+
   const { symbol } = ui;
   ui.header('stamp', path.basename(root));
   ui.rows([
     ...result.stamped.map(doc => [symbol.ok, doc, `verified at ${result.head}`]),
-    ...result.refused.map(({ doc }) => [symbol.error, doc, 'not stamped'])
+    ...result.refused.map(({ doc }) => [symbol.error, doc, 'not stamped']),
+    ...(claims.locked.length ? [[symbol.ok, '.ai/canon.lock', `${claims.locked.length} claim anchor(s) locked`]] : []),
+    ...claims.refused.map(({ id, reason }) => [symbol.warn, `claim ${id}`, `not locked: ${reason}`])
   ]);
   ui.verdict({
     errors: result.refused.length,

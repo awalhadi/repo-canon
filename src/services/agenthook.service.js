@@ -11,6 +11,8 @@ const { getDocStatus } = require('./status.service');
 const { getModuleMap, getFreshnessLabel } = require('./pack.service');
 const { planRules, getPendingRules } = require('./rules.service');
 const { readSectionBullets } = require('./memory.service');
+const { getClaims } = require('./claims.service');
+const { ANNOTATION } = require('../core/claims');
 
 const MAX_NAMED = 3;
 const EDIT_CONTEXT_TOKENS = 300;
@@ -186,11 +188,20 @@ function getEditContext(root, input = {}) {
     .filter(b => !templateBullets.has(b) && !/\bTODO\b/.test(b) && b.trim() !== '-');
   if (!bullets.length || !markShown(input.session_id, mod.slug)) return null;
 
+  // A claim whose code changed or vanished is shown as such, so the agent checks the code
+  const claimState = new Map(getClaims(root).claims.filter(c => c.doc === mod.doc).map(c => [c.text, c.state]));
+  const shown = bullets.map(bullet => {
+    const text = bullet.replace(ANNOTATION, '').replace(/^- /, '').trim();
+    const state = claimState.get(text);
+    const flag = state === 'stale' ? '(stale: its code changed — check the code) ' : state === 'broken' ? '(broken: its code or test is gone) ' : '';
+    return `- ${flag}${text}`;
+  });
+
   const status = getDocStatus(root).find(row => row.doc === mod.doc);
   const label = getFreshnessLabel(status);
   const kept = [`RepoCanon rules for ${rel} (module ${mod.slug}, from ${mod.doc}):`, ...(label ? [label] : [])];
   const more = `- … more in ${mod.doc}`;
-  for (const bullet of bullets) {
+  for (const bullet of shown) {
     if (estimateTokens([...kept, bullet, more].join('\n')) > EDIT_CONTEXT_TOKENS) {
       kept.push(more);
       break;

@@ -1070,3 +1070,49 @@ test('deep presets: App Router, flat Laravel, FastAPI layers, layered Go, Nx-sty
     'src/app/app.module.ts', 'src/app/users/users.module.ts', 'src/app/billing/billing.module.ts'
   ], ['NestJS']), ['billing:src/app/billing/', 'users:src/app/users/']);       // app.module.ts shell skipped
 });
+
+test('claims core: definitions found across stacks, calls never mistaken for them, Outer.inner scoped', () => {
+  const { locateSymbol } = require('../src/core/claims');
+  const sources = {
+    'toCents': ['const a = toCents(1);', 'return toCents(2)', 'export function toCents(x) {', '  if (x) {', '    return Math.round(x * 100);', '  }', '}', 'function other() {}'],
+    'Money.to_cents': ['x = to_cents(1)', 'class Money:', '    def to_cents(self, x):', '        return round(x * 100)', '', '    def other(self):', '        pass'],
+    'ToCents': ['func (m *Money) ToCents(x float64) int {', '\treturn int(x * 100)', '}'],
+    'to_cents': ['pub fn to_cents(x: f64) -> i64 {', '    (x * 100.0) as i64', '}'],
+    'Billing.refund': ['class Billing {', '    public function refund(int $amount): void', '    {', '        $this->x();', '    }', '    public function other() {}', '}'],
+    'Svc.cancel': ['class Svc {', '  cancel(id: string): void { this.x(); }', '  async cancel2() {}', '}']
+  };
+  const expected = { 'toCents': [2, 6], 'Money.to_cents': [2, 3], 'ToCents': [0, 2], 'to_cents': [0, 2], 'Billing.refund': [1, 4], 'Svc.cancel': [1, 1] };
+  for (const [symbol, lines] of Object.entries(sources)) {
+    const region = locateSymbol(lines.join('\n'), symbol);
+    assert.deepEqual(region && [region.start, region.end], expected[symbol], symbol);
+  }
+  assert.equal(locateSymbol('toCents(1);\nreturn toCents(2)', 'toCents'), null);
+  assert.equal(locateSymbol('class A {\n}\nfunction inner() {}', 'A.inner'), null);   // only inside A
+});
+
+test('claims core: the hash ignores formatting but not logic; annotations parse with ids and problems', () => {
+  const { locateSymbol, hashRegion, parseClaims, parseLock, renderLock } = require('../src/core/claims');
+  const hash = src => hashRegion(src, locateSymbol(src, 'toCents'));
+  const base = 'function toCents(x) {\n  return Math.round(x * 100);\n}\nconst after = 1;';
+  assert.equal(hash(base), hash('function toCents(x) {\n\n      return   Math.round(x * 100);\n}\nconst after = 2;'));
+  assert.notEqual(hash(base), hash(base.replace('100', '1000')));
+
+  const claims = parseClaims([
+    '## Invariants',
+    '- Money is integer cents. <!-- rc: anchor=src/m.js#toCents -->',
+    '- plain rule',
+    '- Floats rejected <!-- rc: test=t.js#rejects floats; id=no-float -->',
+    '- typo <!-- rc: anchr=x -->'
+  ].join('\n'), 'billing');
+  assert.deepEqual(claims.map(c => [c.id, c.line, c.text]), [
+    ['billing/money-is-integer-cents', 2, 'Money is integer cents.'],
+    ['billing/no-float', 4, 'Floats rejected'],
+    ['billing/typo', 5, 'typo']
+  ]);
+  assert.deepEqual(claims[0].anchor, { path: 'src/m.js', name: 'toCents' });
+  assert.deepEqual(claims[1].test, { path: 't.js', name: 'rejects floats' });
+  assert.match(claims[2].problems[0], /unknown annotation "anchr=x"/);
+
+  const lock = new Map([['b/z', { anchor: 'x.js', hash: '2' }], ['a/y', { anchor: 'y.js#f', hash: '1' }]]);
+  assert.deepEqual([...parseLock(renderLock(lock))], [...lock].sort());
+});

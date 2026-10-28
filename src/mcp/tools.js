@@ -7,6 +7,7 @@ const { getDocStatus } = require('../services/status.service');
 const { buildFillPrompt } = require('../services/prompt.service');
 const { syncProject, formatSyncReport } = require('../services/sync.service');
 const { stampDocs } = require('../services/status.service');
+const { lockClaims } = require('../services/claims.service');
 const { proposeAdr, checkpointState, verifyKnowledge } = require('../services/memory.service');
 
 const READ_ONLY = { readOnlyHint: true, openWorldHint: false };
@@ -244,9 +245,12 @@ function executeTool(root, toolName, args = {}) {
       if (result.unknown.length) {
         throw new Error(`no doc named ${result.unknown.join(', ')} — nothing stamped. Known: ${result.known.join(', ')}`);
       }
+      const claims = lockClaims(root, result.stamped);
       const lines = [
         ...result.stamped.map(doc => `✓ ${doc} verified at ${result.head} (verified_by: agent)`),
-        ...result.refused.map(({ doc, reason }) => `✗ ${doc}: ${reason.replace(' (or --force)', '')}`)
+        ...result.refused.map(({ doc, reason }) => `✗ ${doc}: ${reason.replace(' (or --force)', '')}`),
+        ...(claims.locked.length ? [`✓ ${claims.locked.length} claim anchor(s) locked in .ai/canon.lock`] : []),
+        ...claims.refused.map(({ id, reason }) => `✗ claim ${id} not locked: ${reason}`)
       ];
       if (!result.stamped.length) throw new Error(lines.join('\n'));
       return lines.join('\n');
