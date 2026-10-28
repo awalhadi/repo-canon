@@ -1,0 +1,35 @@
+{
+  "env": {
+    "date": "2026-10-28",
+    "cli": "2.1.178",
+    "model": "claude-sonnet-5-5",
+    "modelAlias": "claude-sonnet-5-5",
+    "node": "v22.21.1",
+    "os": "Linux 6.8.0-147-generic",
+    "budgetPerRunUsd": 1.5,
+    "timeoutMin": 15
+  },
+  "summary": [
+    {
+      "condition": "repocanon-hooks",
+      "runs": 12,
+      "passes": 12,
+      "passRate": {
+        "rate": 1,
+        "low": 0.7574992425007574,
+        "high": 1
+      },
+      "ruleAdherence": 1,
+      "medianTokens": 341931,
+      "iqrTokens": [
+        296367.5,
+        433968.5
+      ],
+      "meanCostUsd": 0.5613085,
+      "totalCostUsd": 6.735702,
+      "medianTurns": 23,
+      "usedKnowledge": 0.9166666666666666,
+      "medianSeconds": 38.303
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "env": {
+    "date": "2026-10-28",
+    "cli": "2.1.178",
+    "model": "claude-sonnet-5-5",
+    "modelAlias": "claude-sonnet-5-5",
+    "node": "v22.21.1",
+    "os": "Linux 6.8.0-147-generic",
+    "budgetPerRunUsd": 1.5,
+    "timeoutMin": 15
+  },
+  "summary": [
+    {
+      "condition": "agents-md",
+      "runs": 16,
+      "passes": 16,
+      "passRate": {
+        "rate": 1,
+        "low": 0.8063865817272802,
+        "high": 1
+      },
+      "ruleAdherence": 1,
+      "medianTokens": 199458,
+      "iqrTokens": [
+        193923,
+        237410
+      ],
+      "meanCostUsd": 0.387759,
+      "totalCostUsd": 6.204144,
+      "medianTurns": 15,
+      "usedKnowledge": 0,
+      "medianSeconds": 26.7425
+    },
+    {
+      "condition": "repocanon-hooks",
+      "runs": 16,
+      "passes": 16,
+      "passRate": {
+        "rate": 1,
+        "low": 0.8063865817272802,
+        "high": 1
+      },
+      "ruleAdherence": 1,
+      "medianTokens": 300049,
+      "iqrTokens": [
+        274732.25,
+        347993.25
+      ],
+      "meanCostUsd": 0.53359203125,
+      "totalCostUsd": 8.5374725,
+      "medianTurns": 18.5,
+      "usedKnowledge": 0.9375,
+      "medianSeconds": 30.6145
+    }
+  ]
+}

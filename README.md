@@ -523,10 +523,25 @@ Each of 4 drift tasks verifies the docs, then commits a change to one value they
 | RepoCanon 0.7 with hooks and claim anchors | 4/4 | 4 / 0 | $0.77 |
 
 - **The stale doc didn't mislead the agent.** When the changed value sits in a file the agent reads for the task, `claude-sonnet-5-5` trusts the code without being told. This design can't show a benefit from staleness warnings, so the planned 60-run version was not run.
-- **The hooks fired** (every 0.7 run received its module's rules) **and cost more**, partly because the end-of-turn hook asked agents to document folders that had no doc. That is fixed; the cost hasn't been re-measured yet.
+- **The hooks fired** (every 0.7 run received its module's rules) **and cost more**, partly because the end-of-turn hook asked agents to document folders that had no doc. That is fixed; see the cost round below.
 - A drift that could separate the conditions needs the changed fact to be somewhere the agent wouldn't otherwise look. That is the next design.
 
 Raw results: [bench/results/2026-10-28-drift/](bench/results/2026-10-28-drift/summary.md).
+
+### Cost round: a lighter entry file (0.7)
+
+The pilot's tool counts traced the extra cost to two instructions in `AGENTS.md`: a read order (5–10 knowledge-doc reads per run) and a mandatory Definition of Done (9–15 edits). 0.7 replaced both: the entry lists only docs that have content, and asks for doc edits only when a rule, flow or decision changed. 44 runs on 2026-10-28, `claude-sonnet-5-5`:
+
+| | Passed | Mean cost | vs `AGENTS.md` | Knowledge-doc reads | Edits |
+|---|---|---|---|---|---|
+| Hand-written `AGENTS.md`, core suite | 16/16 | $0.39 | 1× | 0 | 4.4 |
+| RepoCanon 0.7 with hooks, core suite | 24/24 | $0.54 | **1.38×** (was 1.5× in v1) | 1.1–1.8 (was 6+) | 6.3 |
+| RepoCanon 0.7 with hooks, drift suite | 4/4 | $0.59 | 1.33× (was 1.7×) | 1.5 | 7.0 |
+
+- **Correctness held** without the read order: every run passed, including the core tasks whose rules live only in module docs.
+- **The remaining gap is doc maintenance, not reading.** About two extra edits per run come from the end-of-turn hook asking the agent to update the module doc it worked in. A hand-written `AGENTS.md` never does that work, so this is the price of docs that stay current, and the target of ≤1.2× was not met.
+
+Raw results: [bench/results/2026-10-28-cost/](bench/results/2026-10-28-cost/summary.md) and [2026-10-28-cost2/](bench/results/2026-10-28-cost2/summary.md).
 
 ## How it compares
 

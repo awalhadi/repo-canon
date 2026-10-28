@@ -12,9 +12,9 @@ Full strategy and market analysis: [STRATEGY.md](STRATEGY.md) (local copy) · [s
 | 0 · Trust & identity | 4 | 4 | yes — 30/30 tests green |
 | 1 · v0.5 Lean, scoped, distributed | 7 | 7 | yes — 5.0 s from a cold npx cache to a working `rc_context` (2026-10-27) |
 | 2 · v0.6 Proof & teams | 5 | 5 | yes — benchmark published (160 runs, 2026-10-27) |
-| 3 · v0.7 Moat | 2 | 7 | no |
+| 3 · v0.7 Moat | 3 | 8 | no |
 | 4 · v1.0+ Platform | 0 | 4 | no |
-| **Total** | **18** | **27** | |
+| **Total** | **19** | **28** | |
 
 ## Phase 0 — Trust & identity (week 1)
 - [x] **P0.1** Remove ContextForge (`bin/contextforge.js`, `templates/contextforge.json`, `cf_*` aliases, legacy block markers, JSDoc headers); claim `repocanon` on npm, MCP registry, Open VSX. *(npm `repocanon@0.5.0` published 2026-10-27. 0.5.1 prepared and tagged locally 2026-10-27 (MCP Registry listing ships with it once published); Open VSX comes with P4.1.)*
@@ -58,6 +58,7 @@ Full strategy and market analysis: [STRATEGY.md](STRATEGY.md) (local copy) · [s
 - [ ] **P3.4** Gotcha mining from git history (reverts, fix commits, hotspots); STATE handoff packet.
 - [x] **P3.5** Canon integrity lint: hidden Unicode, instruction overrides, concealment, role markers and pipe-to-shell in AGENTS.md, `.ai/`, skills and tool pointer files (doctor error, MCP writes refused); untracked instruction files warned. *(Branch `feat/governance`, `src/services/integrity.service.js`.)*
 - [~] **P3.6** Merge-safe decisions and state for parallel agents. *(Decisions done on `feat/governance`: one file each in `.ai/decisions/`, id `D-<date>-<slug>`, legacy `D-NNN` still read, superseded decisions left out of the digest, and a two-branch merge test. Still open: STATE.md per branch or session, and a way to regenerate the AGENTS.md digest on merge instead of resolving its conflict by hand with `repocanon rules`.)*
+- [x] **P3.8** Cost: lighter entry file and hooks (no read order, no mandatory Definition of Done, only filled docs linked). 1.5× → 1.38× the hand-written AGENTS.md on the core suite, every run passing; target ≤1.2× not met; the rest is the end-of-turn doc-maintenance nudge. *(44 runs, $21.48, `bench/results/2026-10-28-cost*`.)*
 - [x] **P3.7** Edit-time delivery: a Claude Code `PreToolUse` hook (`agent-hook pre-edit`) fires on Read and edits (its context lands next to the tool result, so it must catch the read before the edit) and adds the module's Invariants and Gotchas (≤ ~300 tokens, once per module per session, stale label) as `additionalContext`, with no MCP call. *(Branch `feat/governance`. Follow-up: each edit spawns `npx` (~0.5–1 s cached); use a local install when present.)*
 
 **Gate:** a boundary violation fails CI with a fix message the agent can act on.

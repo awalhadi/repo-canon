@@ -12,6 +12,9 @@ All notable changes to RepoCanon. Versions follow [semver](https://semver.org); 
 - `secrets` (and so the pre-commit hook, including hooks installed earlier) also blocks unsafe instructions in staged agent docs and pointer files. `--json` keeps its shape; each finding now has `type: secret | instruction`.
 - **Rules at edit time.** The Claude Code plugin adds a `PreToolUse` hook (`repocanon agent-hook pre-edit`) on Read, Edit, Write, MultiEdit and NotebookEdit. The first time Claude reads or edits a file in a module, the hook adds that module's Invariants and Gotchas as context. Hook context reaches the model next to the tool's result, so firing on Read is what makes the rules arrive before the edit (at most ~300 tokens, once per module per session, labelled when the doc is stale). The rules no longer depend on the agent calling an MCP tool, which the benchmark showed headless agents never do.
 
+### Changed (entry file)
+- **A lighter AGENTS.md block.** It keeps the commands and the rules digest, then lists only the `.ai/` docs that have content (template-only docs are no longer linked), two rules, and "after a change: update a doc only if a rule, flow or decision changed". The read order and the mandatory Definition of Done are gone. The session briefing no longer gives a read order, and the end-of-turn nudge makes one ask instead of checkpoint + stamp + verify. Measured: 1.38× the cost of a hand-written AGENTS.md on the core suite (was 1.5×), with every run passing. Your AGENTS.md block is rewritten on the next `repocanon rules` or `init`.
+
 ### Fixed
 - The end-of-turn hook no longer asks the agent to document modules that have no doc (such as the generic `src` or `tests` folders), and ignores test-only changes and Python caches. In the drift benchmark these nudges cost extra turns.
 
