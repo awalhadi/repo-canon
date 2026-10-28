@@ -105,7 +105,8 @@ function buildRulesDigest(root, options = {}) {
   const decisions = getDecisionLines(root);
   if (!conventions.length && !decisions.length) return '';
 
-  const header = '## Project rules (from `.ai/CONVENTIONS.md` and `.ai/decisions/` — open them for the why)';
+  // The header doesn't invite reads: these lines are the rules, and opening the source docs repeated them
+  const header = '## Project rules (from `.ai/CONVENTIONS.md` and `.ai/decisions/`)';
   const kept = [header];
   const more = '- … more in `.ai/CONVENTIONS.md` and `.ai/decisions/`.';
   for (const line of [...conventions, ...decisions]) {
