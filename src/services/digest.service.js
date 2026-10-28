@@ -8,7 +8,16 @@ const { loadConfig } = require('../core/config');
 const { detectProject } = require('../core/detector');
 const { estimateTokens } = require('../core/tokens');
 const { listDecisions, LEGACY_DECISIONS_DOC } = require('../core/decisions');
+const { getKnowledgeDocs } = require('./status.service');
 const { ANNOTATION } = require('../core/claims');
+
+/** Docs the entry file may point to, in reading order, with what each one answers. */
+const DETAIL_DOCS = [
+  ['PROJECT', 'what the project is, its boundaries and external services'],
+  ['DOMAIN', 'business rules, states and glossary'],
+  ['CONVENTIONS', 'coding conventions (the rules above come from it)'],
+  ['STATE', 'what is in progress and recent changes']
+];
 
 const TEMPLATES_DIR = path.resolve(__dirname, '../../templates');
 const DIGEST_TOKEN_BUDGET = 700;
@@ -25,6 +34,45 @@ function getAuthoredBullets(text) {
     .map(line => line.trim())
     .filter(line => /^[-*] \S/.test(line) && !/\bTODO\b/.test(line) && !/^[-*] \S+:\s*$/.test(line))
     .map(line => `- ${line.slice(2).replace(ANNOTATION, '').trim()}`);
+}
+
+/**
+ * Whether a doc holds anything a person or agent wrote: a line that is not a heading,
+ * quote, table rule, TODO or a line of the doc's own template (`{{…}}` matches anything).
+ * Template-only docs are left out of the entry file so agents aren't sent into them.
+ *
+ * @param {string|null} text
+ * @param {string|null} template
+ * @returns {boolean}
+ */
+function isFilled(text, template) {
+  if (!text) return false;
+  const escape = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const stubs = stripFrontmatter(template || '').split('\n').map(l => l.trim()).filter(Boolean)
+    .map(l => new RegExp(`^${l.split(/\{\{[^}]*\}\}/).map(escape).join('.*')}$`));
+  return stripFrontmatter(text).split('\n').map(l => l.trim()).some(line =>
+    line && !/^(#|>|\|)/.test(line) && !/\bTODO\b/.test(line) && !/^[-*]\s*$/.test(line) && !stubs.some(re => re.test(line)));
+}
+
+/**
+ * The "more detail" list of the entry file: only docs that have content.
+ *
+ * @param {string} root - Project root directory
+ * @returns {string[]} markdown bullets
+ */
+function getDetailDocLines(root) {
+  const lines = [];
+  const moduleTemplate = read(path.join(TEMPLATES_DIR, 'module.md'));
+  const modules = getKnowledgeDocs(root).filter(d => d.rel.startsWith('.ai/modules/') && isFilled(d.text, moduleTemplate));
+  // No count: AGENTS.md would change every time another module doc is filled
+  if (modules.length) lines.push('- `.ai/modules/` — one doc per area: purpose, invariants, flow and gotchas');
+  for (const [name, answers] of DETAIL_DOCS) {
+    if (isFilled(read(path.join(root, '.ai', `${name}.md`)), read(path.join(TEMPLATES_DIR, `${name}.md`)))) {
+      lines.push(`- \`.ai/${name}.md\` — ${answers}`);
+    }
+  }
+  if (listDecisions(root).some(d => d.decision)) lines.push('- `.ai/decisions/` (and older `.ai/DECISIONS.md`) — why things are built this way');
+  return lines;
 }
 
 /**
@@ -89,7 +137,8 @@ function renderEntryBlock(root) {
     name: detected.name,
     stack: detected.stacks.join(', ') || 'unknown',
     commands: commands || 'Commands: see `.ai/PROJECT.md`',
-    digest: digest ? `\n${digest}\n` : ''
+    digest: digest ? `\n${digest}\n` : '',
+    docs: getDetailDocLines(root).join('\n')
   }).replace(/\n{3,}/g, '\n\n').trimEnd();
 }
 
@@ -110,6 +159,7 @@ function refreshEntryBlock(root) {
 }
 
 module.exports = {
+  isFilled,
   buildRulesDigest,
   renderEntryBlock,
   refreshEntryBlock,

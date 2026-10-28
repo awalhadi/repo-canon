@@ -292,17 +292,22 @@ test('agent-hook: session context names stale docs; stop nudges once for undocum
   const plain = repo({ 'x.txt': 'x' });
   assert.equal(cp.spawnSync('node', [CLI, 'agent-hook', 'session-start'], { cwd: plain, encoding: 'utf8' }).stdout, '');
 
-  assert.match(hook('session-start').stdout, /call the rc_context MCP tool/);
+  const briefing = hook('session-start').stdout;
+  assert.match(briefing, /project rules are in AGENTS\.md; a module's own rules are added when you open its files/);
+  assert.doesNotMatch(briefing, /PROJECT\.md → |INDEX\.md/);                // no read order: it sent agents through every doc
   assert.equal(hook('stop', '{"stop_hook_active":false}').stdout, '');
 
   fs.appendFileSync(path.join(d, 'app/Services/Billing/S.php'), 'changed');
   const nudge = JSON.parse(hook('stop', '{"stop_hook_active":false}').stdout);
   assert.equal(nudge.decision, 'block');
   assert.match(nudge.reason, /app\/Services\/Billing\/S\.php \(module billing\) without updating \.ai\/modules\/billing\.md/);
+  assert.doesNotMatch(nudge.reason, /rc_stamp|rc_verify|rc_checkpoint_state/);   // one ask, not a chain of tool calls
   assert.equal(hook('stop', '{"stop_hook_active":true}').stdout, '');      // never loops
   assert.equal(hook('stop', 'not json').status, 0);
 
   fs.appendFileSync(path.join(d, '.ai/modules/billing.md'), '\n- refunds now need approval\n');
+  assert.match(hook('stop', '{}').stdout, /Run: npx repocanon rules/);   // the first filled doc joins the AGENTS.md list
+  cf(d, 'rules');
   assert.equal(hook('stop', '{}').stdout, '');                            // doc updated → let it stop
 
   g(d, 'commit', '-qam', 'billing + doc');
@@ -310,12 +315,12 @@ test('agent-hook: session context names stale docs; stop nudges once for undocum
 
   // Found by the drift benchmark: nudges for modules with no doc, caches and tests only cost turns
   fs.rmSync(path.join(d, '.ai/modules/billing.md'));
-  g(d, 'commit', '-qam', 'no billing doc');
+  cf(d, 'rules'); g(d, 'add', '-A'); g(d, 'commit', '-qm', 'no billing doc');
   fs.appendFileSync(path.join(d, 'app/Services/Billing/S.php'), 'again');
   fs.mkdirSync(path.join(d, 'app/Services/Billing/__pycache__'), { recursive: true });
   fs.writeFileSync(path.join(d, 'app/Services/Billing/__pycache__/s.cpython-312.pyc'), 'x');
   assert.equal(hook('stop', '{}').stdout, '');                            // module has no doc: doctor's job
-  g(d, 'checkout', '--', '.'); g(d, 'checkout', 'HEAD~1', '--', '.ai/modules/billing.md'); g(d, 'commit', '-qam', 'doc back');
+  g(d, 'checkout', '--', '.'); g(d, 'checkout', 'HEAD~1', '--', '.ai/modules/billing.md'); cf(d, 'rules'); g(d, 'add', '-A'); g(d, 'commit', '-qm', 'doc back');
   fs.mkdirSync(path.join(d, 'tests'), { recursive: true });
   fs.writeFileSync(path.join(d, 'app/Services/Billing/S.test.php'), 'test');
   assert.equal(hook('stop', '{}').stdout, '');                            // a test and a cache file only
@@ -615,4 +620,19 @@ test('claims: unlocked → stamped fresh → stale on a logic change, not a refo
   assert.match(report.claims[0].detail, /symbol toCents not found in src\/money\/cents\.js/);
   assert.match(report.claims[1].detail, /test "rejects floats" not found/);
   assert.equal(cf(d, 'doctor', '--ci').status, 1);
+});
+
+test('AGENTS.md entry: short, no Definition of Done, links only to docs that have content', () => {
+  const d = repo({ 'package.json': '{"name":"shop","scripts":{"test":"node --test"}}' });
+  cf(d, 'init', '--targets=claude');
+  const agents = () => fs.readFileSync(path.join(d, 'AGENTS.md'), 'utf8');
+  assert.doesNotMatch(agents(), /Definition of Done|Read order|mandatory/);
+  assert.doesNotMatch(agents(), /`\.ai\/(DOMAIN|PROJECT|STATE)\.md` —/);       // template-only docs aren't linked
+  assert.ok(agents().split('\n').length < 25, agents());
+
+  const domain = path.join(d, '.ai/DOMAIN.md');
+  fs.writeFileSync(domain, fs.readFileSync(domain, 'utf8').replace('## Invariants (must never break)\n- TODO', '## Invariants (must never break)\n- An order is paid at most once.'));
+  cf(d, 'rules');
+  assert.match(agents(), /- `\.ai\/DOMAIN\.md` — business rules, states and glossary/);
+  assert.doesNotMatch(agents(), /`\.ai\/PROJECT\.md` —/);
 });

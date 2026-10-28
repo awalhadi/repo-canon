@@ -92,15 +92,15 @@ git commit -am "Verify RepoCanon docs"
 ◆ repocanon doctor · shop
 
 Warnings (1)
-  !  scoped rule files are out of date (1: .cursor/rules/rc-billing.mdc) — run: npx repocanon rules
+  !  scoped rule files are out of date (2: .cursor/rules/rc-billing.mdc, AGENTS.md) — run: npx repocanon rules
 
 Info (1)
   i  27 TODO placeholder(s) remain in .ai/ — run: repocanon prompt fill
 
 Token budget
-  Entry context (AGENTS + PROJECT + INDEX)  ~980 tokens
-  Whole repo source                         ~1,053 tokens
-  Entry share of the repo                   93.07%
+  Entry context (AGENTS + PROJECT + INDEX)  ~662 tokens
+  Whole repo source                         ~820 tokens
+  Entry share of the repo                   80.73%
   → estimates: word-aware for docs, bytes/4 for code
 
 Freshness █████████░ 91/100

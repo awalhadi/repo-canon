@@ -53,9 +53,10 @@ function getSessionContext(root) {
     return '';
   }
 
+  // Short on purpose: reading instructions here sent agents through every .ai/ doc on every task
   const lines = [
-    'This project has a RepoCanon knowledge layer: AGENTS.md plus .ai/ (rules, decisions, module docs).',
-    'Before exploring the code for a task, call the rc_context MCP tool with the task, or read AGENTS.md → .ai/PROJECT.md → .ai/INDEX.md → the one relevant module doc.'
+    'This project has a RepoCanon knowledge layer. The project rules are in AGENTS.md; a module\'s own rules are added when you open its files.',
+    'For a broad task, the rc_context MCP tool returns the relevant docs in one call.'
   ];
 
   const rows = getDocStatus(root);
@@ -68,7 +69,6 @@ function getSessionContext(root) {
   if (broken.length) {
     lines.push(`Broken docs (their code paths are gone): ${listSome(broken)}.`);
   }
-  lines.push('After changing behaviour or rules, update the matching .ai/ doc and add a line to .ai/STATE.md.');
   return lines.join('\n');
 }
 
@@ -121,8 +121,8 @@ function getStopNudge(root, input = {}) {
     decision: 'block',
     reason:
       `RepoCanon: you changed ${described}${more}. ` +
-      'If behaviour, rules or the flow changed, update that doc (no code copies, no file lists) and record it with rc_checkpoint_state (or a line in .ai/STATE.md); after committing, rc_stamp the docs you re-checked and run rc_verify. ' +
-      'If nothing a future agent needs has changed, say so briefly and finish.'
+      'If a rule, the flow or a decision changed, update that line in the doc (no code copies, no file lists). ' +
+      'Otherwise say in one line that nothing a future agent needs changed, and finish.'
   };
 }
 
