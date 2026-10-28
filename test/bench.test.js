@@ -108,3 +108,18 @@ test('bench drift: docs verified, then the code changes; only repocanon-hooks ke
   assert.deepEqual([stale.pass, stale.followed], [false, 'doc']);
   for (const dir of [hooks, plain, agentsMd]) fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test('bench grader: probe results are read from their marker, never from surrounding warnings', () => {
+  const { probeValue, run } = require('../bench/lib/grader');
+  const noisy = "ok,ok\nRC_PROBE=refused,ok\n(node:1) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n";
+  assert.equal(probeValue(noisy), 'refused,ok');
+  assert.equal(probeValue('no marker here'), 'error');
+  // A terminal's FORCE_COLOR never reaches graded commands, so they print no colour warning
+  const saved = process.env.FORCE_COLOR;
+  process.env.FORCE_COLOR = '1';
+  try {
+    assert.doesNotMatch(run(__dirname, 'node', ['-e', 'console.log(1)']).output, /Warning/);
+  } finally {
+    if (saved === undefined) delete process.env.FORCE_COLOR; else process.env.FORCE_COLOR = saved;
+  }
+});

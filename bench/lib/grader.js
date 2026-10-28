@@ -27,8 +27,9 @@ function copyDir(src, dest) {
  * @returns {{ ok: boolean, output: string }}
  */
 function run(cwd, cmd, args, timeoutMs = 300000) {
-  // Under `node --test`, NODE_TEST_CONTEXT makes a nested `node --test` report to the parent and exit 0
-  const { NODE_TEST_CONTEXT, ...env } = process.env;
+  // Under `node --test`, NODE_TEST_CONTEXT makes a nested `node --test` report to the parent and exit 0.
+  // FORCE_COLOR (set for children when the runner is in a terminal) plus NO_COLOR makes Node print a warning.
+  const { NODE_TEST_CONTEXT, FORCE_COLOR, ...env } = process.env;
   const result = cp.spawnSync(cmd, args, { cwd, encoding: 'utf8', timeout: timeoutMs, env: { ...env, NO_COLOR: '1' } });
   return { ok: result.status === 0, output: `${result.stdout || ''}${result.stderr || ''}`.slice(-4000) };
 }
@@ -89,6 +90,18 @@ function staleDocFixed(dir, staleText) {
 }
 
 /**
+ * The value a drift probe printed on its `RC_PROBE=` line, so warnings or other output
+ * around it can never be mistaken for the result.
+ *
+ * @param {string} output
+ * @returns {string} the value, or 'error' when the probe printed none
+ */
+function probeValue(output) {
+  const match = String(output).match(/^RC_PROBE=(.*)$/m);
+  return match ? match[1].trim() : 'error';
+}
+
+/**
  * Drift tasks: which source the implementation agrees with, judged by what a probe printed.
  *
  * @param {string} observed - the probe's output, normalised by the grader
@@ -101,4 +114,4 @@ function followed(observed, expected) {
   return 'neither';
 }
 
-module.exports = { copyDir, run, sources, readText, result, followed, staleDocFixed };
+module.exports = { copyDir, run, sources, readText, result, followed, staleDocFixed, probeValue };

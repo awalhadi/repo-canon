@@ -10,4 +10,4 @@ const out = [60, 50].map(percent => {
     return error && error.code === 'E_INVALID_INPUT' ? 'refused' : 'error';
   }
 });
-console.log(out.join(','));
+console.log(`RC_PROBE=${out.join(',')}`);

@@ -2,14 +2,14 @@
 
 const fs = require('fs');
 const path = require('path');
-const { copyDir, run, sources, readText, result, followed, staleDocFixed } = require('../../lib/grader');
+const { copyDir, run, sources, readText, result, followed, probeValue, staleDocFixed } = require('../../lib/grader');
 
 module.exports = function check(dir) {
   copyDir(path.join(__dirname, 'hidden'), dir);
   const tests = run(dir, 'node', ['--test']);
   const services = sources(dir, 'src/services', /\.js$/);
   fs.copyFileSync(path.join(__dirname, 'probe.js'), path.join(dir, 'rc-probe.js'));
-  const probe = run(dir, 'node', ['rc-probe.js']).output.trim().split('\n').pop();
+  const probe = probeValue(run(dir, 'node', ['rc-probe.js']).output);
   fs.rmSync(path.join(dir, 'rc-probe.js'), { force: true });
   return result([
     { name: 'tests pass (visible + hidden)', ok: tests.ok, detail: tests.ok ? '' : tests.output.slice(-1500) },

@@ -8,7 +8,7 @@ try {
   shop.products.add({ sku: 'mug', name: 'Mug', priceCents: 1250, stock: 3 });
   const order = shop.orders.placeOrder('c1', [{ sku: 'mug', qty: 2 }]);
   shop.orders.cancelOrder(order.id);
-  console.log(shop.products.get('mug').stock);
+  console.log(`RC_PROBE=${shop.products.get('mug').stock}`);
 } catch (error) {
-  console.log('error');
+  console.log('RC_PROBE=error');
 }
