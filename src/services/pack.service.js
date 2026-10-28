@@ -263,6 +263,7 @@ function packContext(root, options = {}) {
 }
 
 module.exports = {
+  getFreshnessLabel,
   getModuleMap,
   moduleMap: getModuleMap,
   packContext,

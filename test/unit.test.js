@@ -572,7 +572,7 @@ test('Claude Code plugin: marketplace points at the plugin, versions match, hook
   assert.ok(fs.existsSync(path.join(pluginDir, 'skills/repocanon/SKILL.md')));
   const pin = `repocanon@^${plugin.version}`;
   assert.ok(plugin.mcpServers.repocanon.args.includes(pin));
-  for (const [event, arg] of [['SessionStart', 'session-start'], ['Stop', 'stop']]) {
+  for (const [event, arg] of [['SessionStart', 'session-start'], ['Stop', 'stop'], ['PreToolUse', 'pre-edit']]) {
     const command = hooks[event][0].hooks[0].command;
     assert.ok(command.startsWith('[ -d "$CLAUDE_PROJECT_DIR/.ai" ] && '), command);
     assert.ok(command.includes(`'${pin}' agent-hook ${arg}`), command);

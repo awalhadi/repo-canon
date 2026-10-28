@@ -1,13 +1,21 @@
 'use strict';
 
+const crypto = require('crypto');
+const fs = require('fs');
+const os = require('os');
 const path = require('path');
-const { exists, isPathInside } = require('../core/fs');
+const { exists, read, isPathInside } = require('../core/fs');
 const { getUncommittedPaths } = require('../core/git');
+const { estimateTokens } = require('../core/tokens');
 const { getDocStatus } = require('./status.service');
-const { getModuleMap } = require('./pack.service');
+const { getModuleMap, getFreshnessLabel } = require('./pack.service');
 const { planRules, getPendingRules } = require('./rules.service');
+const { readSectionBullets } = require('./memory.service');
 
 const MAX_NAMED = 3;
+const EDIT_CONTEXT_TOKENS = 300;
+const EDIT_SECTIONS = ['Invariants', 'Gotchas'];
+const MODULE_TEMPLATE = path.resolve(__dirname, '../../templates/module.md');
 
 /**
  * @param {string[]} items
@@ -111,7 +119,89 @@ function getStopNudge(root, input = {}) {
   };
 }
 
+/**
+ * Where a session's already-shown modules are kept: the temp dir, never the repo.
+ *
+ * @param {string} sessionId
+ * @returns {string}
+ */
+function getSeenFile(sessionId) {
+  const hash = crypto.createHash('sha1').update(String(sessionId)).digest('hex').slice(0, 16);
+  return path.join(os.tmpdir(), `repocanon-hook-${hash}.json`);
+}
+
+/**
+ * Marks a module as shown in this session. False when it was shown already.
+ * Without a session id every call counts as new.
+ *
+ * @param {string|undefined} sessionId
+ * @param {string} slug
+ * @returns {boolean}
+ */
+function markShown(sessionId, slug) {
+  if (!sessionId) return true;
+  const file = getSeenFile(sessionId);
+  let seen = [];
+  try {
+    seen = JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch {
+    // First edit in this session, or an unreadable file: start over
+  }
+  if (!Array.isArray(seen)) seen = [];
+  if (seen.includes(slug)) return false;
+  try {
+    fs.writeFileSync(file, JSON.stringify([...seen, slug]));
+  } catch {
+    // Can't remember it: the rules may repeat, which is harmless
+  }
+  return true;
+}
+
+/**
+ * The rules of the module an agent is working in, without a tool call: the doc's
+ * Invariants and Gotchas, labelled when the doc is stale, within ~300 tokens. Hook
+ * context reaches the model next to the tool's result, so this runs on Read as well
+ * as edits: agents read a file before editing it, and the rules then arrive in time.
+ * Once per module per session. Null when there is nothing worth saying (no module,
+ * no doc, only template text, a .ai/ file).
+ *
+ * @param {string} root - Project root directory
+ * @param {{ session_id?: string, tool_input?: { file_path?: string, notebook_path?: string } }} [input={}] - hook input JSON
+ * @returns {string|null}
+ */
+function getEditContext(root, input = {}) {
+  const toolInput = input.tool_input || {};
+  const target = toolInput.file_path || toolInput.notebook_path;
+  if (typeof target !== 'string' || !target || !exists(path.join(root, '.ai'))) return null;
+
+  const rel = path.relative(root, path.resolve(root, target)).split(path.sep).join('/');
+  if (!rel || rel.startsWith('..') || path.isAbsolute(rel) || rel.startsWith('.ai/')) return null;
+
+  const mod = getModuleMap(root).find(m => m.doc && m.paths.some(p => isPathInside(rel, p)));
+  if (!mod) return null;
+
+  const templateBullets = new Set((read(MODULE_TEMPLATE) || '').split('\n').filter(l => l.startsWith('- ')));
+  const lines = (read(path.join(root, mod.doc)) || '').split('\n');
+  const bullets = EDIT_SECTIONS.flatMap(name => readSectionBullets(lines, name))
+    .filter(b => !templateBullets.has(b) && !/\bTODO\b/.test(b) && b.trim() !== '-');
+  if (!bullets.length || !markShown(input.session_id, mod.slug)) return null;
+
+  const status = getDocStatus(root).find(row => row.doc === mod.doc);
+  const label = getFreshnessLabel(status);
+  const kept = [`RepoCanon rules for ${rel} (module ${mod.slug}, from ${mod.doc}):`, ...(label ? [label] : [])];
+  const more = `- … more in ${mod.doc}`;
+  for (const bullet of bullets) {
+    if (estimateTokens([...kept, bullet, more].join('\n')) > EDIT_CONTEXT_TOKENS) {
+      kept.push(more);
+      break;
+    }
+    kept.push(bullet);
+  }
+  return kept.join('\n');
+}
+
 module.exports = {
   getSessionContext,
-  getStopNudge
+  getStopNudge,
+  getEditContext
 };

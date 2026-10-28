@@ -2,9 +2,9 @@
 
 const path = require('path');
 const { read } = require('../core/fs');
-const { getUntrackedFiles } = require('../core/git');
+const { getUntrackedFiles, getStagedFiles, readStagedFile } = require('../core/git');
 const { TARGETS } = require('../core/targets');
-const { getScannedDocs } = require('./secrets.service');
+const { getScannedDocs, isKnowledgeFile } = require('./secrets.service');
 
 const ALLOW_MARKER = 'repocanon:allow-instruction';
 const INSTRUCTION_FILES = new Set(['AGENTS.md', 'CLAUDE.md', 'GEMINI.md', '.cursorrules', '.windsurfrules', '.clinerules']);
@@ -104,6 +104,20 @@ function scanInjections(root) {
 }
 
 /**
+ * Scans the staged (index) versions of the same files — what the next commit would publish.
+ *
+ * @param {string} root - Project root directory
+ * @returns {Array<{ doc: string, findings: ReturnType<typeof findInjections> }>}
+ */
+function scanStagedInjections(root) {
+  const pointers = new Set(TARGETS.map(t => t.file).filter(Boolean));
+  return getStagedFiles(root)
+    .filter(rel => isKnowledgeFile(rel) || pointers.has(rel))
+    .map(rel => ({ doc: rel, findings: findInjections(readStagedFile(root, rel) || '') }))
+    .filter(entry => entry.findings.length);
+}
+
+/**
  * Agent instruction files on disk that git does not track. A compromised dependency can
  * write one during a build, and agents load it like any other.
  *
@@ -131,6 +145,8 @@ function formatIntegrityFinding(doc, finding) {
 module.exports = {
   findInjections,
   scanInjections,
+  scanStagedInjections,
   findUntrackedInstructionFiles,
-  formatIntegrityFinding
+  formatIntegrityFinding,
+  INTEGRITY_LABELS: LABELS
 };

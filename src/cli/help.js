@@ -123,7 +123,7 @@ const COMMANDS = [
     examples: [['npx repocanon hook', 'install or upgrade it']]
   },
   {
-    name: 'secrets', group: 'ci', summary: 'Find API keys, tokens and passwords in AGENTS.md and .ai/',
+    name: 'secrets', group: 'ci', summary: 'Find API keys, passwords and unsafe instructions in agent docs',
     usage: 'repocanon secrets [--staged] [--json] [--quiet]',
     flags: [['--staged', 'scan what the next commit would publish'], ['--quiet', 'exit code only']],
     examples: [['npx repocanon secrets', 'scan the docs']]

@@ -267,6 +267,7 @@ function verifyKnowledge(root, options = {}) {
 
 module.exports = {
   guardContent,
+  readSectionBullets,
   proposeAdr,
   checkpointState,
   verifyKnowledge

@@ -349,6 +349,7 @@ The plugin connects Claude Code to the knowledge layer with one install, and kee
 |---|---|
 | MCP server | `rc_context`, `rc_sync_report` and the other tools above, for the project you open |
 | Session start | Tells Claude the layer exists, to call `rc_context` before exploring, and which docs are stale |
+| First read or edit in a module | Adds that module's Invariants and Gotchas (≤ ~300 tokens, once per module per session, labelled when the doc is stale), so the rules arrive before Claude changes the code, without an MCP call |
 | End of turn | If Claude changed a module's code but not its doc, asks it **once** to update the doc or say no change is needed |
 | `repocanon` skill | The workflow: context first, update docs after changes, never paste code, file lists or secrets |
 
@@ -423,13 +424,13 @@ jobs:
 | `stamp <name…> \| --all [--force]` | Mark docs verified at the current commit; refuses when their code has uncommitted changes |
 | `prompt fill [--compact]` | Brief to paste into an agent so it fills the docs |
 | `prompt update` | Brief for updating docs after code changes |
-| `secrets [--staged] [--json] [--quiet]` | Scan `AGENTS.md` and `.ai/` (or their staged versions) for API keys, tokens and passwords; exits 1 if any are found |
-| `hook` | Install the pre-commit hook: warns on undocumented code changes, blocks secrets in docs |
+| `secrets [--staged] [--json] [--quiet]` | Scan `AGENTS.md`, `.ai/` and tool pointer files (or their staged versions) for API keys, tokens and passwords, and for unsafe instructions (hidden characters, instruction overrides, `curl … \| sh`); exits 1 if any are found |
+| `hook` | Install the pre-commit hook: warns on undocumented code changes, blocks secrets and unsafe instructions in docs |
 | `rules [--check] [--json]` | Write per-module scoped rule files (Cursor, Copilot, optional nested `AGENTS.md`); `--check` exits 1 if out of date |
 | `skills [--check] [--json]` | Write the verify-a-change skill and copy `.ai/skills/` to each tool's skills folder; `--check` exits 1 if out of date |
 | `setup [tool…\|all] [--json]` | Register the MCP server in each tool's config (default: the tools `init` set up) |
 | `mcp` | Start the MCP server on stdio |
-| `agent-hook <session-start\|stop>` | Output for agent hooks: session briefing, end-of-turn doc reminder (used by the Claude Code plugin) |
+| `agent-hook <session-start\|stop\|pre-edit>` | Output for agent hooks: session briefing, end-of-turn doc reminder, a module's rules on the first read or edit there (used by the Claude Code plugin) |
 
 Global flags: `--root=<dir>` runs against another folder; `--version`; `--help`.
 
@@ -503,6 +504,8 @@ Repo packers show an agent *what the code is*. RepoCanon records what the code c
 **Does it call an LLM or upload my code?** No. RepoCanon never makes network calls. Your own agent reads and writes the docs.
 
 **What if an agent pastes a secret into the docs?** `doctor` reports it as an error (so `doctor --ci` fails), `npx repocanon secrets` lists it masked, and the pre-commit hook blocks the commit. Mark a known false positive with `<!-- repocanon:allow-secret -->` on that line.
+
+**What if someone plants instructions for the agent?** A pull request, a dependency or a build step can add text to AGENTS.md, `.ai/` or CLAUDE.md that agents will follow. `doctor` fails on hidden Unicode (bidi overrides, zero-width marks, tag characters), "ignore previous instructions"-style overrides, rules that hide work from the user, fake `<system>` markers and `curl … | sh`, and warns about instruction files git doesn't track. MCP writes refuse the same text, and the pre-commit hook blocks it. Mark intended text with `<!-- repocanon:allow-instruction -->`.
 
 **Does it work with ChatGPT?** OpenAI Codex reads `AGENTS.md` natively. ChatGPT in the browser can't see your repo, but `npx repocanon context "your task"` prints a pack you can paste.
 
