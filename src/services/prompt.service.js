@@ -427,7 +427,7 @@ function buildFillPrompt(root, options = {}) {
     '',
     '### Phase 6 · Verify',
     '- Run `repocanon doctor` (MCP: `rc_verify`) and fix every error/warning you caused — including every inferable-content warning (delete those blocks). Then `repocanon stamp <doc>…` (MCP: `rc_stamp`) for each doc you actually re-checked (commit code first).',
-    '- With MCP, record decisions with `rc_propose_adr` and progress with `rc_checkpoint_state` instead of editing DECISIONS.md / STATE.md by hand: they number entries, keep STATE within its cap and refuse secrets.'
+    '- With MCP, record decisions with `rc_propose_adr` and progress with `rc_checkpoint_state` instead of editing DECISIONS.md / STATE.md by hand: decisions get one file each in `.ai/decisions/` (no merge conflicts), STATE stays within its cap, and secrets are refused.'
   );
 
   lines.push('', '---');

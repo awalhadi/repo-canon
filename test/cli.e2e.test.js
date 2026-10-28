@@ -406,8 +406,9 @@ test('mcp write tools: ADR, checkpoint, then stale → rc_stamp → rc_verify PA
   const text = r => r.content[0].text;
 
   const adr = await call('rc_propose_adr', { title: 'Bill in cents', decision: 'Store money as integer cents', why: 'No float rounding' });
-  assert.match(text(adr), /^Added D-001 to \.ai\/DECISIONS\.md/);
-  assert.match(fs.readFileSync(path.join(d, '.ai/DECISIONS.md'), 'utf8'), /## D-001 Bill in cents/);
+  assert.match(text(adr), /^Added D-\d{4}-\d{2}-\d{2}-bill-in-cents to \.ai\/decisions\/\d{4}-\d{2}-\d{2}-bill-in-cents\.md/);
+  const adrFile = fs.readdirSync(path.join(d, '.ai/decisions'))[0];
+  assert.match(fs.readFileSync(path.join(d, '.ai/decisions', adrFile), 'utf8'), /^# Bill in cents$/m);
   const fakeKey = ['sk', '_live_', 'a1B2c3D4e5F6g7H8i9J0k1L2'].join('');
   const leak = await call('rc_propose_adr', { title: 'Stripe', decision: `key ${fakeKey}`, why: 'x' });
   assert.equal(leak.isError, true); assert.doesNotMatch(text(leak), new RegExp(fakeKey));
@@ -487,7 +488,7 @@ test('entry digest: AGENTS.md carries the rules and decisions, follows them, and
 
   const { executeTool } = require('../src/mcp/tools');
   executeTool(d, 'rc_propose_adr', { title: 'One error for bad codes', decision: 'Unknown codes fail with E_CODE_INVALID', why: 'No probing' });
-  assert.match(agents(), /- D-001 One error for bad codes: Unknown codes fail with E_CODE_INVALID/);   // ADR lands in the digest at once
+  assert.match(agents(), /- One error for bad codes: Unknown codes fail with E_CODE_INVALID/);   // ADR lands in the digest at once
   assert.equal(cf(d, 'rules', '--check').status, 0);
 
   fs.writeFileSync(path.join(d, '.repocanon.json'), JSON.stringify({ ...JSON.parse(fs.readFileSync(path.join(d, '.repocanon.json'), 'utf8')), entryDigest: false }));

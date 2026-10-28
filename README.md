@@ -329,7 +329,7 @@ The server works on the folder it starts in. Global configs (Windsurf, Cline) us
 | `rc_status` | Freshness of every doc vs git |
 | `rc_prepare_fill` | Evidence-loaded brief for writing the docs |
 | `rc_sync_report` | What changed since each doc was verified |
-| `rc_propose_adr` | **Writes** a numbered decision to `.ai/DECISIONS.md` (newest on top) |
+| `rc_propose_adr` | **Writes** a decision to its own file, `.ai/decisions/<date>-<slug>.md`, so parallel branches never conflict |
 | `rc_checkpoint_state` | **Writes** focus, in-progress, known issues and a change line to `.ai/STATE.md`; never marks anything verified |
 | `rc_stamp` | **Writes** `verified_at` + `verified_by: agent` for named docs; refuses uncommitted code |
 | `rc_verify` | The "am I done?" check: errors, stale docs, score, then PASS or FAIL |

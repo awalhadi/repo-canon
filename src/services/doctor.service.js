@@ -10,6 +10,7 @@ const { readManagedBlock } = require('../core/blocks');
 const { TARGETS } = require('../core/targets');
 const { scanKnowledgeLayer, INFERABLE_LABELS } = require('./inferable.service');
 const { scanSecrets, formatSecretFinding } = require('./secrets.service');
+const { scanInjections, findUntrackedInstructionFiles, formatIntegrityFinding } = require('./integrity.service');
 const { planRules, getPendingRules } = require('./rules.service');
 const { planSkills, getPendingSkills, getSkillProblems } = require('./skills.service');
 const { getFreshnessScore } = require('./score.service');
@@ -137,6 +138,16 @@ function runDoctor(root) {
     for (const item of secretFindings) {
       addFinding('error', formatSecretFinding(doc, item), { file: doc, line: item.line });
     }
+  }
+
+  // Agents follow these files: text that steers them instead of informing them is an attack surface
+  for (const { doc, findings: injectionFindings } of scanInjections(root)) {
+    for (const item of injectionFindings) {
+      addFinding('error', formatIntegrityFinding(doc, item), { file: doc, line: item.line });
+    }
+  }
+  for (const rel of findUntrackedInstructionFiles(root)) {
+    addFinding('warn', formatIntegrityFinding(rel, { kind: 'untracked' }), { file: rel });
   }
 
   const pendingRules = getPendingRules(planRules(root));

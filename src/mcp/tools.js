@@ -92,7 +92,7 @@ const MCP_TOOLS = [
   {
     name: 'rc_propose_adr',
     description:
-      'Record an architecture decision in .ai/DECISIONS.md (numbered D-NNN, newest on top). Use when a task settled a choice future work must respect. One line per field; refused if it contains secrets, pasted code, trees or a duplicate title.',
+      'Record an architecture decision in its own file, .ai/decisions/<date>-<slug>.md (id D-<date>-<slug>), so parallel branches never conflict; the AGENTS.md rules digest is updated. Use when a task settled a choice future work must respect. One line per field; refused if it contains secrets, pasted code, trees or a duplicate title.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -100,7 +100,7 @@ const MCP_TOOLS = [
         decision: { type: 'string', description: 'what was decided (one line)' },
         why: { type: 'string', description: 'the reason (one line)' },
         revisit: { type: 'string', description: 'when to reconsider (optional)' },
-        supersedes: { type: 'string', description: 'id of a decision this replaces, e.g. D-003 (optional)' }
+        supersedes: { type: 'string', description: 'id of a decision this replaces, e.g. D-2026-10-28-bill-in-cents or a legacy D-003 (optional)' }
       },
       required: ['title', 'decision', 'why']
     },

@@ -3,15 +3,16 @@
 const path = require('path');
 const { read, write, renderTemplate } = require('../core/fs');
 const { DOC_LINE_CAPS } = require('../core/constants');
+const { DECISIONS_DIR, LEGACY_DECISIONS_DOC, normalizeDecisionId, getDecisionPath, listDecisions } = require('../core/decisions');
 const { findSecrets, formatSecretFinding } = require('./secrets.service');
 const { findInferableContent, INFERABLE_LABELS } = require('./inferable.service');
+const { findInjections, formatIntegrityFinding } = require('./integrity.service');
 const { getDocStatus, matchesDocName } = require('./status.service');
 const { runDoctor } = require('./doctor.service');
 const { formatScore } = require('./score.service');
 const { refreshEntryBlock } = require('./digest.service');
 
 const TEMPLATES_DIR = path.resolve(__dirname, '../../templates');
-const DECISIONS_DOC = '.ai/DECISIONS.md';
 const STATE_DOC = '.ai/STATE.md';
 const MAX_RECENT_CHANGES = 10;
 const MAX_LIST_ITEMS = 8;
@@ -42,8 +43,9 @@ function checkField(name, value, limit, problems) {
 }
 
 /**
- * What blocks a write to the knowledge layer: secrets, and content agents can read from
- * the code (trees, code dumps, dependency lists) that would cost tokens on every task.
+ * What blocks a write to the knowledge layer: secrets, text that steers agents instead of
+ * informing them, and content agents can read from the code (trees, code dumps,
+ * dependency lists) that would cost tokens on every task.
  *
  * @param {string} text - the text about to be written
  * @param {{ allowCatalogue?: boolean }} [options={}]
@@ -52,6 +54,7 @@ function checkField(name, value, limit, problems) {
 function guardContent(text, options = {}) {
   const problems = [
     ...findSecrets(text).map(item => formatSecretFinding('input', item)),
+    ...findInjections(text).map(item => formatIntegrityFinding('input', item)),
     ...findInferableContent(text, options).map(item => `${INFERABLE_LABELS[item.kind]} — ${item.hint}`)
   ];
   return { ok: !problems.length, problems };
@@ -74,7 +77,10 @@ function readOrTemplate(root, rel, now) {
 }
 
 /**
- * Adds a numbered decision record to .ai/DECISIONS.md, newest on top.
+ * Records a decision in its own file, `.ai/decisions/<date>-<slug>.md`. The id comes
+ * from the date and title, not a counter, so decisions made on two branches at once
+ * never collide or conflict. Older `D-NNN` entries in DECISIONS.md still count for
+ * duplicates and can be superseded.
  *
  * @param {string} root - Project root directory
  * @param {{ title?: string, decision?: string, why?: string, revisit?: string, supersedes?: string, now?: Date }} input
@@ -87,60 +93,33 @@ function proposeAdr(root, input = {}) {
   const why = checkField('why', input.why, LIMITS.why, problems);
   const revisit = input.revisit ? checkField('revisit', input.revisit, LIMITS.revisit, problems) : '';
 
-  const text = readOrTemplate(root, DECISIONS_DOC, input.now);
-  const headings = [...text.matchAll(/^## (D-(\d+)) (.*?)(?: \(\d{4}-\d{2}-\d{2}\))?\s*$/gm)];
-  const isPlaceholder = h => /^TODO\b/.test(h[3]);
-  const real = headings.filter(h => !isPlaceholder(h));
-
-  const supersedes = input.supersedes ? String(input.supersedes).trim().toUpperCase() : '';
-  if (supersedes && !real.some(h => h[1] === supersedes)) {
-    problems.push(`supersedes: no decision ${supersedes} in ${DECISIONS_DOC}`);
+  const existing = listDecisions(root);
+  const supersedes = normalizeDecisionId(input.supersedes);
+  if (supersedes && !existing.some(d => d.id === supersedes)) {
+    problems.push(`supersedes: no decision ${supersedes} in ${DECISIONS_DIR}/ or ${LEGACY_DECISIONS_DOC}`);
   }
-  if (title && real.some(h => h[3].trim().toLowerCase() === title.toLowerCase())) {
+  if (title && existing.some(d => d.title.toLowerCase() === title.toLowerCase())) {
     problems.push(`a decision titled "${title}" already exists — update it instead of adding a duplicate`);
+  }
+  const { id, rel } = getDecisionPath(today(input.now), title);
+  if (title && !problems.length && read(path.join(root, rel)) !== null) {
+    problems.push(`${rel} already exists — pick a different title`);
   }
   if (problems.length) return { ok: false, problems };
 
-  const next = real.reduce((max, h) => Math.max(max, Number(h[2])), 0) + 1;
-  const id = `D-${String(next).padStart(3, '0')}`;
-  const entry = [
-    `## ${id} ${title} (${today(input.now)})`,
+  const body = [
+    `# ${title}`,
     `- Decision: ${decision}`,
     `- Why: ${why}`,
-    `- Revisit if: ${revisit}`.trimEnd(),
-    ...(supersedes ? [`- Supersedes: ${supersedes}`] : [])
+    `- Revisit if: ${revisit}`.trimEnd()
   ];
-
-  const guard = guardContent(entry.join('\n'));
+  const guard = guardContent(body.join('\n'));
   if (!guard.ok) return { ok: false, problems: guard.problems };
 
-  // The template's untouched "D-001 TODO title" stub is replaced, never kept below a real entry
-  let lines = text.split('\n');
-  const stub = headings.find(isPlaceholder);
-  if (stub) {
-    const start = lines.findIndex(l => l.startsWith(`## ${stub[1]} `));
-    let end = start + 1;
-    while (end < lines.length && !lines[end].startsWith('## ')) end++;
-    lines = [...lines.slice(0, start), ...lines.slice(end)];
-  }
-
-  const first = lines.findIndex(l => /^## D-\d+/.test(l));
-  if (first === -1) {
-    while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
-    lines.push('', ...entry, '');
-  } else {
-    lines.splice(first, 0, ...entry, '');
-  }
-
-  const updated = lines.join('\n');
-  write(path.join(root, DECISIONS_DOC), updated);
+  const frontmatter = ['---', `id: ${id}`, `date: ${today(input.now)}`, ...(supersedes ? [`supersedes: ${supersedes}`] : []), '---'];
+  write(path.join(root, rel), `${[...frontmatter, ...body].join('\n')}\n`);
   refreshEntryBlock(root);
-  const cap = getCap(DECISIONS_DOC);
-  const lineCount = updated.split('\n').length;
-  const warnings = lineCount > cap
-    ? [`${DECISIONS_DOC} is ${lineCount} lines (cap ${cap}) — move superseded decisions out`]
-    : [];
-  return { ok: true, id, file: DECISIONS_DOC, warnings };
+  return { ok: true, id, file: rel, warnings: [] };
 }
 
 /**

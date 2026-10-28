@@ -4,6 +4,14 @@ All notable changes to RepoCanon. Versions follow [semver](https://semver.org); 
 
 ## 0.6.1 — unreleased
 
+### Added
+- **Canon integrity lint.** `doctor` now fails on text in AGENTS.md, `.ai/` docs, skills and tool pointer files (CLAUDE.md, `.cursor/rules`, Copilot, Gemini, Windsurf, Cline) that steers the agent instead of informing it. It catches hidden characters (bidi overrides, zero-width marks, Unicode tag characters), "ignore previous instructions"-style overrides, rules that hide work from the user, fake `<system>` markers, and `curl … | sh`. A false positive can be silenced with `<!-- repocanon:allow-instruction -->` on that line.
+- `doctor` warns about an AGENTS.md, CLAUDE.md, GEMINI.md or rules file anywhere in the repo that git does not track, since a build step or dependency can plant one.
+- MCP writes (`rc_propose_adr`, `rc_checkpoint_state`) refuse the same patterns.
+
+### Changed (format)
+- **Decisions are one file each.** `rc_propose_adr` writes `.ai/decisions/<date>-<slug>.md` with the id `D-<date>-<slug>` instead of adding a numbered `D-NNN` entry to `.ai/DECISIONS.md`. Two branches or agents recording decisions no longer collide on an id or conflict on merge. Existing `DECISIONS.md` entries are still read, count as duplicates, and can be superseded. The AGENTS.md rules digest lists both formats and now leaves out superseded decisions. If the digest conflicts after a merge, run `repocanon rules`.
+
 ### Changed
 - **Every command's terminal output was redesigned.** Each one shows a header, aligned rows with one set of symbols and words, a one-line verdict, and **Next**: the exact commands to run. `status` and `doctor` show a Freshness meter. `doctor` groups findings into Errors, Warnings and Info and adds a token-budget table. `sync` lists the files to read for each module and the `git diff` to inspect.
 - Colour appears only in an interactive terminal. It is never used with `NO_COLOR`, the new `--no-color` flag, `TERM=dumb`, `--json` or `--format=github`, and `FORCE_COLOR` forces it on. Symbols always come with a word, and older Windows consoles get an ASCII fallback.

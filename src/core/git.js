@@ -229,8 +229,20 @@ function listGitFiles(cwd) {
   return out.split('\0').filter(f => f && !f.startsWith('.ai/'));
 }
 
+/**
+ * Lists untracked files that .gitignore does not hide: on disk, but never committed or reviewed.
+ *
+ * @param {string} cwd
+ * @returns {string[]}
+ */
+function getUntrackedFiles(cwd) {
+  const out = execGit(cwd, ['ls-files', '--others', '--exclude-standard', '-z']);
+  return out ? out.split('\0').filter(Boolean) : [];
+}
+
 module.exports = {
   execGit,
+  getUntrackedFiles,
   isSafeRef,
   isValidRef,
   isInsideGitRepo,
