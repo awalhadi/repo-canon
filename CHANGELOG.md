@@ -37,6 +37,7 @@ All notable changes to RepoCanon. Versions follow [semver](https://semver.org); 
 - `repocanon … | head` exits quietly instead of crashing when the pipe closes.
 
 ### Docs
+- README opens with an animated overview (`docs/assets/overview.gif`, 163 KB, built by `scripts/render-overview-gif.py`): what RepoCanon is, what it does and how it helps, with the benchmark's numbers. A three-line "In 30 seconds" summary follows it.
 - README: a terminal screenshot, real example output for `init`, `doctor`, `status`, `sync` and `setup` (checked by a test, so it can't drift), and a key to the output symbols.
 - New `docs/PUBLISHING.md`: the full release guide for npm, `mcp-publisher publish` to the MCP Registry, git tags, the GitHub release, the Action tag, optional CI automation, and troubleshooting.
 

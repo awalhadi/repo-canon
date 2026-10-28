@@ -11,7 +11,14 @@
 
 Sponsored by **[Framimo](https://framimo.com)** — turn any clip into GIF, WebP, AVIF or MP4, right in your browser.
 
-![repocanon status and sync in a terminal: which docs are stale, the files that changed, and the next command to run](docs/assets/terminal.svg)
+<p align="center">
+  <img src="docs/assets/overview.gif" width="960" alt="RepoCanon overview animation: AI coding agents re-learn your repo and miss its rules; npx repocanon init creates AGENTS.md and an .ai/ knowledge layer for Claude Code, Cursor, GitHub Copilot, Codex, Gemini CLI, Windsurf and Cline; the right module's rules reach the agent while it works; every rule is checked against the code with git; benchmark results; secret and prompt-injection checks.">
+</p>
+
+**In 30 seconds**
+- **What it is:** a small, local project-memory layer (`AGENTS.md` + `.ai/`) that every AI coding agent reads: the rules, decisions and gotchas your code can't show.
+- **What it does:** one command sets it up for all your tools, delivers each module's rules to the agent while it works, and checks every rule against the code with git, so stale ones are flagged, not trusted.
+- **How it helps:** agents follow your project's rules instead of guessing (8% → 100% of tasks passed once the rules were written down), and they keep the docs correct as they work. It runs locally, calls no LLM and has zero dependencies.
 
 ## Why
 
@@ -239,6 +246,8 @@ A plain rule in a doc is only as fresh as the whole doc. Annotate the rules that
 - Hashes are computed by the tool, never written by hand. Symbol lookup is pattern-based (JS/TS, Python, Go, Rust, PHP, Java-style methods), not a parser; anchor to the file if a symbol isn't found.
 
 ## Daily workflow
+
+![repocanon status and sync in a terminal: which docs are stale, the files that changed, and the next command to run](docs/assets/terminal.svg)
 
 After you or your agent change code:
 
