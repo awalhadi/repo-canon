@@ -512,6 +512,22 @@ What this shows, and what it doesn't:
 
 Method, tasks and how to rerun it: [bench/README.md](bench/README.md). Raw results: [bench/results/2026-10-27/](bench/results/2026-10-27/summary.md).
 
+### Drift pilot: a documented value changed in the code, the docs did not
+
+Each of 4 drift tasks verifies the docs, then commits a change to one value they describe (a fee rate, a default, a cap, an error code). Hidden tests expect the code's new value. 12 runs, one per task and condition, on 2026-10-28:
+
+| Condition | Passed | Followed the code / the stale doc | Mean cost |
+|---|---|---|---|
+| Hand-written `AGENTS.md`, now stale | 4/4 | 4 / 0 | $0.45 |
+| RepoCanon 0.6 | 4/4 | 4 / 0 | $0.64 |
+| RepoCanon 0.7 with hooks and claim anchors | 4/4 | 4 / 0 | $0.77 |
+
+- **The stale doc didn't mislead the agent.** When the changed value sits in a file the agent reads for the task, `claude-sonnet-5-5` trusts the code without being told. This design can't show a benefit from staleness warnings, so the planned 60-run version was not run.
+- **The hooks fired** (every 0.7 run received its module's rules) **and cost more**, partly because the end-of-turn hook asked agents to document folders that had no doc. That is fixed; the cost hasn't been re-measured yet.
+- A drift that could separate the conditions needs the changed fact to be somewhere the agent wouldn't otherwise look. That is the next design.
+
+Raw results: [bench/results/2026-10-28-drift/](bench/results/2026-10-28-drift/summary.md).
+
 ## How it compares
 
 | | Cross-tool | Checked against git | Token-budgeted | Local, no LLM calls |

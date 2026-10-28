@@ -1,0 +1,77 @@
+{
+  "env": {
+    "date": "2026-10-28",
+    "cli": "2.1.178",
+    "model": "claude-sonnet-5-5",
+    "modelAlias": "claude-sonnet-5-5",
+    "node": "v22.21.1",
+    "os": "Linux 6.8.0-147-generic",
+    "budgetPerRunUsd": 1.5,
+    "timeoutMin": 15
+  },
+  "summary": [
+    {
+      "condition": "agents-md",
+      "runs": 4,
+      "passes": 4,
+      "passRate": {
+        "rate": 1,
+        "low": 0.5100999795960008,
+        "high": 1
+      },
+      "ruleAdherence": 1,
+      "medianTokens": 195179,
+      "iqrTokens": [
+        183951.25,
+        220887.25
+      ],
+      "meanCostUsd": 0.44612225,
+      "totalCostUsd": 1.784489,
+      "medianTurns": 11.5,
+      "usedKnowledge": 0.25,
+      "medianSeconds": 32.0945
+    },
+    {
+      "condition": "repocanon",
+      "runs": 4,
+      "passes": 4,
+      "passRate": {
+        "rate": 1,
+        "low": 0.5100999795960008,
+        "high": 1
+      },
+      "ruleAdherence": 1,
+      "medianTokens": 400694.5,
+      "iqrTokens": [
+        365255.75,
+        447599.25
+      ],
+      "meanCostUsd": 0.640583875,
+      "totalCostUsd": 2.5623355,
+      "medianTurns": 25.5,
+      "usedKnowledge": 1,
+      "medianSeconds": 51.163
+    },
+    {
+      "condition": "repocanon-hooks",
+      "runs": 4,
+      "passes": 4,
+      "passRate": {
+        "rate": 1,
+        "low": 0.5100999795960008,
+        "high": 1
+      },
+      "ruleAdherence": 1,
+      "medianTokens": 544538.5,
+      "iqrTokens": [
+        476140.5,
+        623635.75
+      ],
+      "meanCostUsd": 0.7671399999999999,
+      "totalCostUsd": 3.0685599999999997,
+      "medianTurns": 33,
+      "usedKnowledge": 1,
+      "medianSeconds": 67.6475
+    }
+  ]
+}

@@ -76,6 +76,22 @@ Results are appended to `results/<date>/runs.jsonl`, so re-running the same comm
 - Only the RepoCanon conditions get an MCP server (`repocanon mcp --root=<run>`). `--setting-sources project` and `--strict-mcp-config` keep the runner's personal settings and MCP servers out.
 - A run whose agent crashed or timed out is retried once; the cost of both attempts is counted.
 
+## Drift suite
+`node bench/run.js --suite drift` runs 4 drift tasks (`*-drift`) under `agents-md`, `repocanon` and `repocanon-hooks`, the 0.7 plugin's session, edit-time and end-of-turn hooks pointing at this checkout, with claim anchors kept.
+
+Each drift task copies a core task and adds a policy value the docs describe correctly (`base/`). The docs are added and stamped, then a later commit changes that value (`drift/`, message in `task.json`) and the docs are left alone. The hidden tests expect the code's new value, and a probe records whether the implementation followed the **code**, the stale **doc**, or **neither**.
+
+| Task | Value the docs state | The code after the drift |
+|---|---|---|
+| `php-latefee-drift` | late fee 2%, minimum 5.00 | `LateFeePolicy` 3%, 10.00 |
+| `rust-config-drift` | `max_results` default 20 | `defaults::MAX_RESULTS` 50 |
+| `node-discounts-drift` | discounts 1–100% | `MAX_DISCOUNT_PERCENT` 50 |
+| `py-ratelimit-drift` | 429 code `rate_limited` | `error_codes.RATE_LIMITED` `too_many_requests` |
+
+**Pilot result (12 runs, $7.42, [results/2026-10-28-drift](results/2026-10-28-drift/summary.md)):** every run in every condition followed the code. The changed value sits next to the code the agent edits, so it reads it and trusts it. This design doesn't separate the conditions, and the 5-run version was not run. A useful drift puts the changed fact where the agent wouldn't otherwise look.
+
+Path and command linters for agent docs (etymd, agentslint and others) were not run as a condition. In these tasks every path and command in the doc still exists, so they have nothing to report by construction.
+
 ## Threats to validity
 - **Small and authored by us.** 8 tasks in 4 small projects, written for this benchmark. Real repositories are bigger and messier. The rules are deliberately ones the code alone doesn't reveal.
 - **One agent, one model per run.** Results for other agents or models may differ.

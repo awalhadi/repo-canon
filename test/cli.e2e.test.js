@@ -307,6 +307,18 @@ test('agent-hook: session context names stale docs; stop nudges once for undocum
 
   g(d, 'commit', '-qam', 'billing + doc');
   assert.match(hook('session-start').stdout, /Stale docs \(code changed since they were verified\): modules\/billing\.md/);
+
+  // Found by the drift benchmark: nudges for modules with no doc, caches and tests only cost turns
+  fs.rmSync(path.join(d, '.ai/modules/billing.md'));
+  g(d, 'commit', '-qam', 'no billing doc');
+  fs.appendFileSync(path.join(d, 'app/Services/Billing/S.php'), 'again');
+  fs.mkdirSync(path.join(d, 'app/Services/Billing/__pycache__'), { recursive: true });
+  fs.writeFileSync(path.join(d, 'app/Services/Billing/__pycache__/s.cpython-312.pyc'), 'x');
+  assert.equal(hook('stop', '{}').stdout, '');                            // module has no doc: doctor's job
+  g(d, 'checkout', '--', '.'); g(d, 'checkout', 'HEAD~1', '--', '.ai/modules/billing.md'); g(d, 'commit', '-qam', 'doc back');
+  fs.mkdirSync(path.join(d, 'tests'), { recursive: true });
+  fs.writeFileSync(path.join(d, 'app/Services/Billing/S.test.php'), 'test');
+  assert.equal(hook('stop', '{}').stdout, '');                            // a test and a cache file only
 });
 
 test('agent-hook pre-edit: the edited module\'s rules arrive as PreToolUse context, once per session', () => {

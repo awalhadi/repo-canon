@@ -6,6 +6,8 @@ const os = require('os');
 const path = require('path');
 const { exists, read, isPathInside } = require('../core/fs');
 const { getUncommittedPaths } = require('../core/git');
+const { loadConfig } = require('../core/config');
+const { getDriftOptions } = require('../core/drift');
 const { estimateTokens } = require('../core/tokens');
 const { getDocStatus } = require('./status.service');
 const { getModuleMap, getFreshnessLabel } = require('./pack.service');
@@ -85,18 +87,21 @@ function getStopNudge(root, input = {}) {
     return null;
   }
 
-  const changedCode = getUncommittedPaths(root, ['.', ':(exclude).ai']).map(toCurrentPath);
+  // Only changes that could make a doc stale: not tests, docs, lockfiles or build output
+  const { classify } = getDriftOptions(loadConfig(root));
+  const changedCode = getUncommittedPaths(root, ['.', ':(exclude).ai']).map(toCurrentPath).filter(file => !classify(file));
   if (!changedCode.length) {
     return null;
   }
   const changedDocs = new Set(getUncommittedPaths(root, ['.ai']).map(toCurrentPath));
 
   const pending = [];
-  for (const mod of getModuleMap(root)) {
+  // Modules without a doc are left to doctor and sync: asking for a new doc at the end of
+  // every turn sent agents into documenting folders like "src" and "tests"
+  for (const mod of getModuleMap(root).filter(m => m.doc)) {
     const files = changedCode.filter(file => mod.paths.some(p => isPathInside(file, p)));
-    const doc = mod.doc || `.ai/modules/${mod.slug}.md`;
-    if (files.length && !changedDocs.has(doc)) {
-      pending.push({ slug: mod.slug, doc, files });
+    if (files.length && !changedDocs.has(mod.doc)) {
+      pending.push({ slug: mod.slug, doc: mod.doc, files });
     }
   }
   if (!pending.length) {

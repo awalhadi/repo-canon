@@ -2,11 +2,13 @@
 
 /**
  * Changes that never make a knowledge doc stale: tests, prose docs and lockfiles
- * describe or pin the code without changing its behaviour or rules.
+ * describe or pin the code without changing its behaviour or rules; build output
+ * (Python caches) isn't the code at all.
  */
 const IGNORED_KINDS = [
   ['tests', /(^|\/)(tests?|__tests__|spec|specs)\/|\.(test|spec)\.[a-z0-9]+$|_test\.(go|py)$|(^|\/)test_[^/]+\.py$/i],
   ['docs', /\.(md|mdx|txt|rst)$/i],
+  ['build output', /(^|\/)(__pycache__|\.pytest_cache|\.mypy_cache)\/|\.py[co]$/],
   ['lockfile', /(^|\/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|bun\.lockb|composer\.lock|Cargo\.lock|go\.sum|poetry\.lock|Gemfile\.lock|uv\.lock)$/]
 ];
 

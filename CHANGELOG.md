@@ -12,6 +12,12 @@ All notable changes to RepoCanon. Versions follow [semver](https://semver.org); 
 - `secrets` (and so the pre-commit hook, including hooks installed earlier) also blocks unsafe instructions in staged agent docs and pointer files. `--json` keeps its shape; each finding now has `type: secret | instruction`.
 - **Rules at edit time.** The Claude Code plugin adds a `PreToolUse` hook (`repocanon agent-hook pre-edit`) on Read, Edit, Write, MultiEdit and NotebookEdit. The first time Claude reads or edits a file in a module, the hook adds that module's Invariants and Gotchas as context. Hook context reaches the model next to the tool's result, so firing on Read is what makes the rules arrive before the edit (at most ~300 tokens, once per module per session, labelled when the doc is stale). The rules no longer depend on the agent calling an MCP tool, which the benchmark showed headless agents never do.
 
+### Fixed
+- The end-of-turn hook no longer asks the agent to document modules that have no doc (such as the generic `src` or `tests` folders), and ignores test-only changes and Python caches. In the drift benchmark these nudges cost extra turns.
+
+### Benchmark
+- New drift suite (`node bench/run.js --suite drift`) and condition `repocanon-hooks`. Pilot (12 runs): every condition followed the changed code over the stale doc, so this design can't show a benefit from staleness warnings. See README › Benchmark.
+
 ### Changed (format)
 - **Decisions are one file each.** `rc_propose_adr` writes `.ai/decisions/<date>-<slug>.md` with the id `D-<date>-<slug>` instead of adding a numbered `D-NNN` entry to `.ai/DECISIONS.md`. Two branches or agents recording decisions no longer collide on an id or conflict on merge. Existing `DECISIONS.md` entries are still read, count as duplicates, and can be superseded. The AGENTS.md rules digest lists both formats and now leaves out superseded decisions. If the digest conflicts after a merge, run `repocanon rules`.
 
