@@ -88,7 +88,9 @@ function getDefinitionPatterns(name) {
     new RegExp(`^\\s*${mods}(?:const|let|var|val)\\s+${n}\\b`),
     new RegExp(`^\\s*${noTerminator}${notStatement}${mods}(?:get\\s+|set\\s+)?${n}\\s*(?:<[^>]*>)?\\s*\\(`),
     new RegExp(`^\\s*${noTerminator}${notStatement}${mods}[\\w<>\\[\\],.?]+(?:\\s+[\\w<>\\[\\],.?]+)*\\s+${n}\\s*\\(`),
-    new RegExp(`^\\s*${n}\\s*[:=]\\s*(?:async\\s*)?(?:function\\b|\\(|[\\w$]+\\s*=>)`)
+    new RegExp(`^\\s*${n}\\s*[:=]\\s*(?:async\\s*)?(?:function\\b|\\(|[\\w$]+\\s*=>)`),
+    // Module-level assignment, unindented: Python/Ruby constants (`RATE_LIMITED = 'x'`, `MAX: int = 5`)
+    new RegExp(`^${n}\\s*(?::\\s*[\\w\\[\\], .|]+)?\\s*=(?!=)`)
   ];
 }
 

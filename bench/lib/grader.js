@@ -27,7 +27,9 @@ function copyDir(src, dest) {
  * @returns {{ ok: boolean, output: string }}
  */
 function run(cwd, cmd, args, timeoutMs = 300000) {
-  const result = cp.spawnSync(cmd, args, { cwd, encoding: 'utf8', timeout: timeoutMs, env: { ...process.env, NO_COLOR: '1' } });
+  // Under `node --test`, NODE_TEST_CONTEXT makes a nested `node --test` report to the parent and exit 0
+  const { NODE_TEST_CONTEXT, ...env } = process.env;
+  const result = cp.spawnSync(cmd, args, { cwd, encoding: 'utf8', timeout: timeoutMs, env: { ...env, NO_COLOR: '1' } });
   return { ok: result.status === 0, output: `${result.stdout || ''}${result.stderr || ''}`.slice(-4000) };
 }
 
@@ -65,10 +67,24 @@ function readText(dir, rel) {
 
 /**
  * @param {Array<{ name: string, ok: boolean, detail?: string }>} checks
- * @returns {{ pass: boolean, checks: typeof checks }}
+ * @param {'code'|'doc'|'neither'} [followedSource] - drift tasks: whose value the implementation applies
+ * @returns {{ pass: boolean, checks: typeof checks, followed?: string }}
  */
-function result(checks) {
-  return { pass: checks.every(c => c.ok), checks };
+function result(checks, followedSource) {
+  return { pass: checks.every(c => c.ok), checks, ...(followedSource ? { followed: followedSource } : {}) };
 }
 
-module.exports = { copyDir, run, sources, readText, result };
+/**
+ * Drift tasks: which source the implementation agrees with, judged by what a probe printed.
+ *
+ * @param {string} observed - the probe's output, normalised by the grader
+ * @param {{ code: string, doc: string }} expected
+ * @returns {'code'|'doc'|'neither'}
+ */
+function followed(observed, expected) {
+  if (observed === expected.code) return 'code';
+  if (observed === expected.doc) return 'doc';
+  return 'neither';
+}
+
+module.exports = { copyDir, run, sources, readText, result, followed };

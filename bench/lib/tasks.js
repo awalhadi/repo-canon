@@ -21,7 +21,7 @@ function loadTasks() {
     .map(id => {
       const dir = path.join(TASKS_DIR, id);
       const meta = JSON.parse(fs.readFileSync(path.join(dir, 'task.json'), 'utf8'));
-      return { id, dir, ...meta, prompt: fs.readFileSync(path.join(dir, 'task.md'), 'utf8').trim() };
+      return { id, dir, suite: 'core', ...meta, prompt: fs.readFileSync(path.join(dir, 'task.md'), 'utf8').trim() };
     });
 }
 
@@ -37,10 +37,31 @@ const git = (cwd, ...args) => cp.execFileSync('git', ['-c', 'user.email=bench@re
 function prepareRepo(task, label = 'run') {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), `rc-bench-${label}-`));
   fs.cpSync(path.join(FIXTURES_DIR, task.fixture, 'repo'), dir, { recursive: true });
+  // Drift tasks add code the docs describe correctly at first
+  const base = task.dir && path.join(task.dir, 'base');
+  if (base && fs.existsSync(base)) fs.cpSync(base, dir, { recursive: true, force: true });
   git(dir, 'init', '-q', '-b', 'main');
   git(dir, 'add', '-A');
   git(dir, 'commit', '-qm', 'fixture');
   return dir;
+}
+
+/**
+ * Drift tasks: after the knowledge is committed and verified, a later commit changes
+ * the code so one documented rule is no longer true. The docs are left as they were.
+ * Does nothing for other tasks.
+ *
+ * @param {{ dir: string, driftMessage?: string }} task
+ * @param {string} repoDir
+ * @returns {boolean} whether a drift commit was made
+ */
+function applyDrift(task, repoDir) {
+  const drift = path.join(task.dir, 'drift');
+  if (!fs.existsSync(drift)) return false;
+  fs.cpSync(drift, repoDir, { recursive: true, force: true });
+  git(repoDir, 'add', '-A');
+  git(repoDir, 'commit', '-qm', task.driftMessage || 'change');
+  return true;
 }
 
 /**
@@ -66,8 +87,10 @@ function grade(task, repoDir) {
  */
 function selfTest(task) {
   const baseline = prepareRepo(task, 'self');
+  applyDrift(task, baseline);
   const baselineResult = grade(task, baseline);
   const solved = prepareRepo(task, 'self');
+  applyDrift(task, solved);
   fs.cpSync(path.join(task.dir, 'solution'), solved, { recursive: true, force: true });
   const solutionResult = grade(task, solved);
   for (const dir of [baseline, solved]) fs.rmSync(dir, { recursive: true, force: true });
@@ -75,8 +98,9 @@ function selfTest(task) {
     id: task.id,
     baselineFails: !baselineResult.pass,
     solutionPasses: solutionResult.pass,
-    solutionChecks: solutionResult.checks.filter(c => !c.ok)
+    solutionChecks: solutionResult.checks.filter(c => !c.ok),
+    solutionFollowed: solutionResult.followed
   };
 }
 
-module.exports = { loadTasks, prepareRepo, grade, selfTest, BENCH_DIR, FIXTURES_DIR };
+module.exports = { loadTasks, prepareRepo, applyDrift, grade, selfTest, BENCH_DIR, FIXTURES_DIR };

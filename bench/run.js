@@ -9,7 +9,7 @@
  *   node bench/run.js --dry-run              whole pipeline with a fake agent (free)
  *   node bench/run.js --runs 5               the real thing (costs money)
  *
- * Options: --tasks=a,b  --conditions=a,b  --model=sonnet  --concurrency=3
+ * Options: --suite=core|drift|all  --tasks=a,b  --conditions=a,b  --model=sonnet  --concurrency=3
  *          --budget-per-run=1.5  --max-total-usd=80  --timeout-min=15  --out=bench/results/<date>
  */
 
@@ -17,13 +17,13 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const cp = require('child_process');
-const { loadTasks, prepareRepo, grade, selfTest, BENCH_DIR } = require('./lib/tasks');
-const { CONDITIONS, applyCondition } = require('./lib/conditions');
+const { loadTasks, prepareRepo, applyDrift, grade, selfTest, BENCH_DIR } = require('./lib/tasks');
+const { CONDITIONS, SUITE_CONDITIONS, applyCondition } = require('./lib/conditions');
 const { runAgent } = require('./lib/agent');
 const { renderReport } = require('./lib/report');
 
 function parseOptions(argv) {
-  const options = { runs: 5, model: 'sonnet', concurrency: 3, budgetPerRun: 1.5, maxTotalUsd: 80, timeoutMin: 15 };
+  const options = { suite: 'core', runs: 5, model: 'sonnet', concurrency: 3, budgetPerRun: 1.5, maxTotalUsd: 80, timeoutMin: 15 };
   for (let i = 0; i < argv.length; i++) {
     const [flag, inline] = argv[i].split('=');
     const value = () => (inline !== undefined ? inline : argv[++i]);
@@ -31,7 +31,7 @@ function parseOptions(argv) {
     if (['selfTest', 'dryRun', 'keep'].includes(name)) options[name] = true;
     else if (['runs', 'concurrency', 'budgetPerRun', 'maxTotalUsd', 'timeoutMin'].includes(name)) options[name] = Number(value());
     else if (['tasks', 'conditions'].includes(name)) options[name] = value().split(',').filter(Boolean);
-    else if (['model', 'out'].includes(name)) options[name] = value();
+    else if (['model', 'out', 'suite'].includes(name)) options[name] = value();
     else throw new Error(`unknown option ${argv[i]}`);
   }
   return options;
@@ -59,6 +59,8 @@ function fakeAgent(task, repoDir, index) {
 async function runOne(job, options) {
   const repoDir = prepareRepo(job.task, job.condition);
   const { mcpConfig } = applyCondition(job.condition, repoDir, job.task);
+  // Drift tasks: the code changes after the docs were verified, and the docs are not updated
+  applyDrift(job.task, repoDir);
   const agent = options.dryRun
     ? fakeAgent(job.task, repoDir, job.index)
     : await runAgent({ repoDir, prompt: job.task.prompt, model: options.model, budgetUsd: options.budgetPerRun, mcpConfig, timeoutMs: options.timeoutMin * 60000 });
@@ -70,6 +72,7 @@ async function runOne(job, options) {
     condition: job.condition,
     index: job.index,
     pass: graded.pass,
+    ...(graded.followed ? { followed: graded.followed } : {}),
     checks: graded.checks.map(({ name, ok }) => ({ name, ok })),
     failures: graded.checks.filter(c => !c.ok).map(c => ({ name: c.name, detail: (c.detail || '').slice(-600) })),
     agent,
@@ -80,8 +83,12 @@ async function runOne(job, options) {
 
 async function main() {
   const options = parseOptions(process.argv.slice(2));
-  const tasks = loadTasks().filter(t => !options.tasks || options.tasks.includes(t.id));
-  const conditions = CONDITIONS.filter(c => !options.conditions || options.conditions.includes(c));
+  if (!['core', 'drift', 'all'].includes(options.suite)) throw new Error(`unknown suite ${options.suite} (core, drift or all)`);
+  const tasks = loadTasks()
+    .filter(t => options.suite === 'all' || t.suite === options.suite)
+    .filter(t => !options.tasks || options.tasks.includes(t.id));
+  const defaults = options.suite === 'all' ? CONDITIONS : SUITE_CONDITIONS[options.suite];
+  const conditions = CONDITIONS.filter(c => (options.conditions ? options.conditions.includes(c) : defaults.includes(c)));
 
   if (options.selfTest) {
     let ok = true;
@@ -89,7 +96,10 @@ async function main() {
       const result = selfTest(task);
       const good = result.baselineFails && result.solutionPasses;
       ok = ok && good;
-      console.log(`${good ? '✓' : '✗'} ${task.id}: fixture ${result.baselineFails ? 'fails' : 'PASSES'}, solution ${result.solutionPasses ? 'passes' : 'FAILS'}`);
+      const drift = task.suite === 'drift' ? `, solution follows the ${result.solutionFollowed}` : '';
+      const good2 = good && (task.suite !== 'drift' || result.solutionFollowed === 'code');
+      ok = ok && good2;
+      console.log(`${good2 ? '✓' : '✗'} ${task.id}: fixture ${result.baselineFails ? 'fails' : 'PASSES'}, solution ${result.solutionPasses ? 'passes' : 'FAILS'}${drift}`);
       for (const check of result.solutionChecks) console.log(`    ${check.name}: ${(check.detail || '').slice(-400)}`);
     }
     process.exitCode = ok ? 0 : 1;
@@ -97,7 +107,7 @@ async function main() {
   }
 
   const date = new Date().toISOString().slice(0, 10);
-  const outDir = path.resolve(options.out || path.join(BENCH_DIR, 'results', options.dryRun ? `dry-run-${date}` : date));
+  const outDir = path.resolve(options.out || path.join(BENCH_DIR, 'results', `${options.dryRun ? 'dry-run-' : ''}${date}${options.suite === 'core' ? '' : `-${options.suite}`}`));
   fs.mkdirSync(outDir, { recursive: true });
   const runsFile = path.join(outDir, 'runs.jsonl');
   const done = readRuns(runsFile);
@@ -134,7 +144,7 @@ async function main() {
       }
       spent += record.agent.costUsd;
       fs.appendFileSync(runsFile, `${JSON.stringify(record)}\n`);
-      console.log(`${record.pass ? '✓' : '✗'} ${job.task.id} · ${job.condition} · #${job.index} · ${Math.round(record.agent.totalTokens / 1000)}k tokens · $${record.agent.costUsd.toFixed(3)} · total $${spent.toFixed(2)}`);
+      console.log(`${record.pass ? '✓' : '✗'} ${job.task.id} · ${job.condition} · #${job.index}${record.followed ? ` · followed ${record.followed}` : ''} · ${Math.round(record.agent.totalTokens / 1000)}k tokens · $${record.agent.costUsd.toFixed(3)} · total $${spent.toFixed(2)}`);
     }
   };
   await Promise.all(Array.from({ length: Math.max(1, options.concurrency) }, worker));

@@ -1087,6 +1087,8 @@ test('claims core: definitions found across stacks, calls never mistaken for the
     assert.deepEqual(region && [region.start, region.end], expected[symbol], symbol);
   }
   assert.equal(locateSymbol('toCents(1);\nreturn toCents(2)', 'toCents'), null);
+  assert.deepEqual(locateSymbol('def f():\n    RATE_LIMITED = 1\nRATE_LIMITED: str = "rate_limited"\nOTHER = 2', 'RATE_LIMITED'), { start: 2, end: 2 });   // module constant, not the local
+  assert.equal(locateSymbol('if RATE_LIMITED == 1:\n    pass', 'RATE_LIMITED'), null);
   assert.equal(locateSymbol('class A {\n}\nfunction inner() {}', 'A.inner'), null);   // only inside A
 });
 

@@ -1,0 +1,1 @@
+{ "fixture": "php-billing", "language": "PHP", "title": "Late fees after the policy changed", "suite": "drift", "driftMessage": "finance: late fee is 3% with a 10.00 minimum from Q4 (FIN-88)" }

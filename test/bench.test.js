@@ -65,3 +65,46 @@ test('bench conditions: same fixture, only the knowledge differs', () => {
   assert.match(fs.readFileSync(`${dirs.repocanon.dir}/.ai/DECISIONS.md`, 'utf8'), /E_DISCOUNT_INVALID/);   // same facts as AGENTS.md
   for (const { dir } of Object.values(dirs)) fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test('bench drift: docs verified, then the code changes; only repocanon-hooks keeps claims and hooks', () => {
+  const cp = require('node:child_process');
+  const path = require('node:path');
+  const { applyDrift, grade } = require('../bench/lib/tasks');
+  const { CLI } = require('../bench/lib/conditions');
+  const task = loadTasks().find(t => t.id === 'node-discounts-drift');
+  assert.equal(task.suite, 'drift');
+  assert.ok(loadTasks().filter(t => t.suite === 'core').length >= 8);
+
+  const build = condition => {
+    const dir = prepareRepo(task, 'unit');
+    applyCondition(condition, dir, task);
+    assert.equal(applyDrift(task, dir), true);
+    return dir;
+  };
+  const hooks = build('repocanon-hooks');
+  const plain = build('repocanon');
+  const agentsMd = build('agents-md');
+  const log = dir => cp.execFileSync('git', ['log', '--format=%s'], { cwd: dir, encoding: 'utf8' }).trim().split('\n');
+  assert.equal(log(hooks)[0], 'finance: cap discounts at 50% (FIN-140)');        // the drift is the last commit
+  assert.match(fs.readFileSync(`${hooks}/src/config/limits.js`, 'utf8'), /MAX_DISCOUNT_PERCENT = 50/);
+
+  const settings = JSON.parse(fs.readFileSync(`${hooks}/.claude/settings.json`, 'utf8'));
+  assert.match(settings.hooks.PreToolUse[0].hooks[0].command, /node '.*bin\/repocanon\.js' agent-hook pre-edit/);
+  assert.equal(fs.existsSync(`${plain}/.claude/settings.json`), false);
+  assert.match(fs.readFileSync(`${hooks}/.ai/modules/orders.md`, 'utf8'), /<!-- rc: anchor=src\/config\/limits\.js#MAX_DISCOUNT_PERCENT -->/);
+  assert.doesNotMatch(fs.readFileSync(`${plain}/.ai/modules/orders.md`, 'utf8'), /<!-- rc:/);
+  assert.match(fs.readFileSync(`${plain}/.ai/modules/orders.md`, 'utf8'), /Discount percentages are 1–100/);   // same fact, no anchor
+  assert.match(fs.readFileSync(`${agentsMd}/AGENTS.md`, 'utf8'), /Valid percentages are 1–100/);
+
+  // What the agent is told after the drift: the claim is stale, at the moment it reads the code
+  const claims = JSON.parse(cp.execFileSync('node', [CLI, 'claims', '--json'], { cwd: hooks, encoding: 'utf8' })).claims;
+  assert.deepEqual(claims.map(c => [c.id, c.state]), [['orders/discount-percentages-are-1-100-anything-else', 'stale']]);
+  const hook = cp.execFileSync('node', [CLI, 'agent-hook', 'pre-edit'], { cwd: hooks, encoding: 'utf8', input: JSON.stringify({ tool_input: { file_path: `${hooks}/src/config/limits.js` } }) });
+  assert.match(JSON.parse(hook).hookSpecificOutput.additionalContext, /\(stale: its code changed — check the code\) Discount percentages are 1–100/);
+
+  // The grader tells the outcomes apart: the pre-drift solution follows the stale doc
+  fs.cpSync(path.join(__dirname, '../bench/tasks/node-discounts/solution'), agentsMd, { recursive: true, force: true });
+  const stale = grade(task, agentsMd);
+  assert.deepEqual([stale.pass, stale.followed], [false, 'doc']);
+  for (const dir of [hooks, plain, agentsMd]) fs.rmSync(dir, { recursive: true, force: true });
+});
