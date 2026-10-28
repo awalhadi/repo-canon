@@ -608,7 +608,7 @@ test('claims: unlocked → stamped fresh → stale on a logic change, not a refo
   assert.match(pack.text, /> ⚠ claim "Money is integer cents\." is stale: src\/money\/cents\.js#toCents changed/);
   const hook = cp.spawnSync('node', [CLI, 'agent-hook', 'pre-edit'], { cwd: d, encoding: 'utf8', input: JSON.stringify({ tool_input: { file_path: code } }) });
   const context = JSON.parse(hook.stdout).hookSpecificOutput.additionalContext;
-  assert.match(context, /- \(stale: its code changed — check the code\) Money is integer cents\./);
+  assert.match(context, /- \(stale: src\/money\/cents\.js#toCents changed since this was checked — read it before relying on this\) Money is integer cents\./);
   assert.doesNotMatch(context, /<!-- rc:/);                                 // annotations never cost the agent tokens
 
   fs.writeFileSync(code, 'export function toCents(x) {\n  return 0;\n}\n');

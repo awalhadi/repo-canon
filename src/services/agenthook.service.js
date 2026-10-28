@@ -194,11 +194,13 @@ function getEditContext(root, input = {}) {
   if (!bullets.length || !markShown(input.session_id, mod.slug)) return null;
 
   // A claim whose code changed or vanished is shown as such, so the agent checks the code
-  const claimState = new Map(getClaims(root).claims.filter(c => c.doc === mod.doc).map(c => [c.text, c.state]));
+  // Names the code that changed: it may sit in a module the agent would not otherwise open
+  const claimByText = new Map(getClaims(root).claims.filter(c => c.doc === mod.doc).map(c => [c.text, c]));
   const shown = bullets.map(bullet => {
     const text = bullet.replace(ANNOTATION, '').replace(/^- /, '').trim();
-    const state = claimState.get(text);
-    const flag = state === 'stale' ? '(stale: its code changed — check the code) ' : state === 'broken' ? '(broken: its code or test is gone) ' : '';
+    const claim = claimByText.get(text);
+    const state = claim && claim.state;
+    const flag = state === 'stale' ? `(stale: ${claim.anchor} changed since this was checked — read it before relying on this) ` : state === 'broken' ? '(broken: its code or test is gone) ' : '';
     return `- ${flag}${text}`;
   });
 

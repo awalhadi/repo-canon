@@ -100,7 +100,7 @@ test('bench drift: docs verified, then the code changes; only repocanon-hooks ke
   const claims = JSON.parse(cp.execFileSync('node', [CLI, 'claims', '--json'], { cwd: hooks, encoding: 'utf8' })).claims;
   assert.deepEqual(claims.map(c => [c.id, c.state]), [['orders/discount-percentages-are-1-100-anything-else', 'stale']]);
   const hook = cp.execFileSync('node', [CLI, 'agent-hook', 'pre-edit'], { cwd: hooks, encoding: 'utf8', input: JSON.stringify({ tool_input: { file_path: `${hooks}/src/config/limits.js` } }) });
-  assert.match(JSON.parse(hook).hookSpecificOutput.additionalContext, /\(stale: its code changed — check the code\) Discount percentages are 1–100/);
+  assert.match(JSON.parse(hook).hookSpecificOutput.additionalContext, /\(stale: src\/config\/limits\.js#MAX_DISCOUNT_PERCENT changed since this was checked — read it before relying on this\) Discount percentages are 1–100/);
 
   // The grader tells the outcomes apart: the pre-drift solution follows the stale doc
   fs.cpSync(path.join(__dirname, '../bench/tasks/node-discounts/solution'), agentsMd, { recursive: true, force: true });
