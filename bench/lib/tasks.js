@@ -61,8 +61,33 @@ function applyDrift(task, repoDir) {
   fs.cpSync(drift, repoDir, { recursive: true, force: true });
   git(repoDir, 'add', '-A');
   git(repoDir, 'commit', '-qm', task.driftMessage || 'change');
+  // In a real repo the change that made a doc wrong is rarely the newest commit; agents that
+  // read `git log` would otherwise find it without any help from the docs
+  for (let i = 0; i < (task.buryCommits || 0); i++) {
+    const [file, line, message] = BURY_COMMITS[i % BURY_COMMITS.length];
+    fs.mkdirSync(path.dirname(path.join(repoDir, file)), { recursive: true });
+    fs.appendFileSync(path.join(repoDir, file), `${line}\n`);
+    git(repoDir, 'add', '-A');
+    git(repoDir, 'commit', '-qm', message);
+  }
   return true;
 }
+
+/** Unrelated later commits that bury a drift: docs and notes only, so no doc goes stale from them. */
+const BURY_COMMITS = [
+  ['README.md', '', 'docs: fix a typo in the README'],
+  ['docs/runbook.md', '- Restart the worker after changing env vars.', 'docs: runbook note on restarts'],
+  ['docs/release-notes.md', '- 2.3.1: faster product lookup', 'docs: release notes for 2.3.1'],
+  ['README.md', 'Questions: #shop-dev on Slack.', 'docs: where to ask questions'],
+  ['docs/runbook.md', '- Logs live in the platform console.', 'docs: where the logs are'],
+  ['docs/release-notes.md', '- 2.3.2: clearer error messages', 'docs: release notes for 2.3.2'],
+  ['docs/onboarding.md', '- Run the tests before your first PR.', 'docs: onboarding checklist'],
+  ['README.md', 'License: proprietary.', 'docs: license line'],
+  ['docs/runbook.md', '- Rotate the API keys every quarter.', 'docs: key rotation reminder'],
+  ['docs/release-notes.md', '- 2.3.3: smaller install', 'docs: release notes for 2.3.3'],
+  ['docs/onboarding.md', '- Ask for repo access in #it-help.', 'docs: access requests'],
+  ['docs/glossary.md', '- SKU: stock keeping unit.', 'docs: start a glossary']
+];
 
 /**
  * Runs a task's grader against a repo.
