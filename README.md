@@ -9,6 +9,8 @@
 [![dependencies: 0](https://img.shields.io/badge/dependencies-0-brightgreen)](package.json)
 [![MCP server](https://img.shields.io/badge/MCP-server-blue)](#connect-the-mcp-server)
 
+[![RepoCanon MCP server](https://mcprush.com/badge/repocanon-mcp/card.svg)](https://mcprush.com/to/repocanon-mcp?ref=badge)
+
 Sponsored by **[Framimo](https://framimo.com)** — turn any clip into GIF, WebP, AVIF or MP4, right in your browser.
 
 <p align="center">
